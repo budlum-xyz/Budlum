@@ -93,17 +93,6 @@ impl Validator {
 pub struct AccountState {
     pub accounts: BTreeMap<Address, Account>,
     pub validators: BTreeMap<Address, Validator>,
-    /// Permissionless verifier/validator/relayer registry. Kept in sync with the
-    /// validator set: staking a validator also registers it here (see
-    /// `Executor::apply_transaction_checked`). This is the shared, generic
-    /// participation primitive; it holds no whitelist.
-    pub registry: crate::registry::PermissionlessRegistry,
-    /// Tracks consecutive missed-participation epochs per validator for
-    /// liveness-fault detection.
-    pub liveness: crate::registry::LivenessTracker,
-    /// Tracks per-epoch cryptographically-invalid finality votes per validator
-    /// for invalid-signature-spam slashing (Tur 15).
-    pub invalid_votes: crate::registry::InvalidVoteTracker,
     /// $BUD tokenomics parameters (distribution, burn schedule, vesting).
     pub tokenomics: crate::tokenomics::TokenomicsParams,
     /// State of the timed (annual) reserve burn.
@@ -120,7 +109,6 @@ pub struct AccountState {
     pub last_epoch_time: u64,
     pub governance: GovernanceState,
     pub base_fee: u64,
-    pub block_reward: u64,
     dirty_accounts: HashSet<Address>,
     keys_dirty: bool,
     cached_leaves: Vec<[u8; 32]>,
@@ -136,9 +124,6 @@ impl AccountState {
         AccountState {
             accounts: BTreeMap::new(),
             validators: BTreeMap::new(),
-            registry: crate::registry::PermissionlessRegistry::new(),
-            liveness: crate::registry::LivenessTracker::new(),
-            invalid_votes: crate::registry::InvalidVoteTracker::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
             burn_reserve_address: None,
@@ -149,7 +134,6 @@ impl AccountState {
             last_epoch_time: 0,
             governance: GovernanceState::default(),
             base_fee: MIN_TX_FEE,
-            block_reward: 50, // Default block reward
             dirty_accounts: HashSet::new(),
             keys_dirty: true,
             cached_leaves: Vec::new(),
@@ -165,9 +149,6 @@ impl AccountState {
         let mut state = AccountState {
             accounts: BTreeMap::new(),
             validators: BTreeMap::new(),
-            registry: crate::registry::PermissionlessRegistry::new(),
-            liveness: crate::registry::LivenessTracker::new(),
-            invalid_votes: crate::registry::InvalidVoteTracker::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
             burn_reserve_address: None,
@@ -178,7 +159,6 @@ impl AccountState {
             last_epoch_time: 0,
             governance: GovernanceState::default(),
             base_fee: MIN_TX_FEE,
-            block_reward: 50,
             dirty_accounts: HashSet::new(),
             keys_dirty: true,
             cached_leaves: Vec::new(),
@@ -209,9 +189,6 @@ impl AccountState {
         AccountState {
             accounts,
             validators,
-            registry: crate::registry::PermissionlessRegistry::new(),
-            liveness: crate::registry::LivenessTracker::new(),
-            invalid_votes: crate::registry::InvalidVoteTracker::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
             burn_reserve_address: None,
@@ -222,7 +199,6 @@ impl AccountState {
             last_epoch_time: 0,
             governance: GovernanceState::default(),
             base_fee: MIN_TX_FEE,
-            block_reward: 50,
             dirty_accounts: HashSet::new(),
             keys_dirty: true,
             cached_leaves: Vec::new(),
@@ -251,26 +227,18 @@ impl AccountState {
         // (timed_burn + burn_reserve_address + team_vesting) is restored
         // ATOMICALLY from a single struct so the burn counter can never be
         // restored without its reserve address (which would risk double-burning).
-        let (timed_burn, burn_reserve_address, team_vesting) = match &snapshot.tokenomics_burn {
-            Some(block) => (
-                block.timed_burn.clone(),
-                block.burn_reserve_address,
-                block.team_vesting,
-            ),
-            None => (
-                crate::tokenomics::TimedBurnState::new(),
-                None,
-                None,
-            ),
-        };
+        let (timed_burn, burn_reserve_address, team_vesting) = (
+            crate::tokenomics::TimedBurnState::new(),
+            None,
+            None,
+        );
+        let mut tokenomics = crate::tokenomics::TokenomicsParams::default();
+        tokenomics.block_reward = snapshot.block_reward;
 
         AccountState {
             accounts,
             validators,
-            registry: snapshot.registry.clone(),
-            liveness: snapshot.liveness.clone(),
-            invalid_votes: snapshot.invalid_votes.clone(),
-            tokenomics: snapshot.tokenomics,
+            tokenomics,
             timed_burn,
             burn_reserve_address,
             team_vesting,
@@ -280,7 +248,6 @@ impl AccountState {
             last_epoch_time: snapshot.last_epoch_time,
             governance: GovernanceState::default(),
             base_fee: snapshot.base_fee,
-            block_reward: snapshot.block_reward,
             dirty_accounts: HashSet::new(),
             keys_dirty: true,
             cached_leaves: Vec::new(),
@@ -302,25 +269,9 @@ impl AccountState {
     pub fn add_validator(&mut self, address: Address, stake: u64) {
         let validator = Validator::new(address, stake);
         self.validators.insert(address, validator);
-        self.sync_validator_registration(&address);
         self.keys_dirty = true;
     }
 
-    /// Mirror a validator's current stake into the permissionless registry so
-    /// that "staking == being registered" holds without a manual step. Called
-    /// automatically whenever a validator's stake changes (stake/unstake/slash).
-    ///
-    /// This only touches the VALIDATOR role of the permissionless registry; the
-    /// isolated PoA membership registry is never affected here.
-    pub fn sync_validator_registration(&mut self, address: &Address) {
-        let stake = self.validators.get(address).map(|v| v.stake).unwrap_or(0);
-        self.registry.upsert_stake(
-            *address,
-            crate::registry::role::roles::VALIDATOR,
-            stake,
-            self.epoch_index,
-        );
-    }
     pub fn get_total_stake(&self) -> u64 {
         self.validators
             .values()
@@ -477,16 +428,6 @@ impl AccountState {
         let jail_epochs = 7;
         validator.jail_until = self.epoch_index.saturating_add(jail_epochs);
 
-        // Mirror the slash into the permissionless registry (VALIDATOR role):
-        // mark it Slashed and reflect the reduced bond. Uses the same fixed
-        // ratio already applied to the validator so the two views agree.
-        let _ = self.registry.slash(
-            *address,
-            crate::registry::role::roles::VALIDATOR,
-            crate::registry::SlashingCondition::MaliciousBehaviour,
-            slash_ratio_fixed,
-        );
-
         tracing::info!(
             "Slashed validator {} for {} stake due to {} (Jailed until epoch {})",
             address,
@@ -517,29 +458,6 @@ impl AccountState {
     }
 
     /// Record consensus participation for the epoch that just completed and
-    /// return any liveness [`SlashingReport`](crate::registry::SlashingReport)s
-    /// generated when a validator crosses the consecutive-miss threshold.
-    ///
-    /// `participants` is the set of validators that showed expected participation
-    /// this epoch. The "expected" set is the current active validator set. The
-    /// returned reports are consensus-verified and should be fed into the
-    /// existing evidence→slash flow (`Blockchain::submit_slashing_evidence`),
-    /// not a new slashing path.
-    pub fn record_liveness_epoch(
-        &mut self,
-        epoch: u64,
-        participants: &std::collections::HashSet<Address>,
-    ) -> Vec<crate::registry::SlashingReport> {
-        let expected: Vec<Address> = self
-            .validators
-            .values()
-            .filter(|v| v.is_eligible(epoch))
-            .map(|v| v.address)
-            .collect();
-        let params = *self.registry.params();
-        self.liveness
-            .record_epoch(epoch, &expected, |a| participants.contains(a), &params)
-    }
 
     pub fn advance_epoch(&mut self, current_timestamp: u128) {
         let total_stake = self.get_total_stake();
@@ -572,11 +490,15 @@ impl AccountState {
 
         self.process_unbonding();
 
+        // Process relayer escrow releases (Tur 21)
+
+        // DP1: Distribute epoch-based stake yield to active non-jailed validators
+        // We calculate and distribute rewards proportional to stake using `calculate_epoch_reward` from TokenomicsParams.
+        // This is separate from the `block_reward` which goes to the producer.
         let mut total_yield = 0;
         let mut payouts = Vec::new();
         for (addr, validator) in self.validators.iter() {
             if validator.active && !validator.jailed && !validator.slashed {
-                // DP1: Distribute epoch-based stake yield using calculate_epoch_reward
                 let reward = self.tokenomics.calculate_epoch_reward(validator.stake);
                 if reward > 0 {
                     payouts.push((*addr, reward));
@@ -585,15 +507,16 @@ impl AccountState {
             }
         }
         
+        // DP2: Check supply cap
+        // The total supply cap is 100M. We must ensure we don't mint past it.
         let current_supply = self.circulating_supply();
         let max_supply = crate::tokenomics::BUD_TOTAL_SUPPLY as u128;
         
         if current_supply < max_supply {
             let space_left = max_supply - current_supply;
             if total_yield as u128 > space_left {
-                let scale = (space_left as f64) / (total_yield as f64);
                 for (addr, amount) in payouts {
-                    let scaled_amount = (amount as f64 * scale) as u64;
+                    let scaled_amount = ((amount as u128 * space_left) / total_yield as u128) as u64;
                     if scaled_amount > 0 {
                         self.add_balance(&addr, scaled_amount);
                     }
@@ -638,7 +561,7 @@ impl AccountState {
                 tracing::info!("Executing Governance: BaseFee changed to {}", new_fee);
             }
             ProposalType::ChangeBlockReward(new_reward) => {
-                self.block_reward = *new_reward;
+                self.tokenomics.block_reward = *new_reward;
                 tracing::info!(
                     "Executing Governance: BlockReward changed to {}",
                     new_reward
@@ -745,81 +668,7 @@ impl AccountState {
         total
     }
 
-    /// Bond stake to register (or top up) an account as a RELAYER in the
-    /// permissionless registry. Staking == registration: no whitelist, only the
-    /// economic stake floor from `RegistryParams`. Deducts `amount` from the
-    /// account balance; returns an error if the balance is insufficient or the
-    /// resulting bond is below the minimum stake for a *new* relayer.
-    pub fn bond_relayer(&mut self, address: &Address, amount: u64) -> Result<(), String> {
-        use crate::registry::role::roles;
-        if amount == 0 {
-            return Err("Relayer bond amount must be > 0".into());
-        }
-        let balance = self.get_balance(address);
-        if balance < amount {
-            return Err(format!(
-                "Insufficient balance to bond relayer: have {balance}, need {amount}"
-            ));
-        }
-        let existing = self
-            .registry
-            .get(address, roles::RELAYER)
-            .map(|r| r.stake)
-            .unwrap_or(0);
-        let new_total = existing.saturating_add(amount);
-        if existing == 0 && new_total < self.registry.params().min_stake {
-            return Err(format!(
-                "Relayer bond {new_total} below minimum stake {}",
-                self.registry.params().min_stake
-            ));
-        }
-        // Deduct then sync the registry (upsert_stake handles active/floor).
-        {
-            let account = self.get_or_create(address);
-            account.balance = account.balance.saturating_sub(amount);
-        }
-        self.dirty_accounts.insert(*address);
-        self.registry
-            .upsert_stake(*address, roles::RELAYER, new_total, self.epoch_index);
-        Ok(())
-    }
 
-    /// Bond stake to register (or top up) an account as a PROVER in the
-    /// permissionless registry. Registration is OPTIONAL for proof submission —
-    /// it is only needed to be eligible for prover rewards. Same staking model
-    /// as validators/relayers: no whitelist, only the economic stake floor.
-    pub fn bond_prover(&mut self, address: &Address, amount: u64) -> Result<(), String> {
-        use crate::registry::role::roles;
-        if amount == 0 {
-            return Err("Prover bond amount must be > 0".into());
-        }
-        let balance = self.get_balance(address);
-        if balance < amount {
-            return Err(format!(
-                "Insufficient balance to bond prover: have {balance}, need {amount}"
-            ));
-        }
-        let existing = self
-            .registry
-            .get(address, roles::PROVER)
-            .map(|r| r.stake)
-            .unwrap_or(0);
-        let new_total = existing.saturating_add(amount);
-        if existing == 0 && new_total < self.registry.params().min_stake {
-            return Err(format!(
-                "Prover bond {new_total} below minimum stake {}",
-                self.registry.params().min_stake
-            ));
-        }
-        {
-            let account = self.get_or_create(address);
-            account.balance = account.balance.saturating_sub(amount);
-        }
-        self.dirty_accounts.insert(*address);
-        self.registry
-            .upsert_stake(*address, roles::PROVER, new_total, self.epoch_index);
-        Ok(())
-    }
     pub fn save_to_storage(&self) -> Result<(), String> {
         let storage = match &self.storage {
             Some(s) => s,
@@ -1044,7 +893,7 @@ impl AccountState {
         final_hasher.update(validators_root);
         final_hasher.update(unbonding_root);
         final_hasher.update(self.base_fee.to_le_bytes());
-        final_hasher.update(self.block_reward.to_le_bytes());
+        final_hasher.update(self.tokenomics.block_reward.to_le_bytes());
         final_hasher.update(self.bridge_root);
         final_hasher.update(self.message_root);
         final_hasher.update(self.settlement_root);

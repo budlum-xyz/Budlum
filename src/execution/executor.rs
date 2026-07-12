@@ -31,16 +31,6 @@ impl Executor {
             }
         }
 
-        // $BUD team vesting enforcement (Tur 8b): a transfer must not move the
-        // team account's balance below its still-locked (unvested) portion.
-        // Uses the same validation-rejection path as insufficient balance.
-        if total_cost > state.spendable_balance(&tx.from) {
-            return Err(BudlumError::validation(
-                "vesting_locked",
-                "Amount exceeds unlocked (vested) balance",
-            ));
-        }
-
         match tx.tx_type {
             TransactionType::Transfer => {
                 let sender = state.get_or_create(&tx.from);
@@ -61,11 +51,7 @@ impl Executor {
                 if let Some(v) = validator {
                     v.stake = v.stake.saturating_add(stake_amount);
                     v.active = true;
-                    // Permissionless rule: staking == registration. Keep the
-                    // registry in sync automatically (no separate call).
-                    state.sync_validator_registration(&tx.from);
                 } else {
-                    // add_validator already syncs the registry.
                     state.add_validator(tx.from, stake_amount);
                 }
             }
@@ -89,8 +75,6 @@ impl Executor {
                     if validator.stake == 0 {
                         validator.active = false;
                     }
-                    // Reflect the reduced/zeroed stake in the registry.
-                    state.sync_validator_registration(&tx.from);
                 } else {
                     return Err(BudlumError::validation("not_validator", "Not a validator"));
                 }
@@ -219,32 +203,23 @@ impl Executor {
             total_fees = total_fees.saturating_add(tx.fee);
         }
         if let Some(producer) = block_producer {
-            // Metabolic ($BUD) burn: a fraction of the collected tx fees is
-            // burned (removed from supply) rather than paid to the producer.
-            // Fees were already deducted from senders above, so burning here is
-            // just "credit less to the producer" — a true supply reduction with
-            // no offsetting mint. The block_reward emission is unaffected.
-            let fee_burn = state.tokenomics.metabolic_burn(total_fees);
-            let fees_to_producer = total_fees.saturating_sub(fee_burn);
-            if fee_burn > 0 {
-                tracing::info!(
-                    "Metabolic burn: {} of {} tx fees burned",
-                    fee_burn,
-                    total_fees
-                );
-            }
-            let reward = fees_to_producer.saturating_add(state.block_reward);
+            let mut reward = total_fees.saturating_add(state.tokenomics.block_reward);
             if reward > 0 {
-                let producer_account = state.get_or_create(producer);
-                producer_account.balance = producer_account.balance.saturating_add(reward);
-                tracing::info!(
-                    "Producer {} received reward: {} (fees_kept: {}, burned: {}, block: {})",
-                    producer,
-                    reward,
-                    fees_to_producer,
-                    fee_burn,
-                    state.block_reward
-                );
+                let current_supply = state.circulating_supply();
+                let max_supply = crate::tokenomics::BUD_TOTAL_SUPPLY as u128;
+                if current_supply < max_supply {
+                    let space_left = (max_supply - current_supply) as u64;
+                    if reward > space_left {
+                        reward = space_left;
+                    }
+                } else {
+                    reward = 0;
+                }
+                
+                if reward > 0 {
+                    let producer_account = state.get_or_create(producer);
+                    producer_account.balance = producer_account.balance.saturating_add(reward);
+                }
             }
         }
         Ok(())
@@ -266,7 +241,7 @@ mod tests {
 
         Executor::apply_block(&mut state, &txs, Some(&producer)).unwrap();
 
-        let reward = state.block_reward;
+        let reward = state.tokenomics.block_reward;
         let account = state.get_or_create(&producer);
         assert_eq!(account.balance, reward);
     }
@@ -284,7 +259,7 @@ mod tests {
 
         Executor::apply_block(&mut state, &[tx], Some(&producer)).unwrap();
 
-        let reward = state.block_reward;
+        let reward = state.tokenomics.block_reward;
         let producer_acc = state.get_or_create(&producer);
         assert_eq!(producer_acc.balance, reward + 5);
 

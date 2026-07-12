@@ -233,7 +233,6 @@ impl PoSEngine {
             .is_some_and(|v| v.active && !v.slashed && v.stake >= self.config.min_stake)
     }
 
-
     pub fn serialize_state(&self) -> Result<Vec<u8>, String> {
         let state = serde_json::json!({
             "checkpoints": self.checkpoints.read().map_err(|_| "Lock error".to_string())?.iter().map(|c| {

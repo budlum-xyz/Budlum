@@ -8,7 +8,6 @@ pub struct PoWConfig {
     pub difficulty: usize,
     pub target_block_time: u64,
     pub adjustment_interval: u64,
-    
 }
 impl Default for PoWConfig {
     fn default() -> Self {
@@ -16,7 +15,6 @@ impl Default for PoWConfig {
             difficulty: 2,
             target_block_time: 10,
             adjustment_interval: 100,
-            
         }
     }
 }
@@ -150,10 +148,9 @@ impl ConsensusEngine for PoWEngine {
     }
     fn info(&self) -> String {
         format!(
-            "PoW (difficulty: {}, target: {}..., reward: {} coins)",
+            "PoW (difficulty: {}, target: {}...)",
             self.get_difficulty(),
-            self.target(),
-            0 /* No block reward in PoWConfig */
+            self.target()
         )
     }
 

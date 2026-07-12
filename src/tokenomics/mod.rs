@@ -124,6 +124,13 @@ pub struct TokenomicsParams {
     /// by `FIXED_POINT_SCALE`. Low/symbolic default; real value is a separate
     /// economic-modelling turn.
     pub tx_fee_burn_ratio_fixed: u64,
+
+    /// Block reward (minted per block to the producer). 
+    /// Constant emission, not bounded by the genesis supply. (Tur 24, DP3-A)
+    pub block_reward: u64,
+
+    // Tur 25: Stake Yield (Pasif Getiri)
+    // Removed hardcoded parameters in `advance_epoch` and brought them here for config-based governance.
     pub slot_duration_secs: u64,
     pub epoch_length_slots: u64,
     pub validator_annual_yield_ratio_fixed: u64,
@@ -150,9 +157,13 @@ impl Default for TokenomicsParams {
             team_vesting_epochs: 4000,
             // Metabolic burn: 1% of each tx fee, symbolic default.
             tx_fee_burn_ratio_fixed: FIXED_POINT_SCALE / 100,
-            slot_duration_secs: 10,
-            epoch_length_slots: 32,
-            validator_annual_yield_ratio_fixed: (FIXED_POINT_SCALE * 5) / 100,
+            // 50 BUD minted per block to the producer.
+            block_reward: 50,
+            
+            // Stake Yield Defaults (Tur 25)
+            validator_annual_yield_ratio_fixed: (FIXED_POINT_SCALE * 5) / 100, // 5% APY
+            slot_duration_secs: 10, // 10 seconds per slot
+            epoch_length_slots: 32, // 32 slots per epoch
         }
     }
 }
@@ -193,7 +204,21 @@ impl TokenomicsParams {
     }
 
     /// The per-year burn amount (of the original reserve), in base units.
-    
+    pub fn annual_burn_amount(&self) -> u64 {
+        use crate::core::chain_config::FIXED_POINT_SCALE;
+        ((self.burn_reserve as u128 * self.annual_burn_ratio_fixed as u128)
+            / FIXED_POINT_SCALE as u128) as u64
+    }
+
+    /// The metabolic burn taken from a single `fee`.
+    pub fn metabolic_burn(&self, fee: u64) -> u64 {
+        use crate::core::chain_config::FIXED_POINT_SCALE;
+        ((fee as u128 * self.tx_fee_burn_ratio_fixed as u128) / FIXED_POINT_SCALE as u128) as u64
+    }
+
+    /// Calculate epoch-based stake yield for a given stake (Tur 25).
+    /// Moved from dead_code `pos.rs::calculate_reward` to single source of truth.
+    /// Preserves mathematical order to prevent 0-truncation for valid stakes.
     pub fn calculate_epoch_reward(&self, validator_stake: u64) -> u64 {
         use crate::core::chain_config::FIXED_POINT_SCALE;
         let seconds_per_year: u128 = 365 * 24 * 60 * 60;
@@ -205,18 +230,6 @@ impl TokenomicsParams {
             / FIXED_POINT_SCALE as u128;
         let epoch_yield = (annual_yield * self.epoch_length_slots as u128) / slots_per_year;
         epoch_yield.max(1) as u64
-    }
-
-    pub fn annual_burn_amount(&self) -> u64 {
-        use crate::core::chain_config::FIXED_POINT_SCALE;
-        ((self.burn_reserve as u128 * self.annual_burn_ratio_fixed as u128)
-            / FIXED_POINT_SCALE as u128) as u64
-    }
-
-    /// The metabolic burn taken from a single `fee`.
-    pub fn metabolic_burn(&self, fee: u64) -> u64 {
-        use crate::core::chain_config::FIXED_POINT_SCALE;
-        ((fee as u128 * self.tx_fee_burn_ratio_fixed as u128) / FIXED_POINT_SCALE as u128) as u64
     }
 }
 
