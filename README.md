@@ -5,7 +5,7 @@
 Budlum is a research-grade Layer-1 that does **not** replace other chains. It **settles** them: each domain keeps its own consensus (PoW, PoS, PoA, BFT, ZK, or custom); Budlum verifies finality proofs and records cross-domain value transfer as cryptographic fact.
 
 [![CI](https://github.com/lubosruler/budlum/actions/workflows/ci.yml/badge.svg)](https://github.com/lubosruler/budlum/actions)
-[![Tests](https://img.shields.io/badge/tests-451%20lib-blue)](https://github.com/lubosruler/budlum)
+[![Tests](https://img.shields.io/badge/tests-452%20lib-blue)](https://github.com/lubosruler/budlum)
 [![Rust](https://img.shields.io/badge/rust-1.94%2B-orange)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -107,7 +107,7 @@ This is **not** a substitute for a professional external audit.
 ```bash
 cargo fmt --all -- --check
 cargo clippy --lib --tests -- -D warnings
-cargo test --lib          # 451 unit/integration tests (lib)
+cargo test --lib          # 452 unit/integration tests (lib)
 ```
 
 CI (GitHub Actions): fmt → clippy `-D warnings` → `cargo test --lib`, with BudZero checked out as a sibling.
@@ -116,15 +116,28 @@ CI (GitHub Actions): fmt → clippy `-D warnings` → `cargo test --lib`, with B
 
 ## Status & roadmap
 
-| Area | State |
-| --- | --- |
-| Multi-consensus domains | Implemented |
-| BLS + Dilithium QC finality | Implemented |
-| Bridge lifecycle | Implemented + forgery gates |
-| BudZKVM host | Path-dependent on BudZero pin |
-| Full Z-B Merkle soundness | In progress (ignore + prod gate) |
-| PoW light-client finality | Partial (hash work + mint ban) |
-| BLS/PQ HSM | Not yet — disk keys banned on mainnet |
+Aligned with [budlum-xyz/Budlum](https://github.com/budlum-xyz/Budlum) Research Roadmap + ch12 mainnet blockers. Full matrix: `TUR13_ORG_ROADMAP_AUDIT.md` (working notes) and below.
+
+| Area | State | Org roadmap |
+| --- | --- | --- |
+| Multi-consensus domains | Implemented | ✓ |
+| BLS + Dilithium QC finality | Implemented | ✓ |
+| Bridge lifecycle | Implemented + forgery gates; **PoW mint off** until light-client | ✓ / Tur 13.5 |
+| BudZKVM host | Wired to BudZero main (event_digest aligned) | ✓ Tur 12.9 |
+| Full Z-B Merkle soundness | Partial fixes Tur 13; **Production-gated** until positive 64-depth green | BudZero Phase 5 claim vs reality |
+| PoW light-client finality | Partial (hash work + mint ban) | Tur **13.5** |
+| BLS/PQ HSM (beyond Ed25519 PKCS#11) | Disk keys banned on mainnet; full HSM path open | Tur **13.9** |
+| Personas (user / developer / enterprise PoA) | `config/personas/*` + [docs/PERSONAS.md](docs/PERSONAS.md) | Tur **13** |
+| B.U.D. storage network | Out of scope here | **Tur 14** only |
+| External audit / TLA+ / Privacy / AI | Process / research — not claimed done | Checklist Tur 13.9 |
+
+### Personas (same binary)
+
+```bash
+cargo run -- --config config/personas/user-devnet.toml
+cargo run -- --config config/personas/developer.toml
+# enterprise-poa.toml requires PKCS#11 + env secrets; no disk ValidatorKeys
+```
 
 ---
 

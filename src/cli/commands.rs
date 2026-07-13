@@ -907,3 +907,24 @@ mod tests {
         assert_eq!(ConsensusType::PoW as u8, 0);
     }
 }
+
+#[cfg(test)]
+mod persona_config_tests {
+    use super::FileConfig;
+
+    #[test]
+    fn tur13_persona_configs_parse_as_strict_v2() {
+        for path in [
+            "config/personas/user-devnet.toml",
+            "config/personas/developer.toml",
+            "config/personas/enterprise-poa.toml",
+        ] {
+            let content =
+                std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+            let fc: FileConfig =
+                toml::from_str(&content).unwrap_or_else(|e| panic!("parse {path}: {e}"));
+            assert!(fc.network.is_some(), "{path} needs [network]");
+            assert!(fc.node.is_some(), "{path} needs [node]");
+        }
+    }
+}

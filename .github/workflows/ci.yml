@@ -42,7 +42,7 @@ jobs:
           repository: lubosruler/BudZero
           # Tur 12.9: pin BudZero main (event_digest AIR fix + budlum public-input align)
           # (event_digest AIR limbs) with Z-A phase2 bindings.
-          ref: 78e0ef7980d156507fe6d338583b373be3fcd5ec
+          ref: c9c5f477afa578f79872e6a2c688dd44720d74e9
           path: BudZero
 
       # 3. Rust toolchain'i kur (reponun beklediği sürüm)
