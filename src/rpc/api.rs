@@ -231,6 +231,22 @@ pub trait BudlumApi {
         report: crate::registry::SlashingReport,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
+    /// Tur 9.5 (security audit §4): submit a QC fault proof.
+    /// Permissionless: anyone can challenge a QC blob they suspect
+    /// contains an invalid Dilithium attestation. The proof must
+    /// pass the consensus-side Merkle-inclusion + cryptographic
+    /// verification (see `QcFaultProof::verify_against_blob`),
+    /// otherwise the call is rejected. On success the underlying
+    /// QC blob's finality is invalidated from the proof's
+    /// checkpoint height. The cost of producing a valid proof
+    /// (full dilithium5 signature forgery) makes this a free
+    /// permissionless surface without a fee gate.
+    #[method(name = "bud_submitQcFaultProof")]
+    async fn submit_qc_fault_proof(
+        &self,
+        proof: crate::consensus::qc::QcFaultProof,
+    ) -> Result<serde_json::Value, ErrorObjectOwned>;
+
     #[method(name = "bud_health")]
     async fn health(&self) -> Result<serde_json::Value, ErrorObjectOwned>;
 

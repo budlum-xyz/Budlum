@@ -1131,6 +1131,34 @@ impl BudlumApiServer for RpcServer {
         }
     }
 
+    async fn submit_qc_fault_proof(
+        &self,
+        proof: crate::consensus::qc::QcFaultProof,
+    ) -> Result<serde_json::Value, ErrorObjectOwned> {
+        // Tur 9.5 (security audit §4): permissionless entry-point.
+        // The proof's correctness is enforced by
+        // `handle_qc_fault_proof` (merkle inclusion +
+        // cryptographic dilithium verification), which is the
+        // only acceptable gate — it costs ~millions of dollars
+        // of compute to forge a valid proof, so a fee gate is
+        // not required. On a successful proof the underlying
+        // QC blob's finality is invalidated from the proof's
+        // checkpoint height (see
+        // `Blockchain::apply_qc_fault_verdict`).
+        match self.chain.handle_qc_fault_proof(proof).await {
+            Ok(()) => Ok(serde_json::json!({
+                "accepted": true,
+                "effect": "finality_invalidation",
+                "note": "QC blob finality has been invalidated from the proof's checkpoint height",
+            })),
+            Err(e) => Err(ErrorObjectOwned::owned(
+                -32602,
+                format!("Invalid QC fault proof: {}", e),
+                None::<()>,
+            )),
+        }
+    }
+
     async fn health(&self) -> Result<serde_json::Value, ErrorObjectOwned> {
         let height = self.chain.get_height().await;
         let syncing = self.node.is_syncing();

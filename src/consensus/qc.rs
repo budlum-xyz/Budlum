@@ -850,4 +850,32 @@ mod tests {
             );
         }
     }
+
+    /// Tur 9.5 (security audit §4): the QcFaultProof can be built
+    /// from a real QcBlob and verified end-to-end. This is the
+    /// proof surface that the new permissionless RPC endpoint
+    /// `bud_submitQcFaultProof` exposes; the test pins that the
+    /// construction and verification contract still works after
+    /// the Tur 9.5 changes.
+    #[test]
+    fn qc_fault_proof_construction_and_verification_e2e() {
+        let (snapshot, keys) = make_snapshot_with_pq_keys(2);
+        let mut entries = make_signed_entries(&snapshot, &keys, "cp");
+        // Corrupt validator 1's dilithium signature so the blob
+        // has a verifiable fault.
+        entries[1].dilithium_signature[0] ^= 0xAA;
+        let blob = QcBlob::new(snapshot.epoch, 100, "cp".into(), entries);
+
+        let proofs = blob.detect_fault_proofs(&snapshot);
+        assert_eq!(proofs.len(), 1, "exactly one fault should be detected");
+        let proof = &proofs[0];
+
+        // Verify the proof against the blob end-to-end.
+        let verdict = proof
+            .verify_against_blob(&blob, &snapshot)
+            .expect("valid fault proof must verify");
+        assert_eq!(verdict.action, QcProofAction::InvalidateFinality);
+        assert_eq!(verdict.invalidate_from_height, Some(100));
+        assert!(!verdict.slash_validator);
+    }
 }
