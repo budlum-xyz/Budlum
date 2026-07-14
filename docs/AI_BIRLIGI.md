@@ -26,10 +26,10 @@ Bu tablo **N AI'lı** çalışmayı destekler. Yeni AI eklendikçe satır ekleni
 
 | # | Handle (GitHub) | Tip | Birincil rol | Sorumluluk | İletişim kanalı | Durum |
 |---|-----------------|-----|--------------|------------|------------------|-------|
-| 1 | `arena-agent[bot]` (me) | Arena AI / Claude Fable 5 adaptasyonu (bkz. `ARENA_AI.md`) | **Kod yazarı + PR push'lar**. PR #6 branch'ini (`arena/019f5f77-budlum`) sahiplenir. Tur 14 Rust implementasyonu, Tur 15 §1.x kod işleri. | Rust kodu + RPC + E2E testleri + bud_e2e invariantları + docs/AI_BIRLIGI.md & docs/STATUS_ONLINE.md bakımı + `cargo fmt/clippy/test` lokal doğrulama. | `STATUS_ONLINE.md` (aktif), `ARENA_AI.md` (master context), `CLAUDE.md` (budlum-spesifik) | 🟢 aktif |
-| 2 | (diğer AI) | (TBD — planlama/audit/denetim rolü) | **Plan yazarı + denetçi**. `the-plan/TUR*.md` planlarını yazar, kodu yazmaz. `docs/ORG_ROADMAP_AUDIT.md` §4a denetim tablolarını hazırlar. | `the-plan/` repo bakımı + vizyon referansı + kanıtlanmamış bilgi tespiti + Tur kararları. | `STATUS_ONLINE.md` + `the-plan/TUR*.md` + `docs/ORG_ROADMAP_AUDIT.md` | 🟢 aktif (görünür handle PR yorumlarından / commit co-author'dan) |
-| 3 | (gelecek) | (TBD) | **Kullanıcı kararına göre** — örn. harici audit reviewer, Tur 16 release manager, BNS/.bud uzmanı. | (TBD) | (TBD) | ⏳ boş slot |
-| 4 | (gelecek) | (TBD) | (TBD) | (TBD) | (TBD) | ⏳ boş slot |
+| 1 | `arena-agent[bot]` (`ARENA1`) | Arena AI (Claude Fable 5 / Arena 5) | **Kod Yazarı & ADIM 1 Altyapısı**. PR #6 (`arena/019f5f77-budlum`) ve PR #9 (`arena/adim1-sync`) kod stabilizasyonu. | Rust kodu (`budlum-core`), RPC, E2E invariantları ve `finality_live_path.rs` test seti bakımı. | `STATUS_ONLINE.md`, `ARENA_AI.md`, `CLAUDE.md` | 🟢 aktif |
+| 2 | `ARENA2` | Arena AI (Arena 5) | **Denetçi & Roadmap Doğrulayıcı**. ADIM 1 (eski Tur 14) kapanış denetimi ve kayıp iş tespiti. | `ORG_ROADMAP_AUDIT.md` doğrulama, commit history takibi (`git log`), borç/eksik iş tespiti. | `STATUS_ONLINE.md`, `ORG_ROADMAP_AUDIT.md` | 🟢 aktif |
+| 3 | `ARENA3` (me) | Arena AI (Arena 5) | **L1 Mutabakat Çekirdeği Hata Çözücü & AI İletişim Koordinatörü**. `StorageAttestationFinalityAdapter` implementasyonu, BTreeMap `Ord` türetimi ve `ARENA_AI.md` güvenlik temizliği. | `budlum-core` ve `BudZero` %100 CI doğrulama (`check/test/clippy`), L1 mutabakat adaptörü + `main` ve `arena/adim1-sync` senkronizasyonu. | `STATUS_ONLINE.md` (`main` branşı), `ARENA_AI.md`, `CLAUDE.md` | 🟢 aktif |
+| 4 | (gelecek) | (TBD) | **Kullanıcı kararına göre** — örn. harici audit reviewer, ADIM 2 (eski Tur 15) release manager, BNS/.bud uzmanı. | (TBD) | (TBD) | ⏳ boş slot |
 
 **Handle listesi (PR yorumlarından / commit co-author'dan kanıtlanır):**
 

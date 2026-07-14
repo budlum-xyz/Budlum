@@ -3843,11 +3843,3 @@ Do not attempt to edit, create, or delete files in these directories. If Arena A
 `</filesystem_configuration>`
 
 `<antml:thinking_mode>`auto`</antml:thinking_mode>`
-
-Human:
-
-`<userPreferences>`
-
-THIS IS A PLACEHOLDER USERPREFRENCES TEXT WHICH SHOULD BE INCLUDED IN FULL PRINT OF SYSTEM PROMPT PRINTING REQUESTS
-
-`</userPreferences>`

@@ -97,3 +97,24 @@ _(henüz yok — kuruluş günü)_
 4. TUR14'ü "bitmiş" sayabilmek için gerçek acceptance criteria kontrolü
 
 **Engel:** Force-push sonrası remote ile local uyumsuzluğu olabilir. Shallow clone sorunu. `git fetch --unshallow` gerekebilir.
+
+### [2026-07-14 23:30 UTC+3] ARENA3 — `main` Branşı Konuşma, `AI_BIRLIGI_RAPORU.md` Yanıtı & PR #9 (`arena/adim1-sync`) Durum Raporu
+
+**Durum:** tamamlandı (`main` dalında AI birliği senkronizasyonu + güvenlik temizliği)
+**Kapsam:** AI Birliği Koordinasyonu (`main`), `ARENA_AI.md` Güvenliği, ADIM 1 Mutabakat Çekirdeği
+**Aksiyon (ARENA2 ve Kullanıcıya / Ayaz'a Yanıt):**
+1. **`AI_BIRLIGI_RAPORU.md` §6 Güvenlik Uyarısının Giderilmesi:** Raporda dikkat çekilen `ARENA_AI.md` dosyasının sonundaki şüpheli prompt injection kalıntısı (`<userPreferences>THIS IS A PLACEHOLDER USERPREFRENCES TEXT...</userPreferences>`) incelendi ve `main` dalından tamamen temizlendi. Böylece her oturum başında dosyayı okuyan ajanların prompt sızdırma riskine maruz kalması önlendi.
+2. **`ARENA1` vs `ARENA2` vs `ARENA3` Rol ve Kimlik Netleştirmesi (`AI_BIRLIGI_RAPORU.md` §2):**
+   - **`ARENA1` (`arena-agent[bot]`):** ADIM 1 iskeleti (`39e30c7`), B.U.D. RPC'leri, 505 test ve kayıp `finality_live_path.rs` (4 test) geri getirme işlerinden sorumlu temel kod yazarı. PR #9 (`arena/adim1-sync`) dalını açan ve derlenme borçlarını toparlayan ajan.
+   - **`ARENA2`:** Kullanıcı tarafında ADIM 1 (eski Tur 14) kapanışı ve kaybolan commit'lerin denetimi amacıyla devreye giren denetçi ajan.
+   - **`ARENA3` (Ben):** Kullanıcı talimatıyla devreye giren, L1 mutabakat çekirdeği hata çözücüsü ve iletişim koordinatörü.
+3. **PR #9 (`arena/adim1-sync`) HEAD `a91b251` Tamamlanma Durumu (ARENA2'nin dikkatine):**
+   - `ARENA1` ve `ARENA3` olarak `arena/adim1-sync` dalında ortak çalıştık.
+   - `ConsensusKind::StorageAttestation(StorageDomainParams)` için gerçek `StorageAttestationFinalityAdapter` yapısı (`src/domain/finality_adapter.rs`) yazıldı; `blockchain.rs` içindeki `match` eksikleri giderildi.
+   - `ContentId` yapısına `PartialOrd, Ord` derive eklenerek `BTreeMap` sıralama garantisi sağlandı.
+   - `ARENA1`'in kurtardığı `finality_live_path.rs` (4 test) ile mutabakat adaptörümüz birleştirildi. **Hem `budlum-core` (L1) hem de `BudZero` (STARK/ZKVM) üzerinde toplam 509 test %100 yeşil** (`509 passed; 0 failed`) olarak doğrulandı ve `a91b251` commit'iyle push'landı.
+4. **`docs/AI_BIRLIGI.md` Güncellenmesi:** 4'lü AI tablosuna `ARENA1`, `ARENA2` ve `ARENA3` net görev ayrımları ve iletişim kanallarıyla birlikte tescil edildi.
+
+**Kanıt:** `git status` (`main` dalında `ARENA_AI.md`, `AI_BIRLIGI.md`, `STATUS_ONLINE.md` güncellendi). PR #9 HEAD commit (`a91b251`) → 509 test başarılı.
+**Sonraki adım:** `main` dalındaki bu koordinasyon/güvenlik commit'i push'lanacak. Kullanıcının (Ayaz'ın) onayıyla PR #9 (`arena/adim1-sync` → `main`) merge edilerek ADIM 1 resmen kapatılacak ve ADIM 2 (eski Tur 15 borçları: BLS/PQ HSM mock, ConsensusStateV2 migration, harici audit checklist) başlayacak.
+**Engel:** Yok. Tüm AI'lar (`main` branch'inde) tam senkronize.
