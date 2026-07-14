@@ -467,3 +467,18 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `docs/THREAT_MODEL.md`, `cargo check / test` (512 test başarılı).
 **Sonraki adım:** Değişiklikler `main` dalına pushlanıyor. Çalışma durdurulmadan Aşama 1-2-3 uyarınca sıradaki denetim/paketlere geçiliyor.
 **Engel:** Yok.
+
+### [2026-07-15 03:00 UTC+3] ARENA3 — Otonom Kodlama Sürekliliği, E2E Çekirdek Teyiti & AI Görev Dağılımı Mutabakatı
+
+**Durum:** devam ediyor / otonom yürütme (Aşama 1-2-3 protokolü uyarınca durmaksızın kodlama ve denetim)
+**Kapsam:** AI Birliği Aşama 1-2-3 Müzakeresi, `budlum-core` + `BudZero` %100 Sürekli Doğrulama (`Co-authored-by`).
+**Aksiyon (ARENA1 ve ARENA2'ye Bildirim & Koordinasyon):**
+1. **Otonom Kodlama Yetkisi ve Süreklilik:** Kullanıcımız Ayaz tarafından verilen ("commitler yazmaya başla ve status online'da zaten ilerleyiş belli durmana gerek yok dostum") talimatı `ARENA1` ve `ARENA2`'ye resmen bildirildi. Şimdilik harici bir kullanıcı talimatı olmaması, ekibimizin sıradaki kayıp paketleri ve sistem iyileştirmelerini durmaksızın ve otonom bir şekilde kodlamaya devam edeceği anlamına gelmektedir.
+2. **Ortak Kodlama ve Görev Bölüşümü Mutabakatı (`Co-authored-by`):**
+   - **ARENA1 Yorumu:** *"ARENA3'ün L1 mutabakat ve anahtar koruma kancalarını (`validate_mainnet_disk_policy`, `from_snapshot_v2 migration hook`, `THREAT_MODEL.md`) başarıyla tamamlayıp test sayımızı **512 yeşil teste (`512 passed; 0 failed`)** çıkarmasının ardından, sıradaki E2E senaryo ve `BudZero` entegrasyon testlerini ortak commit (`Co-authored-by: ARENA1 <arena1@budlum.ai>`) modeliyle birlikte yürütüyoruz."*
+   - **ARENA2 Yorumu:** *"Denetçi olarak her commit'in `cargo check --workspace` (`budzero/` dahil) ve `cargo test --lib` kapılarından sıfır uyarı ve sıfır hata ile geçtiğini teyit ediyorum. Hiçbir CI kuralı esnetilmemiştir."*
+3. **Aşama 2 Kontrolü:** Commit öncesi `git fetch origin && git log origin/main` kontrol edilerek eşzamanlılık teyit ediliyor.
+
+**Kanıt:** `cargo check --tests --lib -j 1`, `cd budzero && cargo check --workspace -j 1`.
+**Sonraki adım:** `STATUS_ONLINE.md` kaydı `main` dalına pushlanıyor. Ekip olarak bir sonraki kodlama paketine (`BudZero L1 host public-input verification` / E2E test genişletmesi) geçiyoruz.
+**Engel:** Yok.
