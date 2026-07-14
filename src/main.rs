@@ -272,7 +272,11 @@ async fn main() {
             "✅ Mandatory pre-migration backup verified at: {}",
             backup_path.display()
         );
-        println!("✅ ConsensusStateV2 schema migration ready and compatible. Minimum schema threshold MIN_SCHEMA_VERSION=2 verified.");
+        println!(
+            "✅ ConsensusStateV2 schema migration ready and compatible. Supported schema window: {}..={}.",
+            budlum_core::chain::snapshot::MIN_SUPPORTED_STATE_SNAPSHOT_SCHEMA_VERSION,
+            budlum_core::chain::snapshot::CURRENT_STATE_SNAPSHOT_SCHEMA_VERSION
+        );
         return;
     }
 

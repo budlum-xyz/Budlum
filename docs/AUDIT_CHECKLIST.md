@@ -1,7 +1,7 @@
-# External Audit Checklist (Tur 15 §1.5)
+# External Audit Checklist (ADIM 2 §1.5)
 
-**Tarih:** 2026-07-14
-**Durum:** Tur 15 kapsamında oluşturuldu (checklist hazır; audit yapılmadı).
+**Tarih:** 2026-07-15
+**Durum:** ADIM 2 §1.5 kapsamında güncellendi (checklist hazır; audit yapılmadı).
 **Sorumlu:** Audit firması seçimi kullanıcı kararıdır.
 
 > **Önemli:** Bu doküman bir **teslim paketi**dir, "audit tamamlandı"
@@ -34,12 +34,12 @@
 ## 2. Dependency & supply chain
 
 ### 2.1 SBOM
-- [ ] `sbom.cdx.json` (CycloneDX 1.5 format, `scripts/generate-sbom.sh`)
+- [ ] `sbom.cdx.json` (CycloneDX JSON; üretim scripti hazır: `scripts/generate-sbom.sh`)
 - [ ] Tüm transitive bağımlılıklar dahil
 - [ ] License uyumluluğu (GPL/AGPL yok, MIT/Apache-2.0 tercih)
 
 ### 2.2 Dependency audit
-- [ ] `docs/operations/DEPENDENCY_AUDIT.md` (cargo-audit raporu)
+- [x] `docs/operations/DEPENDENCY_AUDIT.md` (cargo-audit prosedür raporu; yetkili ortamda run bekliyor)
 - [ ] Bilinen CVE yok (veya "accepted risk" listesi)
 - [ ] Unmaintained bağımlılık listesi (false positive gözden geçirilmiş)
 
@@ -50,8 +50,8 @@
 ## 3. Fuzzing & dynamic analysis
 
 ### 3.1 Fuzz setup
-- [ ] `fuzz/Cargo.toml` + en az 1 fuzz target (`fuzz/fuzz_targets/`)
-- [ ] `cargo +nightly fuzz check` (build temiz)
+- [x] `fuzz/Cargo.toml` + 5 fuzz target (`fuzz/fuzz_targets/`)
+- [ ] `cargo +nightly fuzz check` (build temiz; yetkili Rust ortamı bekliyor)
 - [ ] Fuzzing run raporu (`fuzz/artifacts/`, crash reproducer)
 
 ### 3.2 Property-based testing
@@ -64,8 +64,8 @@
 - [x] `PRODUCTION_RUNBOOK.md` — Production runbook (Tur 13.5)
 - [x] `ARCHIVE_AND_BACKUP.md` — Archive + backup (Tur 13.5)
 - [ ] `HSM_BLS_PQ_POLICY.md` — BLS/PQ HSM policy (Tur 15 §1.1)
-- [ ] `FINALITY_LIVE_PATH.md` — Finality live-path tarama (Tur 15 §1.3)
-- [ ] `MIGRATION_V2.md` — ConsensusStateV2 migration (Tur 15 §1.4)
+- [x] `FINALITY_LIVE_PATH.md` — Finality live-path tarama (ADIM 2 §1.3)
+- [x] `MIGRATION_V2.md` — ConsensusStateV2 migration skeleton (ADIM 2 §1.4)
 - [ ] `MAINNET_LAUNCH_CHECKLIST.md` — Mainnet launch (Tur 16.9)
 
 ### 4.2 Incident response
@@ -86,7 +86,7 @@
 - [ ] BLS12-381 — Tur 15 §1.1
 - [ ] Dilithium5 (PQ) — Tur 15 §1.1
 - [ ] Keccak-256 (Ethereum uyumluluğu) — mevcut
-- [ ] Poseidon4 (B.U.D. Faz 2) — Tur 15 §1.2
+- [ ] Poseidon4 (B.U.D. Faz 3+/ZK bağlama) — Z-B gate sonrası
 - [ ] Diğer (libp2p noise/ yamux, vs.) — mevcut
 
 ### 5.2 HSM entegrasyonu
@@ -101,7 +101,7 @@
 - [ ] PoS finality adapter — mevcut
 - [ ] PoA finality adapter — mevcut, isolated
 - [ ] BFT finality adapter — mevcut
-- [ ] Storage finality adapter — Tur 15 §1.2 (B.U.D. Faz 1)
+- [x] Storage finality adapter — ADIM 1 B.U.D. Faz 1 (`StorageAttestationFinalityAdapter`)
 - [ ] Custom domains — mevcut
 
 ### 6.2 Cross-domain
@@ -110,8 +110,8 @@
 - [ ] PoW mint gate — Tur 13.5
 
 ### 6.3 Finality
-- [ ] Finality live-path test raporu — Tur 15 §1.3
-- [ ] Adversarial test coverage — `src/tests/finality_adversarial.rs`
+- [x] Finality live-path test raporu — `docs/operations/FINALITY_LIVE_PATH.md`
+- [x] Adversarial test coverage — `src/tests/finality_adversarial.rs`
 
 ## 7. Network & RPC
 
@@ -133,12 +133,12 @@
 - [x] Atomic backup + restore drill — Tur 13.5
 - [x] Retention policy — Tur 13.5
 
-### 8.2 B.U.D. (Tur 15 §1.2)
-- [ ] ContentManifest (CID) — Tur 15
-- [ ] StorageRegistry (permissionless) — Tur 15
-- [ ] 3-aktör E2E testi — Tur 15
-- [ ] Ekonomik parametreler — Tur 15 (StorageEconomicsParams)
-- [ ] Faz 3+ (VerifyMerkle bağımlı) — Tur 17+
+### 8.2 B.U.D. (ADIM 1)
+- [x] ContentManifest (CID) — ADIM 1 (`src/storage/manifest.rs`)
+- [x] StorageRegistry (permissionless) — ADIM 1 (`src/domain/storage_deal.rs`)
+- [x] 3-aktör E2E testi — ADIM 1 (`src/tests/bud_e2e.rs`)
+- [x] Ekonomik parametreler — ADIM 1 (`StorageEconomicsParams`)
+- [ ] Faz 3+ (VerifyMerkle bağımlı) — sonraki ADIM; Z-B 64-depth gate açılmadan yapılmaz
 
 ## 9. Privacy & AI
 
@@ -168,7 +168,7 @@ DEĞİLDİR.
 
 ## İlgili
 
-- `the-plan/TUR15_PLAN.md` §1.5 — plan referansı
+- ADIM 2 §1.5 — external audit checklist plan referansı
 - `docs/operations/DEPENDENCY_AUDIT.md` — dependency audit
 - `docs/operations/SBOM.md` — SBOM
 - `docs/DEVIR_RAPORU.md` — devir raporu

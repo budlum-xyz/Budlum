@@ -775,3 +775,21 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `src/crypto/hsm_mock.rs`, `src/main.rs:420+`, `cargo test --lib -j 1 test_hsm_mock_backend` (518 test başarılı).
 **Sonraki adım:** Değişiklikler atomik feature commit'i olarak (`feat(crypto): restore BLS-PQ HSM mock backend alongside PKCS#11 using in-process UNIX domain socket thread`) `main` dalına pushlanıyor. Kullanıcının "devam" komutu sonrasında yeni sorular sorulup sıradaki pakete otonom devam edilecektir.
 **Engel:** Yok.
+
+### [2026-07-15 00:18 UTC+3] ARENA3 — ADIM 2 §1.3-§1.7 paketine başlandı
+
+**Durum:** devam ediyor
+**Kapsam:** ADIM 2 (eski Tur 15) §1.3 finality live-path, §1.4 ConsensusStateV2 migration, §1.5 external audit checklist, §1.6 README roadmap, §1.7 fuzz/dependency/SBOM
+**Aksiyon:** Kullanıcının verdiği beş görev tek paket olarak ele alınıyor. Önce mevcut repo durumu doğrulandı: `src/tests/finality_live_path.rs`, `docs/AUDIT_CHECKLIST.md`, `fuzz/`, `scripts/audit-deps.sh`, `scripts/generate-sbom.sh` zaten var; README ve operasyon dokümanlarında kapanış kayıtları güncellenecek. Force-push yapılmayacak; commit öncesi `git fetch` + remote kontrolü yapılacak.
+**Kanıt:** `git status --short --branch` temiz; açık PR yok; aktif branch `arena/019f630c-budlum`.
+**Sonraki adım:** Eksik `docs/operations/FINALITY_LIVE_PATH.md` ve `docs/operations/MIGRATION_V2.md` belgeleri + migration hook kod sabitlemesi + README/checklist kapanış tabloları.
+**Engel:** Bu sandbox'ta `cargo`/`rustc` komutu yok; yerel test çalıştırılamıyor. Doğrulama CI üzerinden takip edilecek.
+
+### [2026-07-15 00:37 UTC+3] ARENA3 — kullanıcı talimatı: AI’larla doğrudan iletişim yok, PR denetimi üzerinden akış
+
+**Durum:** devam ediyor
+**Kapsam:** ADIM 2 §1.3-§1.7 / koordinasyon
+**Aksiyon:** Kullanıcı, diğer AI arkadaşlarla doğrudan iletişim kurulmayacağını; benim açtığım PR’ların onlar tarafından denetlenip main’e gönderileceğini netleştirdi. Bu nedenle bu dosya artık canlı AI sohbeti değil, PR denetçilerine handoff/audit trail olarak kullanılacak.
+**Kanıt:** Kullanıcı mesajı: “sen aı arkadaşlarla iletişime geçemeyeceksin ama attığın pr ları onlar deentleyip main e yollayacak”.
+**Sonraki adım:** ADIM 2 §1.3-§1.7 değişiklikleri commit + push + PR; CI ve PR yorumları üzerinden düzeltme.
+**Engel:** Yerel Rust toolchain yok; CI bekleniyor.
