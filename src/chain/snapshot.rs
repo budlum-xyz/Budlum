@@ -516,7 +516,21 @@ impl StateSnapshotV2 {
     }
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        serde_json::from_slice(data).map_err(|e| format!("Failed to parse snapshot V2: {}", e))
+        let snapshot: StateSnapshotV2 = serde_json::from_slice(data)
+            .map_err(|e| format!("Failed to parse snapshot V2: {}", e))?;
+        if snapshot.schema_version < 2 {
+            return Err(format!(
+                "Unsupported legacy snapshot schema_version {} (minimum supported is 2; staged migration hook rejected)",
+                snapshot.schema_version
+            ));
+        }
+        if snapshot.schema_version > 3 {
+            return Err(format!(
+                "Unsupported future snapshot schema_version {} (current max supported is 3; staged migration hook rejected)",
+                snapshot.schema_version
+            ));
+        }
+        Ok(snapshot)
     }
 }
 #[cfg(test)]
@@ -622,5 +636,38 @@ mod tests {
         let quarantined_path = dir.path().join("snapshot_50.json.corrupted");
         assert!(quarantined_path.exists());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn test_snapshot_v2_migration_hook_rejects_unsupported_versions() {
+        let account_state = AccountState::new();
+        let mut snapshot = StateSnapshotV2::from_state(
+            &account_state,
+            StateSnapshotV2Params {
+                height: 1,
+                block_hash: "h".into(),
+                genesis_hash: "g".into(),
+                chain_id: 1,
+                finalized_height: 0,
+                finalized_hash: "".into(),
+                finality_certificates: vec![],
+            },
+        );
+
+        snapshot.schema_version = 1;
+        let bytes_v1 = serde_json::to_vec(&snapshot).unwrap();
+        assert!(StateSnapshotV2::from_bytes(&bytes_v1)
+            .unwrap_err()
+            .contains("minimum supported is 2"));
+
+        snapshot.schema_version = 99;
+        let bytes_v99 = serde_json::to_vec(&snapshot).unwrap();
+        assert!(StateSnapshotV2::from_bytes(&bytes_v99)
+            .unwrap_err()
+            .contains("current max supported is 3"));
+
+        snapshot.schema_version = 3;
+        let bytes_v3 = serde_json::to_vec(&snapshot).unwrap();
+        assert!(StateSnapshotV2::from_bytes(&bytes_v3).is_ok());
     }
 }

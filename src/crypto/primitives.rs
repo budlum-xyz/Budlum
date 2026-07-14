@@ -51,13 +51,14 @@ impl ValidatorKeyPolicy {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CryptoError {
     KeyGeneration(String),
     Signing(String),
     Verification(String),
     Io(String),
     InvalidKey(String),
+    PlaintextDiskKeysForbiddenOnMainnet,
 }
 impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -67,6 +68,10 @@ impl std::fmt::Display for CryptoError {
             CryptoError::Verification(s) => write!(f, "Verification error: {}", s),
             CryptoError::Io(s) => write!(f, "I/O error: {}", s),
             CryptoError::InvalidKey(s) => write!(f, "Invalid key: {}", s),
+            CryptoError::PlaintextDiskKeysForbiddenOnMainnet => write!(
+                f,
+                "CRITICAL: loading plaintext BLS/PQ secret keys directly from disk is forbidden on Mainnet without HSM protection (Tur 13.9 / Paket C)"
+            ),
         }
     }
 }
@@ -316,6 +321,16 @@ impl ValidatorKeys {
             bls_key,
         })
     }
+
+    /// Tur 13.9 / Paket C (`tur15-pr-6`): Enforce that on `Mainnet`, `ValidatorKeys` loaded from disk
+    /// MUST NOT contain plaintext `bls_key` or `pq_key` secret key material unless an external HSM
+    /// backend is explicitly bound or `allow_plaintext_bls_pq_for_testing` is set.
+    pub fn validate_mainnet_disk_policy(&self, is_mainnet: bool) -> Result<(), CryptoError> {
+        if is_mainnet && (self.pq_key.is_some() || self.bls_key.is_some()) {
+            return Err(CryptoError::PlaintextDiskKeysForbiddenOnMainnet);
+        }
+        Ok(())
+    }
 }
 impl KeyPair {
     pub fn generate() -> Result<Self, CryptoError> {
@@ -548,4 +563,14 @@ fn tur12_bls_from_bytes_roundtrip_and_integrity() {
         BlsKeypair::from_bytes(&bad).is_err(),
         "mismatched/corrupt pk must be rejected"
     );
+}
+
+#[test]
+fn test_mainnet_disk_keys_forbidden_when_plaintext_bls_pq_present() {
+    let keys = ValidatorKeys::generate().expect("generate");
+    assert_eq!(
+        keys.validate_mainnet_disk_policy(true),
+        Err(CryptoError::PlaintextDiskKeysForbiddenOnMainnet)
+    );
+    assert!(keys.validate_mainnet_disk_policy(false).is_ok());
 }
