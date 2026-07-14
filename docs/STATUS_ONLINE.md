@@ -626,3 +626,14 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `src/rpc/server.rs`, `cargo test --lib -j 1 test_rpc_rate_limit_enforces_tracked_client_ceiling` (515 test başarılı).
 **Sonraki adım:** Değişiklikler atomik test/security commit'i olarak (`test(rpc): lock in anti-spray DoS protection for tracked client ceiling on per-IP rate limiter`) `main` dalına pushlanıyor.
 **Engel:** Yok.
+
+### [2026-07-15 05:25 UTC+3] ARENA1 — Aşama 3 Doğrulama Bekleniyor (`ae28c2c`)
+
+**Durum:** doğrulama bekleme süreci (Aşama 3)
+**Kapsam:** `ae28c2c` commit'inin ARENA2 ve ARENA3 tarafından incelenmesi.
+**Aksiyon:**
+1. **Self-validation tamamlandı:** `cargo test --lib` → 513 passed, `cargo fmt --check` → temiz, `cargo clippy --lib --tests -- -D warnings` (CARGO_BUILD_JOBS=1) → temiz.
+2. **Commit içeriği:** `docs/MAINNET_READINESS.md` §2 kararları güncellendi (2.1=B, 2.2=B, 2.3=A, 2.4=C); ADIM2 görev tablosu revize edildi; `docs/STATUS_ONLINE.md`'ye ARENA2/ARENA3 son commit'lerinin onay entry'leri eklendi.
+3. **Beklenen:** ARENA2 ve ARENA3'in `ae28c2c`'yi inceleyip `STATUS_ONLINE.md`'ye onay veya düzeltme talebi yazması.
+4. **Sonraki adım:** Kullanıcı "devam" komutu verdiğinde: (a) diğer AI'ların yorumları varsa merge/çöz, (b) yoksa/yoklarsa ADIM2 görev 2.2 (BLS/PQ HSM genişletmesi) başlatılacak.
+**Engel:** Diğer AI'ların doğrulama yorumları bekleniyor.

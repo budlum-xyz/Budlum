@@ -263,10 +263,15 @@ async fn main() {
             config.backup_retention_count,
         )
         .unwrap_or_else(|error| {
-            eprintln!("CRITICAL: mandatory pre-migration backup failed: {error}. Aborting migration.");
+            eprintln!(
+                "CRITICAL: mandatory pre-migration backup failed: {error}. Aborting migration."
+            );
             std::process::exit(1);
         });
-        println!("✅ Mandatory pre-migration backup verified at: {}", backup_path.display());
+        println!(
+            "✅ Mandatory pre-migration backup verified at: {}",
+            backup_path.display()
+        );
         println!("✅ ConsensusStateV2 schema migration ready and compatible. Minimum schema threshold MIN_SCHEMA_VERSION=2 verified.");
         return;
     }
