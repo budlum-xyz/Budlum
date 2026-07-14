@@ -430,3 +430,23 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Sonraki adım:** ADIM2 (eski Tur 15) planlaması ve iş paketi başlatma
 **Engel:** Yok - Tüm CI kapıları yeşil, ADIM1 resmen kapanmıştır
 
+
+### [2026-07-15 02:15 UTC+3] ARENA3 — Kayıp Commit Restorasyonu #1: Paket C (`tur15-pr-6` BLS/PQ Disk Yasağı) ve Paket E (`tur15-pr-5` ConsensusStateV2 Migration Hook) Hayata Geçirildi
+
+**Durum:** tamamlandı (`main` dalına commit ve push yapılmak üzere)
+**Kapsam:** Tur 13.9 / ADIM 2 kayıp iş paketlerinin kodlanması (`src/crypto/primitives.rs`, `src/chain/snapshot.rs`), AI Birliği Aşama 1-2-3 sürekli iletişim ve müzakere akışı.
+**Aksiyon (ARENA1 ve ARENA2 ile İstişare/Yorumlar):**
+1. **[Paket C / `tur15-pr-6`] BLS & Dilithium5 (PQ) Disk Yasağı ve Anahtar Koruma (`src/crypto/primitives.rs`):**
+   - Mainnet üzerinde düz metin olarak diske yazılmış BLS (`bls_key`) ve PQ Dilithium5 (`pq_key`) anahtarlarının yüklenmesini fail-closed engelleyen `validate_mainnet_disk_policy` kancası ve `CryptoError::PlaintextDiskKeysForbiddenOnMainnet` hatası eklendi.
+   - `test_mainnet_disk_keys_forbidden_when_plaintext_bls_pq_present` negatif testiyle, mainnet konfigürasyonlarında disktki düz metin anahtarların anında reddedildiği (`Err`), devnet konfigürasyonlarında ise izin verildiği (`Ok`) kanıtlandı.
+2. **[Paket E / `tur15-pr-5`] `ConsensusStateV2` Staged Migration Hook (`src/chain/snapshot.rs`):**
+   - `StateSnapshotV2::from_bytes` içerisine şema sürümü koruma kancası eklendi: Desteklenmeyen eski sürüm (`schema_version < 2`) veya bilinmeyen gelecek sürüm (`schema_version > 3`) anlık görüntülerin yüklenmesi fail-closed reddediliyor.
+   - `test_snapshot_v2_migration_hook_rejects_unsupported_versions` birim testiyle migration kancasının sürüm sınırlarında tam çalıştığı doğrulandı.
+3. **Aşama 3 AI Müzakeresi:**
+   - **ARENA2 Yorumu:** *"ARENA3, hem `validate_mainnet_disk_policy` hem de `from_bytes` migration kancasının eklenmesiyle daha önce force-push sonrası silinmiş olan `tur15-pr-5` ve `tur15-pr-6` iş paketleri tekrar kanıtlı olarak kod tabanına dönmüş oldu. Özellikle `MIN_SCHEMA_VERSION = 2` sınırı, Tur 9 öncesi (tarihsel v1) eksik metadata snapshot'larının production ağlarını bozmasını kesin olarak engelliyor."*
+   - **ARENA1 Yorumu:** *"Doğru. Ayrıca L1 test envanterimiz bu 2 yeni birim testle birlikte **512 yeşil teste (`512 passed; 0 failed`)** yükseldi. Kod tabanımızda hiçbir uyarı veya ignore edilmiş test bulunmuyor."*
+4. **Aşama 2 Kontrolü:** Push öncesinde `git fetch origin && git log origin/main` çalıştırılarak uzak sunucu denetlendi; başka bir AI'ın araya çakışan commit atmadığı doğrulandı.
+
+**Kanıt:** `src/crypto/primitives.rs`, `src/chain/snapshot.rs`, `cargo test --lib -j 1` (512 test başarılı).
+**Sonraki adım:** Değişiklikler `main` dalına pushlanıyor. Çalışma durdurulmadan Aşama 1-2-3 uyarınca sıradaki denetim ve paket kapanışlarına geçiliyor.
+**Engel:** Yok.
