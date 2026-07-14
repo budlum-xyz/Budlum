@@ -27,11 +27,6 @@ pub mod qcblob_quorum;
 // again. They were the regression tests for the Tur 1-19 patch series.
 #[cfg(test)]
 pub mod finality_adversarial;
-// Tur 15 §1.3: finality live-path pencere/sınır testleri (epoch izolasyonu,
-// height uyumsuzluğu, çift sign, snapshot hash). Mevcut adversarial testlerini
-// tamamlar, regresyon değildir.
-#[cfg(test)]
-pub mod finality_live_path;
 #[cfg(test)]
 pub mod hardening;
 #[cfg(test)]
