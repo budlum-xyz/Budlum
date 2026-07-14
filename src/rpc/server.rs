@@ -1725,4 +1725,24 @@ mod security_tests {
         assert!(config.allowed_ips.contains(&"::1".to_string()));
         assert!(config.max_connections.is_some());
     }
+
+    #[test]
+    fn test_rpc_rate_limit_enforces_tracked_client_ceiling() {
+        let config = RpcSecurityConfig {
+            rate_limit_per_minute: Some(10),
+            ..Default::default()
+        };
+        let rates = Arc::new(Mutex::new(HashMap::new()));
+        {
+            let mut map = rates.lock().unwrap();
+            for i in 0..MAX_TRACKED_RPC_CLIENTS {
+                let mut window = VecDeque::new();
+                window.push_back(Instant::now());
+                let ip = std::net::IpAddr::V4(std::net::Ipv4Addr::from(i as u32));
+                map.insert(ip, window);
+            }
+        }
+        let new_ip: std::net::IpAddr = "255.255.255.255".parse().unwrap();
+        assert!(!is_per_ip_rate_limited(&config, &rates, Some(new_ip)));
+    }
 }

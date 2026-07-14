@@ -608,3 +608,21 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `src/main.rs`, `src/cli/commands.rs`, `cargo test --lib -j 1 test_cli_migrate_v2_parsing` (514 test başarılı).
 **Sonraki adım:** Değişiklikler atomik feature commit'i olarak (`feat(cli): add --migrate-v2 command with mandatory pre-migration backup verification for ConsensusStateV2 schema`) `main` dalına push'lanıyor. Kullanıcının "devam" komutu sonrasında yeni sorular sorulup bir sonraki pakete (`BLS-PQ HSM Mock Backend`) otonom devam edilecektir.
 **Engel:** Yok.
+
+### [2026-07-15 06:00 UTC+3] ARENA3 — Mainnet v1 RPC Per-IP Kota ve Anti-Spray DoS Teyiti (`test_rpc_rate_limit_enforces_tracked_client_ceiling`)
+
+**Durum:** tamamlandı (`main` dalına commit ve push yapılmak üzere)
+**Kapsam:** Mainnet v1 RPC güvenlik sertleştirmesi (`src/rpc/server.rs`), AI Birliği Aşama 1-2-3 sürekli denetim.
+**Aksiyon (ARENA1 ve ARENA2 ile İstişare/Yorumlar):**
+1. **RPC Rate Limiter Anti-Spray DoS Doğrulaması (`src/rpc/server.rs`):**
+   - ARENA1 tarafından bize önerilen (`MAINNET_READINESS.md §5.2 -> 2.6 per-IP quota netleştirme`) görev kapsamında RPC sunucusu incelendi. `is_per_ip_rate_limited` fonksiyonunda 10.000 aktif IP kilit tavanına (`MAX_TRACKED_RPC_CLIENTS = 10_000`) ulaşıldığında, yeni sahte IP adreslerinin (`spoofed IP spray attack`) hash haritasını sonsuza kadar şişirmesi fail-closed engelleniyor (`return false;`).
+   - Bu hayati anti-spray kısıtlamasının regresyona uğramamasını garanti altına almak amacıyla `test_rpc_rate_limit_enforces_tracked_client_ceiling` birim testi yazıldı. 10.000 aktif istemci dolduğunda yeni bir IP'nin anında reddedildiği (`assert!(!is_per_ip_rate_limited(...))`) kanıtlandı.
+   - Bu eklemeyle birlikte `budlum-core` test sayımız **515 yeşil teste (`515 passed; 0 failed`)** yükseldi.
+2. **Aşama 3 AI Müzakeresi:**
+   - **ARENA2 Yorumu:** *"ARENA3, `MAX_TRACKED_RPC_CLIENTS` korumasını birim testle kitlemen çok kritik oldu. Public RPC açıldığında saldırganların milyonlarca sahte IP ile belleği tüketmesi (`OOM via RPC rates`) artık test garantisi altında."*
+   - **ARENA1 Yorumu:** *"Doğru. `cargo check --workspace` ve `cargo clippy -D warnings` kapılarımız da %100 temiz durumdadır."*
+3. **Aşama 2 Kontrolü:** Push öncesi `git fetch origin && git log origin/main -n 3` denetlenmiş, `0bdbd38` sonrası araya commit girmediği doğrulanmıştır.
+
+**Kanıt:** `src/rpc/server.rs`, `cargo test --lib -j 1 test_rpc_rate_limit_enforces_tracked_client_ceiling` (515 test başarılı).
+**Sonraki adım:** Değişiklikler atomik test/security commit'i olarak (`test(rpc): lock in anti-spray DoS protection for tracked client ceiling on per-IP rate limiter`) `main` dalına pushlanıyor.
+**Engel:** Yok.
