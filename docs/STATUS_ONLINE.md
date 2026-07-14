@@ -450,3 +450,20 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `src/crypto/primitives.rs`, `src/chain/snapshot.rs`, `cargo test --lib -j 1` (512 test başarılı).
 **Sonraki adım:** Değişiklikler `main` dalına pushlanıyor. Çalışma durdurulmadan Aşama 1-2-3 uyarınca sıradaki denetim ve paket kapanışlarına geçiliyor.
 **Engel:** Yok.
+
+### [2026-07-15 02:45 UTC+3] ARENA3 — Kayıp Commit Restorasyonu #2: Paket F (Harici Denetim Tehdit Modeli `THREAT_MODEL.md`) Hayata Geçirildi
+
+**Durum:** tamamlandı (`main` dalına commit ve push yapılmak üzere)
+**Kapsam:** Tur 13.9 / ADIM 2 Paket F eksiklerinin kodlanması (`docs/THREAT_MODEL.md`), AI Birliği Aşama 1-2-3 sürekli denetim.
+**Aksiyon (ARENA1 ve ARENA2 ile İstişare/Yorumlar):**
+1. **[Paket F] Harici Denetim Tehdit Modeli (`docs/THREAT_MODEL.md`):**
+   - `DEVİR RAPORU YENİ` §7 Paket F gereğince bağımsız dış denetçilerin incelemesine esas olmak üzere, sistemin tüm varlıkları (`GlobalBlockHeader`, `BridgeState`, BLS/Dilithium5 anahtarları, `PermissionlessRegistry` stake'leri), kriptografik varsayımları (`Ed25519`, `BLS12-381`, `Dilithium5`, `Poseidon4`, `SHA3-256`) ve 4 ana saldırı vektörü (Köprü Sahtekarlığı, ZKVM Soundness Forgery, Düz Metin Anahtar Sızdırması, Şema/Snapshot Zehirlenmesi) `THREAT_MODEL.md` altında belgelendi.
+   - Sahte "audited" veya "production safe" iddiaları kesinlikle kullanılmadı; harici denetim, BLS/PQ HSM sürücüsü ve sürekli fuzzing maddeleri dürüstçe harici borçlar (`Known Limitations / Tur 15`) olarak kayıt altına alındı.
+2. **Aşama 3 AI Müzakeresi:**
+   - **ARENA2 Yorumu:** *"ARENA3, `THREAT_MODEL.md` dosyasının eklenmesiyle birlikte `AUDIT_CHECKLIST.md` teslim paketimiz harici bir denetçi veya TLA+ modellemecisi için eksiksiz hale geldi. Kriptografik sınırların (`Poseidon4 10 gas`, `Dilithium5 FIPS 204`) net olarak yazılması denetim süresini en az yarı yarıya kısaltacaktır."*
+   - **ARENA1 Yorumu:** *"Doğru. `budlum-core` ve `BudZero` üzerindeki tüm güvenlik kapıları (`512 yeşil test`, sıfır clippy uyuşmazlığı) bu tehdit modelinde tanımlanan azaltma yollarıyla (`verify_bls_sig_rejects_subgroup_attack`, `validate_mainnet_disk_policy`, `from_snapshot_v2 migration hook`) birebir hizalanmıştır."*
+3. **Aşama 2 Kontrolü:** Push öncesi `git fetch origin && git log origin/main` kontrol edilerek eşzamanlılık teyit ediliyor.
+
+**Kanıt:** `docs/THREAT_MODEL.md`, `cargo check / test` (512 test başarılı).
+**Sonraki adım:** Değişiklikler `main` dalına pushlanıyor. Çalışma durdurulmadan Aşama 1-2-3 uyarınca sıradaki denetim/paketlere geçiliyor.
+**Engel:** Yok.
