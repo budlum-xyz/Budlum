@@ -529,13 +529,18 @@ fn adim3_validator_onboarding_e2e_multi_validator_parallel() {
     let staker2 = Address::from(kp2.public_key_bytes());
     let floor = bc.state.registry.params().min_stake;
     let fee = bc.state.base_fee.max(1);
-    bc.state.add_balance(&staker1, floor * 2 + fee * 10);
-    bc.state.add_balance(&staker2, floor * 2 + fee * 10);
+    let stake1 = floor + 1_000;
+    let stake2 = floor + 2_000;
+    // Fund each staker for stake + fee (projected mempool balance check).
+    bc.state.add_balance(&staker1, stake1 + fee * 10);
+    bc.state.add_balance(&staker2, stake2 + fee * 10);
 
-    let tx1 = signed_stake_tx(&kp1, floor + 1000, 0, bc.chain_id, fee);
-    let tx2 = signed_stake_tx(&kp2, floor + 2000, 0, bc.chain_id, fee);
-    bc.add_transaction(tx1).unwrap();
-    bc.add_transaction(tx2).unwrap();
+    let tx1 = signed_stake_tx(&kp1, stake1, 0, bc.chain_id, fee);
+    let tx2 = signed_stake_tx(&kp2, stake2, 0, bc.chain_id, fee);
+    bc.add_transaction(tx1)
+        .expect("staker1 stake enters mempool");
+    bc.add_transaction(tx2)
+        .expect("staker2 stake enters mempool");
 
     let block = bc.produce_block(staker1).unwrap();
     assert!(block.index >= 1);
