@@ -84,6 +84,11 @@ fn register_events(trace: &[Step]) -> Vec<RegEvent> {
         if step.instruction.opcode == bud_isa::Opcode::Halt {
             continue;
         }
+        // ARENA2 ADIM4: Merkle expansion rows are synthetic — no register
+        // bus traffic (they reuse Opcode::VerifyMerkle with zeroed operands).
+        if step.merkle_is_expand {
+            continue;
+        }
         let clk = i as u64;
         events.push(RegEvent {
             clk,
@@ -292,7 +297,12 @@ fn trace_matrix(
 
         // Soundness & public input columns
         values[row_start + COL_GAS_USED] = Goldilocks::new(running_gas);
-        running_gas = running_gas.saturating_add(Vm::gas_cost(opcode));
+        // ARENA2 ADIM4: expansion rows reuse Opcode::VerifyMerkle but must
+        // not re-charge gas (matches BudAir gas_cost = is_verify_merkle *
+        // (1 - is_expand) * 10). VM only charges once for the original step.
+        if !step.merkle_is_expand {
+            running_gas = running_gas.saturating_add(Vm::gas_cost(opcode));
+        }
 
         values[row_start + COL_RAW_INST] = Goldilocks::new(step.instruction.encode());
 
@@ -825,6 +835,9 @@ fn aux_trace_generator(
             let is_syscall = row[COL_IS_SYSCALL];
             let is_verify_merkle = row[COL_IS_VERIFY_MERKLE];
 
+            // ARENA2 ADIM4: expansion rows keep is_verify_merkle=1 but must not
+            // contribute to the register bus (operands are zeroed synthetics).
+            let is_expand_aux = row[COL_VM_MERKLE_IS_EXPAND];
             let is_real_op = is_add
                 + is_sub
                 + is_mul
@@ -854,7 +867,7 @@ fn aux_trace_generator(
                 + is_swrite
                 + is_poseidon
                 + is_syscall
-                + is_verify_merkle;
+                + is_verify_merkle * (Goldilocks::ONE - is_expand_aux);
 
             let clk = row[COL_CLK];
             let pc = row[COL_PC];
@@ -1002,7 +1015,11 @@ fn aux_trace_generator(
             let diff_cpu_prog = gamma - term_cpu_prog;
             let diff_pre_prog = gamma - term_pre_prog;
 
-            if i < trace_len {
+            // ARENA2 ADIM4: expansion rows reuse opcode 0x1E at the same PC
+            // but are NOT program fetches — counting them unbalances LogUp
+            // (trace_len >> program.len() for VerifyMerkle paths).
+            let is_expand_row = row[COL_VM_MERKLE_IS_EXPAND];
+            if i < trace_len && is_expand_row == Goldilocks::ZERO {
                 s_prog += diff_cpu_prog.inverse();
             }
             if i < program.len() {
@@ -1976,8 +1993,125 @@ mod tests {
     /// Z-B Commit 3.5 target: valid 64-depth path. Partial fixes landed in
     /// Tur 13 (pre-round currents, single-round hash align, original-only
     /// root check, expand gas). Still ignored until full prove is green.
+    /// ARENA2 diagnostic: check expansion Poseidon chain + leaf bind on matrix
+    /// without running the full STARK (isolates witness vs AIR constraint bugs).
     #[test]
-    #[ignore = "Z-B Commit 3.5: ARENA2 wrapping_add→u128 fix applied but additional AIR constraint mismatch remains; requires deeper trace-matrix debugging"]
+    fn adim4_diagnose_verify_merkle_matrix_chain() {
+        let program = vec![
+            inst(Opcode::VerifyMerkle, 1, 2, 3, 256),
+            inst(Opcode::Halt, 0, 0, 0, 0),
+        ];
+        let mut vm = Vm::new(1024);
+        let key: u64 = 7;
+        let siblings: [u64; 64] = std::array::from_fn(|i| ((i as u64) * 31) + 1);
+        let leaf: u64 = 0xBEEF;
+        let mut current = leaf;
+        for (i, &sibling) in siblings.iter().enumerate() {
+            let bit = (key >> i) & 1;
+            current = if bit == 0 {
+                bud_vm::merkle_poseidon_round(current, sibling)
+            } else {
+                bud_vm::merkle_poseidon_round(sibling, current)
+            };
+        }
+        let root = current;
+        vm.memory[256..264].copy_from_slice(&key.to_le_bytes());
+        for (i, &sibling) in siblings.iter().enumerate() {
+            let off = 264 + i * 8;
+            vm.memory[off..off + 8].copy_from_slice(&sibling.to_le_bytes());
+        }
+        vm.registers[2] = root;
+        vm.registers[3] = leaf;
+        let receipt = vm.run_receipt(&program);
+        assert!(receipt.success, "VM must accept valid path");
+        assert_eq!(vm.trace.len(), 66);
+
+        let program_bytes: Vec<u8> = program
+            .iter()
+            .flat_map(|&inst| inst.to_le_bytes().to_vec())
+            .collect();
+        let mut hasher = Keccak::v256();
+        hasher.update(&program_bytes);
+        let mut program_hash = [0u8; 32];
+        hasher.finalize(&mut program_hash);
+        let pi = ExecutionPublicInputs {
+            chain_id: 1,
+            program_hash,
+            initial_state_root: [0u8; 32],
+            final_state_root: [0u8; 32],
+            sender: 0,
+            nonce: 0,
+            block_height: 0,
+            gas_limit: vm.gas_limit,
+            gas_used: vm.gas_used,
+            exit_code: 0,
+            trace_len: vm.trace.len() as u64,
+            event_digest: [0u8; 32],
+        };
+        let (matrix, _n_cpu) = trace_matrix(&vm.trace, &program, &pi);
+        assert_eq!(matrix.values.len() % TRACE_WIDTH, 0);
+        let n_rows = matrix.values.len() / TRACE_WIDTH;
+
+        // Row 0 = original VerifyMerkle
+        let r0 = 0;
+        let is_exp0 = matrix.values[r0 * TRACE_WIDTH + COL_VM_MERKLE_IS_EXPAND].as_canonical_u64();
+        let final_flag = matrix.values[r0 * TRACE_WIDTH + COL_MERKLE_FINAL_FLAG].as_canonical_u64();
+        let orig_cur = matrix.values[r0 * TRACE_WIDTH + COL_VM_MERKLE_CURRENT].as_canonical_u64();
+        let is_vm = matrix.values[r0 * TRACE_WIDTH + COL_IS_VERIFY_MERKLE].as_canonical_u64();
+        let rd_new = matrix.values[r0 * TRACE_WIDTH + COL_RD_VAL_NEW].as_canonical_u64();
+        println!(
+            "row0: is_expand={is_exp0} final_flag={final_flag} is_vm={is_vm} merkle_current={orig_cur:#x} root={root:#x} rd_new={rd_new}"
+        );
+        assert_eq!(is_exp0, 0);
+        assert_eq!(final_flag, 1);
+        assert_eq!(is_vm, 1);
+        assert_eq!(
+            orig_cur, root,
+            "original merkle_current must be final path root"
+        );
+        assert_eq!(rd_new, 1, "dst must be 1 for valid path");
+
+        // Expansion rows 1..64 (round 0..63)
+        let mut expected = leaf;
+        for round in 0..64u64 {
+            let r = (round + 1) as usize; // row index
+            let base = r * TRACE_WIDTH;
+            let is_exp = matrix.values[base + COL_VM_MERKLE_IS_EXPAND].as_canonical_u64();
+            let cur = matrix.values[base + COL_VM_MERKLE_CURRENT].as_canonical_u64();
+            let sib = matrix.values[base + COL_VM_MERKLE_SIBLING].as_canonical_u64();
+            let bit = matrix.values[base + COL_VM_MERKLE_BIT].as_canonical_u64();
+            let rnd = matrix.values[base + COL_VM_MERKLE_ROUND].as_canonical_u64();
+            let is_vm_r = matrix.values[base + COL_IS_VERIFY_MERKLE].as_canonical_u64();
+            assert_eq!(is_exp, 1, "row {r} expand");
+            assert_eq!(rnd, round, "row {r} round");
+            assert_eq!(
+                is_vm_r, 1,
+                "expansion still has opcode 0x1E so is_verify_merkle=1"
+            );
+            assert_eq!(cur, expected, "row {r} pre-round current");
+            assert_eq!(bit, (key >> round) & 1);
+            assert_eq!(sib, siblings[round as usize]);
+            let out = if bit == 0 {
+                bud_vm::merkle_poseidon_round(cur, sib)
+            } else {
+                bud_vm::merkle_poseidon_round(sib, cur)
+            };
+            // next row current
+            if round < 63 {
+                let nxt =
+                    matrix.values[(r + 1) * TRACE_WIDTH + COL_VM_MERKLE_CURRENT].as_canonical_u64();
+                assert_eq!(nxt, out, "poseidon chain break at round {round}");
+            } else {
+                // last expand: output should equal root / original.merkle_current
+                assert_eq!(out, root, "last expand poseidon output must equal root");
+            }
+            expected = out;
+        }
+        println!("matrix chain OK for 64-depth path (n_rows={n_rows})");
+    }
+
+    #[test]
+    #[ignore = "ADIM4 ARENA2: matrix chain+leaf+gas+pc+logup fixes landed; full STARK still InvalidProof — next: aux CTL / constraint degree"]
     fn proves_verify_merkle_valid_64_depth() {
         let program = vec![
             inst(Opcode::VerifyMerkle, 1, 2, 3, 256),

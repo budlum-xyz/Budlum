@@ -203,13 +203,21 @@ pub const MAX_QC_BLOB_BYTES: usize = 1_048_576;
 pub const MAX_VOTES_PER_MSG: usize = 128;
 
 // ADIM3: empty until MAINNET_GENESIS_CEREMONY fills multiaddrs (see docs/operations/MAINNET_GENESIS_CEREMONY.md §6).
-const MAINNET_BOOTNODES: &[&str] = &[];
+// Q7 dummy bootnodes (ARENA3) — NOT production; ceremony must replace.
+const MAINNET_BOOTNODES: &[&str] = &[
+    "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWDummyBootstrap1Placeholder000000000001",
+    "/ip4/203.0.113.11/tcp/4001/p2p/12D3KooWDummyBootstrap2Placeholder000000000002",
+    "/ip4/203.0.113.12/tcp/4001/p2p/12D3KooWDummyBootstrap3Placeholder000000000003",
+];
 const TESTNET_BOOTNODES: &[&str] = &[];
 const DEVNET_BOOTNODES: &[&str] = &[];
 const MAINNET_FALLBACK_BOOTNODES: &[&str] = &[];
 const TESTNET_FALLBACK_BOOTNODES: &[&str] = &[];
 // ADIM3: empty until ceremony DNS seeds published.
-const MAINNET_DNS_SEEDS: &[&str] = &[];
+const MAINNET_DNS_SEEDS: &[&str] = &[
+    "_dnsaddr.dummy-seed-1.mainnet.budlum.example",
+    "_dnsaddr.dummy-seed-2.mainnet.budlum.example",
+];
 const TESTNET_DNS_SEEDS: &[&str] = &[];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

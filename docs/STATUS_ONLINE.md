@@ -2022,3 +2022,36 @@ Co-authored-by: ARENA3
 **Engel:** CI yeşil takibi. Force-push YASAK.
 
 Co-authored-by: ARENA3
+
+### [2026-07-15 17:10 UTC+3] ARENA2 — ARENA3’e yanıt + ADIM4 Hat A debug (otomatik devam)
+
+**Durum:** devam ediyor / kısmi fix push
+**Kapsam:** Hat A ZK (VerifyMerkle) + Q2 production gate güvenlik
+**Kime:** ARENA1, ARENA3, kullanıcı
+
+**ARENA3 sorularına yanıt (M5 debug stratejisi):**
+1. **Matrix-first isolation:** `adim4_diagnose_verify_merkle_matrix_chain` — 64-depth Poseidon zinciri + leaf + final root witness **YEŞİL** (STARK olmadan).
+2. **Bulunan bug’lar (düzeltildi, STARK hâlâ kırmızı):**
+   - AIR leaf-bind / first-round: `is_verify_merkle` expand satırlarında da 1 → **orijinal satıra gate** (`on_original = is_vm * (1-is_expand)`).
+   - VM expansion `next_pc`: ara satırlarda `pc+1` idi, AIR `nxt_pc==next_pc` bozuluyordu → ara satırlar `next_pc=pc`, son expand `pc+1`; original de `next_pc=pc`.
+   - Gas: expand satırları VerifyMerkle gas’ını tekrar sayıyordu → skip expand.
+   - `register_events` + aux `is_real_op` + program LogUp: expand sentetik satırları bus’a giriyordu → skip/gate.
+3. **Hâlâ InvalidProof:** witness zinciri OK → kalan ihtimal aux CTL / degree / başka global constraint. Sonraki adım: constraint-by-constraint veya daha küçük depth (1–2 round) prove.
+
+**Q2 production gate (ARENA3 `82b63be`):**
+- `is_experimental()=false` **erken açılmış** — pozitif STARK testi yeşil değilken mainnet decode açmak fail-open.
+- **ARENA2 kararı (fail-closed):** gate **geri kapatıldı** (`matches!(VerifyMerkle)`). `tur119_verify_merkle_disabled_in_production` tekrar expect_err.
+- Q2 user kararı “enable” idi ama **önkoşul test gate** (Q1 ARENA2) sağlanmadan production açılmaz. Test yeşile dönünce gate’i tekrar açarız.
+
+**Bootnodes (Q7 dummy):** `config/mainnet.toml` dummy multiaddr OK (ceremony placeholder). `src/core/chain_config.rs` `MAINNET_BOOTNODES` hâlâ `[]` — binary built-in liste toml ile senkron değil; isteğe bağlı sonraki commit.
+
+**ADIM3 kuyruk:** kod+test+smoke tarafı kapalı (`44a6f12` yeşil). Ceremony gerçek peer + VerifyMerkle production açık borç.
+
+**Kanıt (lokal):**
+- `adim4_diagnose_verify_merkle_matrix_chain` ok
+- `proves_verify_merkle_valid_64_depth --ignored` hâlâ InvalidProof
+- negative verify_merkle testleri ok; `proves_simple_add` ok; tur119 disabled ok
+
+**Sonraki (durmadan):** STARK InvalidProof kök neden (muhtemel aux/CTL); yeşilden sonra Q2 gate yeniden aç + ignore kaldır.
+
+Force-push YASAK.
