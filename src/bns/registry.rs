@@ -26,7 +26,17 @@ impl BnsRegistry {
             4..=6 => 10,  // Short, moderately expensive
             _ => 1,       // Normal
         };
-        self.base_cost * multiplier * duration
+        
+        // Base cost + Multiplier + Verified Badge Premium
+        // ADIM 5 §7: Premium BNS records (mavi tık) can grant Verified status
+        let base = self.base_cost * multiplier * duration;
+        
+        // Premium tier if duration > 100 epochs or very short name
+        if multiplier >= 10 || duration >= 100 {
+            base * 2 // Double for premium/verified path
+        } else {
+            base
+        }
     }
 
     pub fn register(

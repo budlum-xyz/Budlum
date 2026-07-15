@@ -89,6 +89,7 @@ pub enum TransactionType {
     NftMint,
     NftTransfer,
     NftBurn,
+    NftBoost { nft_id: u64, amount: u64 },
     UniversalRelay(ExternalTransaction),
     /// ADIM 5 §5.5: AI Data Marketplace - Offer data (CID) for sale
     AiOfferData {

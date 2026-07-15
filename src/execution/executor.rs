@@ -407,6 +407,36 @@ impl Executor {
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
+            TransactionType::NftBoost { nft_id, amount } => {
+                // ADIM 5 Constitution: 4% to B.U.D., 16% to Creator, 80% Protocol
+                let amount = *amount;
+                let bud_share = amount.saturating_mul(4) / 100;
+                let creator_share = amount.saturating_mul(16) / 100;
+                let protocol_share = amount.saturating_sub(bud_share).saturating_sub(creator_share);
+
+                let nft = state.nft_registry.get_nft(*nft_id).cloned().ok_or("NFT not found")?;
+
+                // 1. Debit Booster (the one calling this)
+                let booster = state.get_or_create(&tx.from);
+                let total_spent = amount.saturating_add(tx.fee);
+                if booster.balance < total_spent {
+                    return Err(BudlumError::validation("insufficient_funds", "Cannot afford boost"));
+                }
+                booster.balance = booster.balance.saturating_sub(total_spent);
+                booster.nonce = booster.nonce.saturating_add(1);
+
+                // 2. Credit Creator
+                let creator = state.get_or_create(&nft.owner);
+                creator.balance = creator.balance.saturating_add(creator_share);
+
+                // 3. Log B.U.D. and Protocol shares
+                tracing::info!(
+                    nft_id = %nft_id,
+                    bud_reward = %bud_share,
+                    protocol_fee = %protocol_share,
+                    "SocialFi: Content Boosted"
+                );
+            }
             TransactionType::AiOfferData { cid, price } => {
                 state.marketplace.create_offer(tx.from, *cid, *price);
 

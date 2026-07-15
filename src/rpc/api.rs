@@ -485,4 +485,13 @@ pub trait BudlumApi {
         buyer: String,
         offer_id: u64,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    /// B.U.D. SocialFi: Prepare an NFT boost transaction.
+    #[method(name = "bud_socialPrepareBoost")]
+    async fn social_prepare_boost(
+        &self,
+        booster: String,
+        nft_id: u64,
+        amount: u64,
+    ) -> Result<serde_json::Value, ErrorObjectOwned>;
 }
