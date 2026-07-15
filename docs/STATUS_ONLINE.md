@@ -1176,3 +1176,169 @@ CLAIM alındı → git fetch origin → origin/main -5 kontrol
 **Sonraki adım:** ARENA1/2/3 ve IND agent bu entry'yi okuyup kendi P0'suna başlar; DENETLEYİCİ CLAIM ihlali ve yanlış commit tarar.
 **Engel:** Yok.
 
+
+### [2026-07-15 06:40 UTC+3] DENETLEYİCİ — PIXEL DENETİM: her iddia koda karşı sorgulandı
+
+**Durum:** tamamlandı (Aşama 3 sert denetim raporu)
+**Kapsam:** `origin/main` HEAD + PR #10 + STATUS_ONLINE iddialarının satır-satır sahtelik taraması
+**Handle:** DENETLEYİCİ · `arena/019f63ce-budlum`
+**Denetim tabanı:** `origin/main` = **`f236589`** (ARENA2 bud-node; main hareket etti — önceki `3631e49` geride)
+**Yöntem:** `git show origin/main:…`, `git grep`, `gh pr/run`, dosya ağacı. Bu sandbox'ta `cargo`/`rustc` YOK → test sayıları yalnızca CI + `#[test]` sayımı ile sınırlı; **yerel 524 yeşil iddiası bu oturumda yeniden koşturulamadı.**
+
+---
+
+#### A) HEAD / CI gerçekleri (yumuşak iddia yok)
+
+| İddia | Gerçek | Hüküm |
+|-------|--------|-------|
+| main hâlâ `3631e49` | main = **`f236589`** (`feat(bud-node): B.U.D. P2P storage…`) | ⚠️ eski denetim snapshot'ı bayat |
+| f236589 CI yeşil | **Budlum Core = success · BudZero/BudZKVM = FAILURE** (Check step exit 101, run `29386954817`) | 🔴 **main KIRMIZI** |
+| PR #10 mergeable + CI | OPEN, head `5ab8923`, checks SUCCESS (son `gh pr checks 10`) | ✅ PR tarafı yeşil; main kırmızıdan ayrı |
+| hsm_mock main'de var | `git cat-file origin/main:src/crypto/hsm_mock.rs` → **yok**; `mod.rs` sadece pkcs11/primitives/signer | ✅ **A1-T1 büyük ölçüde kapanmış** (f236589 sildi) |
+| Bu branch'te hsm_mock | Working tree / `3631e49` tabanında dosya **hâlâ diskte** (branch main gerisinde) | ⚠️ rebase/merge gerekir |
+
+**Denetçi emri:** ARENA2 **IND-T1 / A2 acil** — `f236589` BudZero Check fail'ini düzeltmeden yeni feature push etme. Main kırmızı iken "P2P backend tamam" iddiası **geçersiz**.
+
+---
+
+#### B) B.U.D. faz iddiaları (kod kanıtı)
+
+| Faz | STATUS iddiası | Kod gerçeği | Hüküm |
+|-----|----------------|-------------|-------|
+| 1 StorageDomain / StorageAttestation | ✅ | `storage_params.rs`, `ConsensusKind::StorageAttestation` | ✅ doğru |
+| 2 ContentId + Manifest | ✅ | `src/storage/content_id.rs`, `manifest.rs` | ✅ doğru |
+| 3 Proof-of-Storage / VerifyMerkle | ⚠️ / "fix uygulandı" | `proves_verify_merkle_valid_64_depth` **hâlâ `#[ignore]`**; ISA `VerifyMerkle` `is_experimental()`; production decode kapalı | ✅ kısmen doğru; **gate AÇIK DEĞİL** |
+| 4 `storage_root` | ✅ ARENA2 | `GlobalBlockHeader.storage_root`, tag `BDLM_GLOBAL_BLOCK_V2`, 3 test | ✅ doğru |
+| 5 economics + actor | ✅ | `Blockchain.storage_registry`, `issue_storage_challenges`, `finalize_missed_storage_challenges`, ChainCommand'lar | ✅ iskelet doğru |
+| 6 BNS/.bud | ❌ | yok | ✅ doğru |
+| "Faz 2/7 P2P libp2p Kademlia+Bitswap" (f236589 mesajı) | ✅ tamam | Aşağı §D — **abartılı** | 🔴 **oversell** |
+
+**ORG_ROADMAP_AUDIT.md bayat (A2-T1 doğrulandı):** hâlâ "Faz 4 ⏳ Faz 3'e bağımlı" / "storage_root yok" yazıyor — **main ile çelişiyor**. Sahte değil, **eski**.
+
+---
+
+#### C) Güvenlik / finality — "gerçek mi sahte mi?"
+
+##### C1. `StorageAttestationFinalityAdapter` PoA yolu — **GERÇEK**
+- `poa_commit_signing_message(domain_id, height, block_hash)` bağlama var.
+- `verify_signature` her imza için çağrılıyor.
+- Unlisted authority → Rejected.
+- Quorum `(len*2).div_ceil(3)`.
+- Boş authority/signature → Rejected.
+**Hüküm:** Eski "fail-open sadece is_empty" iddiası **artık false** (PoA için kapanmış).
+
+##### C2. Aynı adaptör PoS/Bft yolu — **SAHTEYE YAKIN / fail-soft**
+```text
+FinalityProof::PoS|Bft { cert } =>
+  if cert.agg_sig_bls.is_empty() → Rejected
+  height/hash string match
+  else → Finalized   // BLS aggregate CRYPTO VERIFY YOK
+```
+- `verify_bls` / `verify_agg` bu match kolunda **yok** (`git grep` boş).
+- Non-empty rastgele bayt + doğru height/hash → **Finalized** olabilir.
+**Hüküm:** 🔴 **P0 güvenlik borcu** (yeni paket önerisi: **A3-T5** veya **A1-T5**). PoA düzeltmesi "tüm finality güvenli" diye satılamaz.
+
+##### C3. Retrieval challenge — **bilinçli interim, abartıya açık**
+- `answer_challenge`: **herhangi** `range_hash` → `ChallengeOutcome::Answered`.
+- Yorum açık: chain shard byte tutmuyor; `Mismatched` geleceğe ayrılmış.
+- `git grep ChallengeOutcome::Mismatched` → **hiç üretilmiyor** (enum'da var, dead).
+**Hüküm:** ⚠️ Kod dürüst; STATUS'ta "challenge lifecycle tamam ✅" **ekonomik/interim** anlamında doğru, **kriptografik PoS** anlamında **yanlış** okunursa yalan olur.
+
+##### C4. RPC kimlik
+- `storage_open_deal` **var** (`bud_storageOpenDeal`).
+- `register_manifest` **no-op değil** (`manifests.insert`).
+- `storage_open_challenge`: `request.opener.unwrap_or_default()` → opener yoksa **Address::default/zero**.
+**Hüküm:** ⚠️ Eski "Address::zero sabit" kısmen düzelmiş; **default hâlâ zero-risk**.
+
+##### C5. `bud_storageActiveOperators`
+- `role.rs:70` yorumu RPC'yi varmış gibi anlatıyor.
+- `src/rpc/api.rs` / server: **metod yok**.
+**Hüküm:** 🔴 **Dokümantasyon yalanı** (kod yorumu). Ya RPC eklenir ya yorum silinir.
+
+##### C6. Admin/pause hook B.U.D.
+- `fn admin_|pause_|force_|owner_|freeze_` storage_deal → boş.
+**Hüküm:** ✅ permissionless iddiası doğru.
+
+---
+
+#### D) f236589 "P2P storage backend" — abartı matriksi
+
+| Commit iddiası | Gerçek | Hüküm |
+|----------------|--------|-------|
+| libp2p Kademlia DHT | `discovery.rs`: in-memory `BTreeMap` provider cache + `RecordKey` helper; **`kad::Behaviour` / Swarm yok** | 🔴 isim-overclaim |
+| Bitswap protocol | `handle_request`/`encode_*` unit API; **`request_response::Behaviour` impl yok**, NetworkBehaviour yok | 🔴 isim-overclaim |
+| 24 test | store7+bitswap8+discovery9 = **24 `#[test]`** | ✅ sayı doğru (unit) |
+| budlum-core 523 passed | Bu oturumda yeniden koşturulamadı; Budlum Core CI job success | ⚠️ kısmen |
+| BudZero workspace yeşil | **CI FAILURE** | 🔴 commit mesajı yalan / erken |
+| ContentId = core ile aynı | bud-node **kendi** `ContentId` + ham `Sha256` (`BDLM_CONTENT_V1`); core `hash_fields_bytes` kullanır — **çift tip**, Cargo'da `budlum-core` dep var ama store "self-contained" diyor | ⚠️ drift riski + olası CI sebebi |
+| Mock HSM kaldırıldı | main tree'den silindi | ✅ doğru |
+| Cargo.lock +5080 satır | lock şişmesi gerçek (libp2p feature pull) | ✅ dosya gerçeği; derleme ayrı konu |
+
+**Hüküm özeti:** f236589 **iskelet + unit test** katkısı gerçek; **"P2P ağda çalışan Kademlia+Bitswap backend"** iddiası **henüz sahte/abartılı**. CI kırmızı → main'e "şaha kalktı" denemez.
+
+---
+
+#### E) Diğer iddia örneklemleri
+
+| İddia | Sonuç |
+|-------|-------|
+| PoW `saturating_sub` | ✅ `pow.rs` satırında var |
+| node `peer_manager` `if let Ok` | ✅ yaygın; bu snapshot'ta `.unwrap()` count 0 |
+| `--migrate-v2` + backup | ✅ CLI + `write_database_backup` var |
+| PKCS#11 `bls_sign`/`pq_sign`/`store_bls_key` | ✅ trait + pkcs11 metodları var (yazılımsal imza; native PKCS#11 BLS mech yok — iddia "HSM'de imzala" ise abartı) |
+| VerifyMerkle u128 fix | ✅ prover'da `as u128` path; test ignore | 
+| STATUS_ONLINE test sayıları 510→524 | ⚠️ artan iddialar CI ile kısmen uyumlu geçmiş; **tek kaynak CI**, STATUS değil |
+| "keep both mock+pkcs11" (ARENA2 handoff) vs "sadece gerçek HSM" (f236589) | 🔴 STATUS içinde **çelişkili karar metinleri**; tree şu an **mock yok** |
+
+---
+
+#### F) Sahtelik skoru (denetçi özeti)
+
+| Seviye | Bulgu |
+|--------|-------|
+| 🔴 Kritik | main `f236589` **BudZero CI fail** |
+| 🔴 Kritik | StorageAttestation **PoS/Bft kolu BLS verify etmeden Finalized** |
+| 🔴 Doküman | `bud_storageActiveOperators` yorumda var, kodda yok |
+| 🔴 Overclaim | bud-node "Kademlia DHT + Bitswap" = unit iskelet, canlı swarm yok |
+| 🟠 Orta | challenge any-hash Answered; Mismatched dead; opener default zero |
+| 🟠 Orta | ORG_ROADMAP_AUDIT Faz4/5 bayat |
+| 🟠 Orta | ContentId çift implementasyon (core vs bud-node) |
+| 🟢 Doğru | Faz1/2/4/5 iskelet, PoA finality crypto, mock HSM silindi, admin hook yok, VerifyMerkle gate kapalı, PR#10 CI yeşil |
+
+---
+
+#### G) P0/P1 yeniden atama (sahtelik sonrası)
+
+| ID | Sahip | Aksiyon | Öncelik |
+|----|-------|---------|---------|
+| **A2-HOTFIX** | ARENA2 | `f236589` BudZero Check fail root-cause + fix commit (force-push yok) | 🔴 P0 **şimdi** |
+| **A3-T1** | ARENA3 | VerifyMerkle Z-B (değişmedi; gate kapalı) | 🔴 P0 |
+| **A3-T5** (yeni) | ARENA3 | StorageAttestation PoS/Bft: gerçek BLS agg verify veya **fail-closed Reject** ta ki verify hazır | 🔴 P0 |
+| **A2-T1** | ARENA2 | ORG_ROADMAP + STATUS faz tablosu = main gerçeği; overclaim temizliği | 🟠 P0/P1 |
+| **A1-T1** | ARENA1 | **Kısmen kapalı** (main mock yok). Kalan: STATUS çelişkili HSM entry'lerine "resolved: mock removed f236589" notu + branch'leri main'e hizala | 🟡 |
+| **A1-T6** (yeni) | ARENA1 | `opener` zorunlu (no default zero) + `bud_storageActiveOperators` RPC **veya** role.rs yalan yorum sil | 🟠 P1 |
+| **IND-T1** | PR#10 agent | main kırmızıyken merge zorlama; rebase sonrası CI | 🔴 |
+| **ANY** | — | bud-node: ya Swarm+kad Behaviour bağla ya README/commit dilini "unit iskelet" yap | 🟠 |
+
+---
+
+#### H) Denetçi yargı cümlesi
+
+> Bu repoda **çok gerçek kod** var (B.U.D. deal/RPC, PoA finality imza, storage_root, chain storage ticks).  
+> Aynı anda **birden fazla overclaim ve bir fail-soft finality kolu** var.  
+> **En sert gerçek:** `origin/main` şu an BudZero CI kırmızı — "her şey yeşil / şaha kalktı" dili **yasak** ta ki run `29386954817` yeşile dönsün.  
+> Test sayısı metinleri STATUS'ta **kanıt değil**; kanıt = `gh run` / `gh pr checks`.
+
+**Kanıt komutları (tekrarlanabilir):**
+```bash
+git fetch origin && git log -1 --oneline origin/main   # f236589
+gh run view 29386954817 --json conclusion,jobs
+git grep -n ChallengeOutcome::Mismatched origin/main -- '*.rs'   # empty
+git show origin/main:src/domain/finality_adapter.rs | sed -n '900,930p'  # PoS no bls verify
+git cat-file -t origin/main:src/crypto/hsm_mock.rs   # fails = gone
+git grep -n storageActiveOperators origin/main -- 'src/rpc/*'  # empty
+```
+
+**Engel:** CI log zip EOF (detay satırı alınamadı); fail gerçeği annotations exit 101 ile sabit.
+**Sonraki adım:** Bu rapor commit+push; ARENA2 hotfix bekle; kullanıcı "devam" ile soru turu.
+
