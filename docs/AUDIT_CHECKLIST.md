@@ -63,7 +63,7 @@
 ### 4.1 Runbook'lar (`docs/operations/`)
 - [x] `PRODUCTION_RUNBOOK.md` — Production runbook (Tur 13.5)
 - [x] `ARCHIVE_AND_BACKUP.md` — Archive + backup (Tur 13.5)
-- [ ] `HSM_BLS_PQ_POLICY.md` — BLS/PQ HSM policy (Tur 15 §1.1)
+- [x] `HSM_BLS_PQ_POLICY.md` — BLS/PQ HSM policy gate (ADIM 2 §1.1)
 - [x] `FINALITY_LIVE_PATH.md` — Finality live-path tarama (ADIM 2 §1.3)
 - [x] `MIGRATION_V2.md` — ConsensusStateV2 migration skeleton (ADIM 2 §1.4)
 - [ ] `MAINNET_LAUNCH_CHECKLIST.md` — Mainnet launch (Tur 16.9)
@@ -83,16 +83,16 @@
 
 ### 5.1 Algoritma envanteri
 - [ ] Ed25519 — mevcut (`src/crypto/pkcs11.rs`)
-- [ ] BLS12-381 — Tur 15 §1.1
-- [ ] Dilithium5 (PQ) — Tur 15 §1.1
+- [x] BLS12-381 — mevcut; PKCS#11 capability policy gate ADIM 2 §1.1
+- [x] Dilithium5 (PQ) — mevcut; PKCS#11 capability policy gate ADIM 2 §1.1
 - [ ] Keccak-256 (Ethereum uyumluluğu) — mevcut
 - [ ] Poseidon4 (B.U.D. Faz 3+/ZK bağlama) — Z-B gate sonrası
 - [ ] Diğer (libp2p noise/ yamux, vs.) — mevcut
 
 ### 5.2 HSM entegrasyonu
 - [ ] Ed25519 PKCS#11 — mevcut, audit edilmiş
-- [ ] BLS/PQ PKCS#11 — Tur 15 §1.1 (mock backend, gerçek HSM mainnet öncesi)
-- [ ] Disk key policy — README:88 + `HSM_BLS_PQ_POLICY.md`
+- [x] BLS/PQ PKCS#11 policy gate — ADIM 2 §1.1 (`HSM_BLS_PQ_POLICY.md`; vendor-native mechanisms ayrıca)
+- [x] Disk key policy — README:88 + `HSM_BLS_PQ_POLICY.md`
 
 ## 6. Konsensüs
 

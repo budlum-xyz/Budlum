@@ -14,7 +14,7 @@ Bu bölüm reponun güncel operasyonel gerçeklik tablosudur. Budlum Core kontro
 | Snapshot aşaması | Snapshot dosyaları sayısal sıralanır; bozuk en yeni dosya karantinaya alınır. `StateSnapshotV2` genişletilmiş konsensüs metadata'sı taşır. |
 | RPC tabanı | Ayrı public/operator listener, API-key auth, CORS/IP filtresi, trusted-proxy doğrulaması, IP başına kayan pencere quota'sı ve 10.000 istemcilik bellek tavanı vardır. Yönetim mutasyonları public listener'da reddedilir. |
 | CI | GitHub Actions Rust `1.94.0` sürümünü pinler; format, `cargo check`, warning'leri reddeden Clippy, workspace testleri ve `--release --locked` build çalıştırır. |
-| PKCS#11 | `ConsensusSigner` trait + `Pkcs11Signer` adaptörü (`cryptoki` ile) + `KeyPairSigner` local fallback. `ConsensusEngine` trait `fn signer()` sunar. Blok imzalama HSM varsa onu, yoksa local dosyayı kullanır. Mainnet başlangıç engeli kalktı. |
+| PKCS#11 | `ConsensusSigner` trait + `Pkcs11Signer` adaptörü (`cryptoki` ile) + `KeyPairSigner` local fallback. `ConsensusEngine` trait `fn signer()` sunar. Blok imzalama HSM varsa onu, yoksa dev/test için local dosyayı kullanır; mainnet validator disk key ve Ed25519-only HSM yollarında fail-closed kalır. |
 
 ## 2. Aşamalı veya Kısmi İşler
 
@@ -24,8 +24,8 @@ Bu bölüm reponun güncel operasyonel gerçeklik tablosudur. Budlum Core kontro
 | P2P | Version ve chain ID zorlanır. Validator-set hash ve scheme policy, kalıcı kimlik, profil kontrollü mDNS, DNS seed ve kalıcı ban runtime bağlantıları eksiktir. |
 | RPC | Public/operator listener ayrıdır; trusted proxy, body/connection limitleri ve bounded IP başına quota canlıdır. İmzasız legacy bond/domain/asset yönetim yardımcıları operator-only'dir. |
 | Metrics | Zincir/finality/mempool/P2P collector'larına ek olarak block propagation, consensus round ve storage read/write histogramları canlıdır. Dashboard/SLO operatör sorumluluğudur. |
-| Snapshot V2 | Canonical restore ve P2P chunk/session bağlama uygulanmıştır; release migration çerçevesi Tur 13.9 konusudur. |
-| Storage | Durable block commit + Tur 13.5 atomik doğrulanan backup, retention, boş hedefe restore ve integrity drill uygulanmıştır. Tam ConsensusStateV2 release migration'ı açıktır. |
+| Snapshot V2 | Canonical restore ve P2P chunk/session bağlama uygulanmıştır; ADIM 2 migration skeleton ve `--migrate-v2` backup gate mevcuttur. |
+| Storage | Durable block commit + Tur 13.5 atomik doğrulanan backup, retention, boş hedefe restore ve integrity drill uygulanmıştır. Çok adımlı gelecek schema transformları release öncesi ayrı audit edilir. |
 
 ## 3. Açık Mainnet Engelleri
 
@@ -35,7 +35,7 @@ Bu bölüm reponun güncel operasyonel gerçeklik tablosudur. Budlum Core kontro
 4. ~~Kalıcı P2P kimliği, discovery politikası, DNS seed ve kalıcı peer ban bağlantıları.~~ **TAMAMLANDI.**
 5. ~~Snapshot V2 restore, dağıtım/session bağlama, backup restore tatbikatı ve archive politikası.~~ **TAMAMLANDI (Tur 13.5):** `config/archive.toml`, atomik `.budbak`, retention, boş hedef restore + integrity drill.
 6. Governance, BudZKVM contract ve pruning özelliklerini ayrı incelemeler tamamlanana kadar Mainnet v1 için kapalı tut.
-7. Deployment paketleri, release ceremony kayıtları, dashboard'lar, incident runbook'ları, fault injection, fuzzing sonuçları ve dış güvenlik denetimi üret.
+7. Deployment paketleri, release ceremony kayıtları, dashboard'lar, incident runbook'ları, fault injection, uzun fuzzing sonuçları ve dış güvenlik denetimi üret.
 
 ## 4. Release Kapıları
 

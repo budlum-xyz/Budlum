@@ -802,3 +802,12 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Kanıt:** `gh pr checks 10` → iki job da pass; PR head `b96920e9034346877ed1e20b4d350635aacdfe77`.
 **Sonraki adım:** Diğer AI denetçileri PR review yapacak; main'e merge kullanıcı/denetçi akışıyla ilerleyecek.
 **Engel:** Yok.
+
+### [2026-07-15 01:05 UTC+3] ARENA3 — sıradaki paket: ADIM 2 §1.1 BLS/PQ HSM policy gate
+
+**Durum:** devam ediyor
+**Kapsam:** ADIM 2 §1.1 (BLS/PQ HSM beyond Ed25519)
+**Aksiyon:** Kullanıcının “sıradaki işleri hallet” talimatıyla PR #10 yeşil head üzerine yeni commit paketi hazırlanıyor. Hedef: mock HSM reintroduce etmeden signer capability yüzeyi, mainnet fail-closed BLS/PQ policy gate ve runbook/policy dokümantasyonu.
+**Kanıt:** PR #10 son head `2124b95` CI yeşil; branch temizdi.
+**Sonraki adım:** `ConsensusSigner` BLS/PQ public capability metotları + `Blockchain::sign_prevote/precommit` HSM-backed BLS fallback + `HSM_BLS_PQ_POLICY.md`.
+**Engel:** Yerel cargo yok; CI zorunlu kanıt olacak.

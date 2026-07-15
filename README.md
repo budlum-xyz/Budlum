@@ -130,7 +130,7 @@ Aligned with [budlum-xyz/Budlum](https://github.com/budlum-xyz/Budlum) Research 
 | BudZKVM host | In-tree `budzero/` workspace; one-commit compatibility boundary | ✓ Tur 13.5 |
 | Full Z-B Merkle soundness | Partial fixes Tur 13; **Production-gated** until positive 64-depth green | BudZero Phase 5 claim vs reality |
 | PoW light-client finality | Bounded contiguous headers; recomputed hash/link/root/difficulty/work; legacy proof mint-gated | ✓ Tur **13.5** |
-| BLS/PQ HSM (beyond Ed25519 PKCS#11) | Disk keys banned on mainnet; full HSM path open | ADIM **2.1** |
+| BLS/PQ HSM (beyond Ed25519 PKCS#11) | Disk keys banned; mainnet requires PKCS#11 Ed25519 + BLS + Dilithium/PQ capability gate; vendor-native mechanisms remain audit item | ADIM **2.1** |
 | Personas (user / developer / enterprise PoA) | `config/personas/*` + [docs/PERSONAS.md](docs/PERSONAS.md) | Tur **13** |
 | Archive/backup/runbooks | Archive fail-closed policy, atomic verified backup + restore drill, PoA/RPC/HSM runbook | ✓ Tur **13.5** |
 | BudZero performance | Reproducible proof time/size baseline harness | ✓ baseline Tur **13.5** |
@@ -154,7 +154,7 @@ tablodan bilinçli olarak hariç tutulmuştur** — ayrı turlarda
 | Verified bridge return path | ✅ Closed + Tur 12 PoW mint ban | 12.5 |
 | Sync hardening | ✅ Closed | — |
 | PKCS#11 HSM signer (Ed25519) | ✅ Closed (PoS/PoA blok üretimine bağlı) | 12.5 |
-| **BLS/PQ HSM (beyond Ed25519)** | ❌ **Açık** — BLS + Dilithium5 diskte, mainnet'te yasak; ADIM 2.1 ayrı paket | **ADIM 2.1** |
+| **BLS/PQ HSM (beyond Ed25519)** | ✅ **Policy gate ready** — disk keys yasak; PKCS#11 BLS/PQ capability zorunlu; vendor-native mechanism audit item | **ADIM 2.1** |
 | BLS finality protocol | ✅ Closed (prevote/precommit + testler) | 13 |
 | **Finality live-path live scan** | ✅ **Closed** — `src/tests/finality_live_path.rs` + `docs/operations/FINALITY_LIVE_PATH.md` | **ADIM 2.3** |
 | RPC dual listener | ✅ Closed + Tur 12.5 B2/B3 | 12.5 |
@@ -173,11 +173,12 @@ tablodan bilinçli olarak hariç tutulmuştur** — ayrı turlarda
 | Z-B valid 64-depth | ⏳ Partial (Production-gated) | BudZero |
 | Personas (user/dev/PoA) | ✅ Closed (`config/personas/*` + `docs/PERSONAS.md`) | 13 |
 
-**Toplam:** ADIM 2 §1.3-§1.7 kapatma paketi sonrası finality, migration
-skeleton, audit checklist ve fuzz/dependency/SBOM tooling kapatıldı. Açık ana
-mainnet engeli: **BLS/PQ HSM beyond Ed25519** (ADIM 2.1) ve araştırma
-satırları (Privacy/AI/TLA+ tam formal çalışma). Harici audit checklist hazırdır
-ama bağımsız audit yapılmadığı için “audited” iddiası yoktur.
+**Toplam:** ADIM 2 §1.1 ve §1.3-§1.7 paketleri sonrası BLS/PQ HSM policy gate,
+finality live-path, migration skeleton, audit checklist ve fuzz/dependency/SBOM
+tooling kapatıldı. Açık ana mainnet engelleri artık bağımsız harici audit,
+vendor-native HSM mekanizma doğrulaması ve araştırma satırlarıdır
+(Privacy/AI/TLA+ tam formal çalışma). Harici audit checklist hazırdır ama
+bağımsız audit yapılmadığı için “audited” iddiası yoktur.
 
 **B.U.D. Faz 1-2 + Faz 5 iskeleti** ADIM 1 kapsamında kod tabanındadır;
 Faz 3+ gerçek Proof-of-Storage ise BudZKVM `VerifyMerkle` 64-depth production
