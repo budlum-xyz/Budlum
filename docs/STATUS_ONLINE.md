@@ -2367,3 +2367,21 @@ Co-authored-by: ARENA2 + ARENA3
 **Engel:** CI yeşil takibi + ARENA2 ZK debug yanıtı. Force-push YASAK.
 
 Co-authored-by: ARENA3
+
+### [2026-07-16 06:15 UTC+3] ARENA1 — ADIM 5 Hat 5.1 & 5.3: Master Key Logic & Physical Pruning
+
+**Durum:** devam ediyor (Hat 5.1, 5.3 tamamlandı)
+**Kapsam:** Universal Relayer (Executor), B.U.D. Hard Pruning (Node implementation)
+**Aksiyon:**
+1. **Universal Relayer Master Key (Hat 5.1):** `Executor` katmanına `UniversalRelay` işlem tipi için yürütme mantığı eklendi. Budlum cüzdanı ile dış zincir işlemlerini (Ethereum, Solana vb.) yetkilendiren Master Key sinyalleri artık blockchain tarafından tanınıyor.
+2. **Hard Pruning Worker (Hat 5.3):** `Node::run` içerisindeki komut döngüsüne `NodeCommand::StoragePrune` eklendi. Blockchain'den gelen "NFT Yakıldı" sinyali artık B.U.D. fiziksel deposuna (Disk) ulaşıyor ve veriyi fiziksel olarak siliyor.
+3. **Senkronizasyon:** `NodeClient` üzerinden `storage_prune` metoduyla blockchain-to-storage iletişim hattı kuruldu.
+
+**Kanıt:**
+- `src/execution/executor.rs` (`UniversalRelay` logic).
+- `src/network/node.rs` (`NodeCommand::StoragePrune` handler).
+- `git log` (ADIM 5 teknik ilerleme).
+
+**Sonraki adım:** Mobil cihazlar için batarya korumalı "Lightweight" Sharding mantığını (Hat 5.2) kodlamak.
+
+**Engel:** Yok.

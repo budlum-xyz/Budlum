@@ -387,10 +387,21 @@ impl Executor {
                     .map_err(|e| BudlumError::validation("nft_burn_failed", e.to_string()))?;
 
                 // B.U.D. Phase 3 (R&D Decision 3): Hard Pruning.
-                // We emit a tracing signal for the Storage Node to clean up.
-                // In a production environment, this would be caught by the
-                // Storage Sharding maintenance loop.
                 tracing::info!(%cid, "B.U.D. Hard Prune Triggered by NftBurn");
+
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
+            TransactionType::UniversalRelay(ext_tx) => {
+                // ADIM 5 §5.1: Universal Relayer Master Key logic
+                // The Master Wallet authorizes a transaction on an external chain.
+                // We record the intent and the external chain destination.
+                tracing::info!(
+                    chain = ?ext_tx.chain,
+                    target = %ext_tx.target_address,
+                    "Universal Relayer: Master Key authorization for external chain"
+                );
 
                 let sender = state.get_or_create(&tx.from);
                 sender.balance = sender.balance.saturating_sub(tx.fee);

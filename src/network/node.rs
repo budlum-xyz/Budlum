@@ -737,6 +737,15 @@ impl Node {
                                     warn!("Failed to gossip transaction: {}", e);
                                 }
                             }
+                            NodeCommand::StoragePrune(cid) => {
+                                // ADIM 5 §5.3: Hard Pruning logic in monolithic node
+                                if let Some(ref bitswap) = self.storage_node {
+                                    match bitswap.store().delete(&cid) {
+                                        Ok(_) => info!(%cid, "NodeCommand: Physically deleted B.U.D. shard from disk"),
+                                        Err(e) => warn!(%cid, "NodeCommand: Failed to delete shard: {}", e),
+                                    }
+                                }
+                            }
                         }
                     }
                 }
