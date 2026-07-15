@@ -374,20 +374,9 @@ impl StorageRegistry {
         // === B.U.D. Faz 3: Merkle Proof (ADIM4) ===
         merkle_proof: Option<Vec<u8>>,
         storage_root: Option<Hash32>,
-    ) -> Result<u64, StorageError> { 
+    ) -> Result<u64, StorageError> {
         // NOTE: merkle_proof and storage_root are optional in Faz 2 (interim).
         // In Faz 3 (ADIM4), they will be required.
-        &mut self,
-        domain_id: u32,
-        manifest: &ContentManifest,
-        shard_id: ContentId,
-        operator: Address,
-        replica_index: u8,
-        start_epoch: u64,
-        end_epoch: u64,
-        economics: StorageEconomicsParams,
-        domain_params: &StorageDomainParams,
-    ) -> Result<u64, StorageError> {
         if start_epoch >= end_epoch {
             return Err(StorageError::InvalidEpochRange {
                 start: start_epoch,
@@ -716,6 +705,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         (id, shard_id)
@@ -737,6 +728,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap_err();
         assert!(matches!(err, StorageError::UnknownShard { .. }));
@@ -758,6 +751,8 @@ mod tests {
                 100,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap_err();
         assert!(matches!(err, StorageError::InvalidEpochRange { .. }));
@@ -771,7 +766,7 @@ mod tests {
         let mut econ = good_econ();
         econ.operator_bond = 1; // way below min_operator_bond
         let err = reg
-            .open_deal(42, &m, shard_id, operator(), 0, 100, 200, econ, &params())
+            .open_deal(42, &m, shard_id, operator(), 0, 100, 200, econ, &params(), None, None)
             .unwrap_err();
         assert!(matches!(err, StorageError::InsufficientBond { .. }));
     }
@@ -792,6 +787,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         let id2 = reg
@@ -805,6 +802,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         assert_ne!(id1, id2);

@@ -3325,6 +3325,8 @@ impl Blockchain {
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: &crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
     ) -> Result<u64, String> {
         // 1. Calculate total client fee escrow needed
         let epochs = end_epoch.saturating_sub(start_epoch);
@@ -3374,6 +3376,8 @@ impl Blockchain {
             end_epoch,
             economics.clone(),
             domain_params,
+            merkle_proof,
+            storage_root,
         ) {
             Ok(deal_id) => Ok(deal_id),
             Err(e) => {

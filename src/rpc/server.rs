@@ -1357,6 +1357,8 @@ impl BudlumApiServer for RpcServer {
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
         let clean_shard = shard_id.strip_prefix("0x").unwrap_or(&shard_id);
         let s_bytes = hex::decode(clean_shard).map_err(|e| {
@@ -1394,6 +1396,8 @@ impl BudlumApiServer for RpcServer {
                 end_epoch,
                 economics.clone(),
                 domain_params,
+                merkle_proof.clone(),
+                storage_root.clone(),
             )
             .await
             .map_err(|e| {
@@ -1423,6 +1427,8 @@ impl BudlumApiServer for RpcServer {
                 end_epoch,
                 economics,
                 &crate::domain::storage_params::StorageDomainParams::default(),
+                merkle_proof,
+                storage_root,
             );
         }
 

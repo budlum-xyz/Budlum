@@ -193,6 +193,8 @@ pub enum ChainCommand {
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
         response: oneshot::Sender<Result<u64, String>>,
     },
     /// B.U.D. Faz 5 (ARENA2): Issue retrieval challenges for active storage
@@ -547,6 +549,8 @@ impl ChainHandle {
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
     ) -> Result<u64, String> {
         let (tx, rx) = oneshot::channel();
         let _ = self
@@ -562,6 +566,8 @@ impl ChainHandle {
                 end_epoch,
                 economics,
                 domain_params,
+                merkle_proof,
+                storage_root,
                 response: tx,
             })
             .await;
@@ -1589,6 +1595,8 @@ impl ChainActor {
                     end_epoch,
                     economics,
                     domain_params,
+                    merkle_proof,
+                    storage_root,
                     response,
                 } => {
                     let _ = response.send(self.blockchain.open_storage_deal_with_escrow(
@@ -1602,6 +1610,8 @@ impl ChainActor {
                         end_epoch,
                         economics,
                         &domain_params,
+                        merkle_proof,
+                        storage_root,
                     ));
                 }
                 ChainCommand::IssueStorageChallenges(epoch, res_tx) => {
