@@ -65,6 +65,11 @@ pub struct Blockchain {
     /// `submit_zk_proof` path persists into this registry so a duplicate or
     /// conflicting claim is rejected deterministically.
     pub proof_claims: crate::prover::ProofClaimRegistry,
+    /// B.U.D. Faz 4 (ARENA2): aggregated Merkle root of verified storage
+    /// proofs pending inclusion in the next `GlobalBlockHeader`. Reset to
+    /// `None` after each header is sealed. Populated by
+    /// `apply_storage_proofs()` (Faz 3, gated on BudZero VerifyMerkle).
+    pub pending_storage_root: Option<crate::domain::Hash32>,
 }
 impl Blockchain {
     pub fn with_metrics(mut self, metrics: Arc<crate::core::metrics::Metrics>) -> Self {
@@ -410,6 +415,7 @@ impl Blockchain {
             finality_aggregator: None,
             metrics: None,
             proof_claims: crate::prover::ProofClaimRegistry::new(),
+            pending_storage_root: None,
         };
 
         if let Some(first) = bc.chain.first() {
@@ -968,6 +974,13 @@ impl Blockchain {
             merkle_root(&self.settlement_finality_hashes)
         };
 
+        // B.U.D. Faz 4 (ARENA2): storage_root is computed from any verified
+        // StorageProofResponses accumulated in this block period. Currently
+        // None (no proof aggregation pipeline wired yet — gated on BudZero
+        // VerifyMerkle Z-B gate, Faz 3). The field is set to None here and
+        // will be populated by `apply_storage_proofs()` once Faz 3 lands.
+        let storage_root = self.pending_storage_root;
+
         GlobalBlockHeader {
             version: 1,
             global_height: self.global_headers.len() as u64,
@@ -981,6 +994,7 @@ impl Blockchain {
             replay_nonce_root: self.bridge_state.replay_root(),
             proposer,
             settlement_finality_root,
+            storage_root,
         }
     }
 
@@ -3170,11 +3184,6 @@ impl Blockchain {
         checkpoint_hash: &str,
         voter_id: &Address,
     ) -> Result<Prevote, String> {
-        let sk = self
-            .consensus
-            .bls_secret_key()
-            .ok_or("No BLS secret key available")?;
-
         let msg = {
             let dummy = Prevote {
                 epoch,
@@ -3186,7 +3195,15 @@ impl Blockchain {
             dummy.signing_message()
         };
 
-        let sig = crate::chain::finality::sign_bls(&sk, &msg);
+        let sig = if let Some(sk) = self.consensus.bls_secret_key() {
+            crate::chain::finality::sign_bls(&sk, &msg)
+        } else if let Some(signer) = self.consensus.signer() {
+            signer
+                .bls_sign(&msg)
+                .map_err(|e| format!("BLS signer backend failed: {}", e))?
+        } else {
+            return Err("No BLS signing capability available".to_string());
+        };
 
         Ok(Prevote {
             epoch,
@@ -3204,18 +3221,21 @@ impl Blockchain {
         checkpoint_hash: &str,
         voter_id: &Address,
     ) -> Result<Precommit, String> {
-        let sk = self
-            .consensus
-            .bls_secret_key()
-            .ok_or("No BLS secret key available")?;
-
         let msg = crate::chain::finality::checkpoint_signing_message(
             epoch,
             checkpoint_height,
             checkpoint_hash,
         );
 
-        let sig = crate::chain::finality::sign_bls(&sk, &msg);
+        let sig = if let Some(sk) = self.consensus.bls_secret_key() {
+            crate::chain::finality::sign_bls(&sk, &msg)
+        } else if let Some(signer) = self.consensus.signer() {
+            signer
+                .bls_sign(&msg)
+                .map_err(|e| format!("BLS signer backend failed: {}", e))?
+        } else {
+            return Err("No BLS signing capability available".to_string());
+        };
 
         Ok(Precommit {
             epoch,
@@ -3277,6 +3297,7 @@ impl Clone for Blockchain {
             finality_aggregator: None,
             metrics: self.metrics.clone(),
             proof_claims: self.proof_claims.clone(),
+            pending_storage_root: self.pending_storage_root,
         }
     }
 }

@@ -130,23 +130,23 @@ Aligned with [budlum-xyz/Budlum](https://github.com/budlum-xyz/Budlum) Research 
 | BudZKVM host | In-tree `budzero/` workspace; one-commit compatibility boundary | ✓ Tur 13.5 |
 | Full Z-B Merkle soundness | Partial fixes Tur 13; **Production-gated** until positive 64-depth green | BudZero Phase 5 claim vs reality |
 | PoW light-client finality | Bounded contiguous headers; recomputed hash/link/root/difficulty/work; legacy proof mint-gated | ✓ Tur **13.5** |
-| BLS/PQ HSM (beyond Ed25519 PKCS#11) | Disk keys banned on mainnet; full HSM path open | Tur **13.9** |
+| BLS/PQ HSM (beyond Ed25519 PKCS#11) | Disk keys banned; mainnet requires PKCS#11 Ed25519 + BLS + Dilithium/PQ capability gate; vendor-native mechanisms remain audit item | ADIM **2.1** |
 | Personas (user / developer / enterprise PoA) | `config/personas/*` + [docs/PERSONAS.md](docs/PERSONAS.md) | Tur **13** |
 | Archive/backup/runbooks | Archive fail-closed policy, atomic verified backup + restore drill, PoA/RPC/HSM runbook | ✓ Tur **13.5** |
 | BudZero performance | Reproducible proof time/size baseline harness | ✓ baseline Tur **13.5** |
 | B.U.D. storage network | Implemented (Faz 1-2 + Faz 5 iskeleti); Faz 3 pending Z-B gate | **Tur 14** |
-| External audit / TLA+ / Privacy / AI | Process / research — not claimed done | Checklist Tur 13.9 |
+| External audit / TLA+ / Privacy / AI | External audit checklist ready; TLA+/Privacy/AI remain research — not claimed audited | ADIM **2.5** |
 
 ## Research Roadmap Status (Budlum + BudZero — B.U.D. Hariç)
 
-**Son güncelleme:** 2026-07-14 (Tur 14.9 denetim turu, Tur 15 öncesi).
+**Son güncelleme:** 2026-07-15 (ADIM 2 §1.3-§1.7 kapanış paketi).
 
 Bu tablo `budlum-xyz/Budlum` Research Roadmap + ch12 mainnet blockers
 maddelerinin durumunu gösterir. B.U.D. (Broad Universal Database) **bu
 tablodan bilinçli olarak hariç tutulmuştur** — ayrı turlarda
 (Tur 14/15/16+) takip edilir.
 
-| Madde (org) | Durum (lubosruler fork, 2026-07-14) | Tur |
+| Madde (org) | Durum (lubosruler fork, 2026-07-15) | Adım |
 |-------------|--------------------------------------|-----|
 | Devnet economic hardening | ✅ Closed (erken turlar + tokenomics) | — |
 | Settlement atomicity | ✅ Closed | — |
@@ -154,17 +154,17 @@ tablodan bilinçli olarak hariç tutulmuştur** — ayrı turlarda
 | Verified bridge return path | ✅ Closed + Tur 12 PoW mint ban | 12.5 |
 | Sync hardening | ✅ Closed | — |
 | PKCS#11 HSM signer (Ed25519) | ✅ Closed (PoS/PoA blok üretimine bağlı) | 12.5 |
-| **BLS/PQ HSM (beyond Ed25519)** | ❌ **Açık** — BLS + Dilithium5 diskte, mainnet'te yasak | **15.1** |
+| **BLS/PQ HSM (beyond Ed25519)** | ✅ **Policy gate ready** — disk keys yasak; PKCS#11 BLS/PQ capability zorunlu; vendor-native mechanism audit item | **ADIM 2.1** |
 | BLS finality protocol | ✅ Closed (prevote/precommit + testler) | 13 |
-| **Finality live-path live scan** | ❌ **Açık** — adversarial test kapsamı genişletilecek | **15.3** |
+| **Finality live-path live scan** | ✅ **Closed** — `src/tests/finality_live_path.rs` + `docs/operations/FINALITY_LIVE_PATH.md` | **ADIM 2.3** |
 | RPC dual listener | ✅ Closed + Tur 12.5 B2/B3 | 12.5 |
 | P2P hardening | ✅ Closed | 12.5 |
 | Snapshot V2 | ✅ Closed (archive policy `config/archive.toml`) | 13.5 |
 | Observability Prometheus | ✅ Closed (latency histogram wiring) | 13.5 |
 | Deployment docker/systemd | ✅ Closed (runbook) | 13.5 |
-| **ConsensusStateV2 migration** | ❌ **Açık** — minimum migration hook eksik | **15.4** |
-| **External audit** | ❌ **Açık** — sadece checklist hazır; audit yapılmadı | **15.5** + **16.5** |
-| **Fuzzing + dependency audit + SBOM** | ❌ **Açık** — araç entegrasyonu yok | **15.7** |
+| **ConsensusStateV2 migration** | ✅ **Closed / skeleton** — schema window constants + `migration_report()` + offline `--migrate-v2` backup gate | **ADIM 2.4** |
+| **External audit** | ✅ **Checklist ready** — `docs/AUDIT_CHECKLIST.md`; harici audit yapılmadı/audited iddiası yok | **ADIM 2.5** + launch öncesi |
+| **Fuzzing + dependency audit + SBOM** | ✅ **Tooling ready** — `fuzz/`, `scripts/audit-deps.sh`, `scripts/generate-sbom.sh`, `docs/operations/*` | **ADIM 2.7** |
 | ZKVM optimizations | ⏳ Baseline complete (proof time/size harness) | 13.5 |
 | Formal verification (TLA+) | ❌ Süreç — checklist | 13.9 |
 | Privacy layer | ❌ Araştırma | 13 serisi dışı |
@@ -173,13 +173,16 @@ tablodan bilinçli olarak hariç tutulmuştur** — ayrı turlarda
 | Z-B valid 64-depth | ⏳ Partial (Production-gated) | BudZero |
 | Personas (user/dev/PoA) | ✅ Closed (`config/personas/*` + `docs/PERSONAS.md`) | 13 |
 
-**Toplam:** 17 Closed + 5 Açık (Tur 15'te) + 2 Açık (Tur 15 dışı:
-Privacy/AI). **Açık 5 madde = Tur 15'in 7 ana iş paketiyle birebir
-eşleşir** (BLS/PQ HSM + finality + ConsensusStateV2 + audit checklist +
-fuzzing).
+**Toplam:** ADIM 2 §1.1 ve §1.3-§1.7 paketleri sonrası BLS/PQ HSM policy gate,
+finality live-path, migration skeleton, audit checklist ve fuzz/dependency/SBOM
+tooling kapatıldı. Açık ana mainnet engelleri artık bağımsız harici audit,
+vendor-native HSM mekanizma doğrulaması ve araştırma satırlarıdır
+(Privacy/AI/TLA+ tam formal çalışma). Harici audit checklist hazırdır ama
+bağımsız audit yapılmadığı için “audited” iddiası yoktur.
 
-**B.U.D. Faz 1-2 implementasyonu** (PR #6 kapsamı) bu tabloda yok —
-ayrı turlarda (Tur 15.2 + 16.5) takip edilir.
+**B.U.D. Faz 1-2 + Faz 5 iskeleti** ADIM 1 kapsamında kod tabanındadır;
+Faz 3+ gerçek Proof-of-Storage ise BudZKVM `VerifyMerkle` 64-depth production
+gate’ine bağlı olarak sonraki adımlarda takip edilir.
 
 ### Personas (same binary)
 

@@ -53,10 +53,14 @@ private deployment overlay. Inject the PIN through the service manager or a
 secret store; never place its value in Git, CLI arguments, logs or shell
 history.
 
-Current limitation: PKCS#11 covers the consensus Ed25519 signer. Disk-backed
-`ValidatorKeys` also contain BLS and Dilithium secrets, so the process rejects
-such files on mainnet until Tur 13.9 delivers/assesses BLS/PQ HSM paths. This is
-a fail-closed limitation, not a completed HSM claim.
+ADIM 2 §1.1 policy: mainnet validators must expose Ed25519 plus BLS and
+Dilithium/PQ key material through the PKCS#11 signer capability surface. The
+process rejects disk-backed `ValidatorKeys` and also rejects Ed25519-only PKCS#11
+backends on mainnet. See `docs/operations/HSM_BLS_PQ_POLICY.md`.
+
+Current limitation: BLS/PQ support is a PKCS#11-backed key-inventory/signing path,
+not a claim that every vendor HSM offers native non-extractable BLS/Dilithium
+mechanisms. Hardware-native vendor integrations remain a separate audit item.
 
 ## 5. PoW bridge policy
 
