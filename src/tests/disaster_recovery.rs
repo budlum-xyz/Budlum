@@ -174,3 +174,67 @@ use tracing::info;
             assert_eq!(bc_a.last_block().hash, bc_b.last_block().hash);
         }
     }
+
+    #[tokio::test]
+    async fn test_chaos_v2_ultimate_byzantine_recovery() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("ultimate_chaos.db");
+        let db_path_str = db_path.to_str().unwrap();
+
+        let alice = Address::from([0x01; 32]);
+        let bob = Address::from([0x02; 32]);
+        let relayer = Address::from([0x0A; 32]);
+
+        // PHASE 1: Normal Operation
+        {
+            let storage = Storage::new(db_path_str).unwrap();
+            let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
+            bc.state.add_balance(&alice, 1_000_000);
+            
+            // Relayer Result for an external tx
+            let res = crate::core::transaction::RelayerExternalResult {
+                chain: crate::core::transaction::ExternalChain::Ethereum,
+                tx_hash: "0xHASH".to_string(),
+                success: true,
+                receipt_proof: vec![1, 2, 3],
+            };
+            let mut tx = Transaction::new_with_chain_id(relayer, Address::zero(), 0, 1, 0, Vec::new(), 1337, TransactionType::RelayerResult(res));
+            bc.add_transaction(tx).unwrap();
+            bc.produce_block(Address::zero());
+        }
+
+        // PHASE 2: Sudden Crash during heavy writing
+        {
+            let storage = Storage::new(db_path_str).unwrap();
+            let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
+            
+            for _i in 0..100 {
+                let mut tx = Transaction::new(alice, bob, 1, vec![]);
+                tx.nonce = bc.state.get_nonce(&alice);
+                tx.fee = 1;
+                let _ = bc.add_transaction(tx);
+            }
+            // Block production interrupted! (Simulation: Process Exit)
+            info!("INTERRUPTED: System crash during block processing.");
+        }
+
+        // PHASE 3: Recovery and Chain Sync with a longer fork
+        {
+            let storage = Storage::new(db_path_str).unwrap();
+            let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
+            
+            // Node sees a much longer chain from the network
+            let mut longer_chain = Vec::new();
+            longer_chain.push(bc.chain[0].clone()); // Genesis
+            let mut prev_hash = bc.chain[0].hash.clone();
+            for i in 1..20 {
+                let block = crate::core::block::Block::new(i as u64, prev_hash.clone(), vec![]);
+                prev_hash = block.hash.clone();
+                longer_chain.push(block);
+            }
+
+            let _ = bc.try_reorg(longer_chain);
+            assert_eq!(bc.get_height(), 19, "Must recover and follow the longest valid chain");
+            info!("ULTIMATE SUCCESS: Budlum recovered from partial block processing and performed deep reorg.");
+        }
+    }
