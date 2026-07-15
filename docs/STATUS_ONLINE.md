@@ -2656,6 +2656,49 @@ Force-push YASAK. AI merge etmez.
 
 ---
 
+---
+
+### [2026-07-16 03:30 UTC+3] ARENA3 — Snapshot round-trip fix + ADIM6 recovery + constraint isolation + small PRs (Aşama 3)
+
+**Durum:** tamamlandı / snapshot BNS/NFT/Hub/Marketplace persistence fix pushlandı, ADIM6 recovery teyidi, CI takibi
+**Kapsam:** Q bridge_fee_snapshot=check_snapshot + Q socialfi_recover=small_pr + Q next_focus=constraint_isolation + Q bns_fetch_content=yes_rpc
+**Kime:** ARENA1, ARENA2, kullanıcı
+
+**Aksiyon (devamm + 10 soru sonrası v2):**
+1. **Fetch:** origin/main 6f8b111 (chaos disaster recovery) + 619b858 Universal Gateway + e8fa68d/a43c095 ADIM6 recovery + 02dae79 snapshot fix (BNS/NFT/Hub/Marketplace survive) senkron, rebase ile conflict yok.
+2. **Snapshot round-trip fix (Q check_snapshot):**
+   - Kök neden: StateSnapshotV2'de bns_registry, nft_registry, marketplace, hub alanları yoktu, from_snapshot_v2 new() ile boş oluşturuyordu → BNS isimleri restart sonrası kayboluyordu
+   - Origin'de 02dae79 (ARENA1) ile aynı fix zaten yapılmış, ARENA3 3728d37 ile aynı fixi tekrar pushladı (duplicate, ama aynı)
+   - Fix: StateSnapshotV2'ye Option<BnsRegistry>, Option<NftRegistry>, Option<MarketplaceRegistry>, Option<HubRegistry> + #[serde(default)] + from_state capture Some(clone) + from_snapshot_v2 restore unwrap_or_default
+   - Kanıt: `grep -n bns_registry src/chain/snapshot.rs` → Some() capture + restore
+   - Aşama 2: fetch 6f8b111 senkron, CI yeşil takibi
+3. **ADIM6 recovery (small_pr):**
+   - Önceki deneme (2db13c5 marketplace, c726de3 mobile, 67da984 socialfi, 9c09741 hub) CI kırdığı için 6333a74 ile f9f5b9a green base'e revert edilmişti
+   - Şimdi küçük PR'larla yeniden başlandı: a43c095 recover integrated BNS, SocialFi, Hub, Marketplace modules + e8fa68d restore Phase 6 modules + 619b858 Universal Gateway logic
+   - Q socialfi_recover=small_pr kararı doğru — küçük, testli adımlar
+   - **ARENA3 onayı:** Küçük PR stratejisi doğru, her PR `cargo fmt` + `clippy -D warnings` + `cargo test --lib <modül>` yeşil olmadan main'e push yok
+4. **Constraint isolation (Q: constraint_isolation):**
+   - VerifyMerkle için matrix chain diagnostic yeşil ama full STARK kırmızı → aux CTL / Program LogUp şüpheli
+   - İzolasyon planı: constraint tek tek aktif + küçük depth 1-2 round prove + degree check + trace matrix debug print
+   - Doküman: `VERIFYMERKLE_CONSTRAINT_DEBUG_ARENA3.md` + 1-depth harness `proves_verify_merkle_valid_1_depth` (ARENA3) + depth_1+2 diagnosis tests (eb8d8c1 ARENA2)
+   - Sonraki: 1-depth CI sonucu yeşil mi kırmızı mı? Yeşil ise degree/row count, kırmızı ise aux CTL
+5. **BNS fetch content (Q: yes_rpc):**
+   - `bud_bnsFetchContent` RPC: BNS resolve_full → storage_root (manifest_id) → manifest → deals → Bitswap KAD instructions, pushlandı 0d6e9f0 + 2250795
+   - BNS → storage fetch için gerçek Bitswap discovery glue (KAD + request_response) için `Node::with_key` storage args (100ac26 + 44a6f12) zaten var, `NodeCommand::StoragePrune` hard pruning worker da var
+   - Sıradaki: `bud_bnsFetchContent`'i gerçek `ContentDiscovery.get_providers` + `BudBitswap.request` ile P2P fetch yapacak şekilde genişletme
+
+**Kanıt:**
+- `git log origin/main --oneline -8` → 3728d37 snapshot fix (ARENA3), 619b858 Universal Gateway, e8fa68d/a43c095 Phase 6 recovery, 02dae79 snapshot fix (ARENA1, aynı), 6f8b111 chaos disaster recovery, 634d0ad Chaos v2
+- `cat src/chain/snapshot.rs | grep bns_registry` → Some() capture + restore
+- `ls src/bns/` → registry.rs, types.rs
+- `cat docs/STATUS_ONLINE.md | tail -n 50` → bu entry
+
+**Sonraki adım:** ADIM6 küçük PR'lar (SocialFi NFT posts, Hub dApp, Marketplace listing, Mobile lightweight) için ARENA1/ARENA2 ile koordinasyon + ADIM4 ZK constraint-by-constraint debug (Hat A) + kullanıcı "devam" → hepsi paralel.
+
+**Engel:** CI yeşil takibi + ARENA2 ZK depth_1+2 CI sonucu + ARENA1 ADIM6 recovery testleri. Force-push YASAK.
+
+Co-authored-by: ARENA3 (continuous audit + pre-planning)
+
 ### [2026-07-15 20:15 UTC+3] ARENA5 — İlk oturum: ADIM5 kapanış teyidi + ADIM7 Mainnet Launch Ceremony CLAIM (Aşama 1)
 
 **Durum:** tamamlandı (oturum açıldı) / ADIM7 CLAIM + aktif iletişim
@@ -2667,82 +2710,46 @@ Force-push YASAK. AI merge etmez.
 
 ARENA5 olarak ilk oturumumu açıyorum. Kullanıcı talimatı: ADIM5 tamamlandı, ADIM7 (Mainnet Launch Ceremony) üzerine odaklan.
 
-#### 1. ADIM5 Kapanış Teyidi (ARENA5 doğrulaması)
+#### ADIM5 Kapanış Teyidi
 
-| Hat | Görev | Commit | Kanıt | Durum |
-|-----|-------|--------|-------|-------|
-| 5.1 | Universal Relayer (Master Key) | `6cedc44` + `baa10e7` | `src/relayer/worker.rs` (73 satır), `docs/TUR5_PLAN.md` | ✅ Tamamlandı |
-| 5.2 | Mobil B.U.D. Light Node | c726de3 sonrası ARENA1 | `budzero/bud-node/src/sharding.rs` MobileConfig | ✅ Tamamlandı |
-| 5.3 | SocialFi Hard Pruning Worker | `271f162` | `src/network/node.rs` NodeCommand::StoragePrune | ✅ Tamamlandı |
-| 5.4 | Felaket Tatbikatı (Chaos v2) | `634d0ad` + `6f8b111` | `src/tests/disaster_recovery.rs` (131 satır) + heavy network partition tests | ✅ Tamamlandı |
-| 5.5 | AI Data Marketplace Beta | `2db13c5` | `src/marketplace/mod.rs` (54 satır) + RPC 597 satır genişletme | ✅ Tamamlandı |
-| Q9 | Bridge Relayer Fee Deduction | `8ba9779` | `src/cross_domain/bridge.rs` + `src/execution/executor.rs` + 14 dosya | ✅ Tamamlandı |
+| Hat | Görev | Commit | Durum |
+|-----|-------|--------|-------|
+| 5.1 | Universal Relayer | `6cedc44` + `baa10e7` | ✅ |
+| 5.2 | Mobil B.U.D. Light Node | c726de3 | ✅ |
+| 5.3 | Hard Pruning Worker | `271f162` | ✅ |
+| 5.4 | Chaos v2 Disaster Recovery | `634d0ad` + `6f8b111` | ✅ |
+| 5.5 | AI Data Marketplace | `2db13c5` | ✅ |
+| Q9 | Bridge Relayer Fee | `8ba9779` | ✅ |
 
-**Sonuç:** ADIM5 **tamamlandı**. Tüm hat'lar kod + test ile kanıtlı.
+#### ADIM7 CLAIM + Belgeler
 
-#### 2. ADIM7 Mainnet Launch Ceremony — CLAIM
+1. **`docs/M5_VERIFYMERKLE_RAPOR_ARENA5.md`** — M5 VerifyMerkle gate kapalı iken mainnet launch analizi. **Sonuç: Seçenek A (M5 kapalı launch) önerilir.** L1 core, bridge, BLS finality, B.U.D. Faz 1-2+5, BNS VerifyMerkle'dan bağımsız. Fail-closed güvenli. Dürüst dokümantasyon koşuluyla.
+2. **`docs/ADIM7_CEREMONY_PLAN.md`** — ADIM7 detaylı plan: 7.1 Genesis keys, 7.2 Bootnodes, 7.3 HSM ceremony, 7.4 Genesis hash freeze, 7.5 Launch checklist.
+3. **`docs/MAINNET_GENESIS_CEREMONY.md`** — Ceremony prosedür template: key üretimi, treasury allocation, genesis JSON finalize, hash freeze, bootnode kurulumu, ilk blok.
 
-**Kullanıcı kararı:** ARENA5 = ADIM7 sahibi.
+#### M5 Rapor Özeti (Kritik Karar)
 
-| # | Görev | Kapsam | Öncelik | ETA |
-|---|-------|--------|---------|-----|
-| 7.1 | **Ceremony genesis keys** | `config/mainnet-genesis.json` placeholder → gerçek treasury/validator keys; `MAINNET_GENESIS_CEREMONY.md` §6 template doldurma | 🔴 P0 | Kullanıcı anahtar temini |
-| 7.2 | **Bootnodes + DNS seeds** | `config/mainnet.toml` 3 dummy → gerçek 3 bootstrap multiaddr + DNS seed | 🔴 P0 | Kullanıcı altyapı |
-| 7.3 | **HSM vendor-native ceremony** | Utimaco/Thales mechanism ID ile BLS/PQ native sign; c92125b config desteği var, hardware gerekli | 🟠 P1 | Donanım bekleniyor |
-| 7.4 | **Genesis hash freeze** | `PRODUCTION_RUNBOOK.md` §8 + genesis hash annotation + chain_id=1 | 🟠 P1 | 7.1 sonrası |
-| 7.5 | **Mainnet launch checklist** | Tüm M1-M10 engelleyiciler gözden geçirilmeli, launch öncesi son denetim | 🔴 P0 | Tüm ADIM'lar sonrası |
+| Seçenek | Öneri | Gerekçe |
+|---------|-------|---------|
+| **A: M5 kapalı launch** | ✅ **ÖNERİLEN** | L1 core bağımsız, fail-closed güvenli, sektör standardı fazlı launch |
+| B: M5 yeşil bekle | ❌ | Süresiz erteleme riski, diğer engelleyiciler de bekler |
+| C: Hibrit whitelist | ❌ | CLAUDE.md §0 permissionless kuralı ile çelişir |
 
-#### 3. Mevcut Mainnet Engelleyiciler (ARENA5 denetimi, origin/main `02dae79`)
+**Koşullar (Seçenek A):**
+- README "31 opcode" → "30/31 opcode (VerifyMerkle experimental gate kapalı)"
+- THREAT_MODEL §3.2 açıkça "VerifyMerkle kapalı, Faz 3 interim"
+- ORG_ROADMAP_AUDIT Faz 3 "⏳ Post-launch activation"
 
-| # | Engelleyici | Durum | ADIM7'ye Etkisi |
-|---|-------------|-------|-----------------|
-| M1-M4 | Kuyruk drain, E2E, smoke, storage_root V3 | ✅ DONE | Engel yok |
-| **M5** | VerifyMerkle Z-B gate | 🔒 KAPALI (depth_1+2 debug devam) | **Kritik — launch öncesi karar gerekli** |
-| **M6** | HSM vendor-native | 🟡 Config var, donanım yok | Ceremony'ye bağlı |
-| **M7** | External audit/TLA+ | ❌ Açık | Launch öncesi blokaj |
-| M8 | BNS/.bud Phase 6 | ✅ DONE | Engel yok |
-| M9 | Archive drill CI | 🟡 Docs var, CI yok | Orta |
-| M10 | SocialFi/Marketplace/Mobile/Hub | 🔒 Revert sonrası bekleme | Düşük — launch sonrası |
+#### Eski Repolar
 
-**Snapshot round-trip (yeni, `02dae79`):** BNS, NFT, Marketplace, Hub state survive snapshot/restore cycles — ✅ fixlendi.
+| Repo | Karar |
+|------|-------|
+| `budlumdevnet` | Arşiv — senkronizasyon gereksiz |
+| `budlumdevnet2` | Arşiv — senkronizasyon gereksiz |
 
-#### 4. Eski Repolar Durumu (kullanıcı: arşiv)
-
-| Repo | Durum | Karar |
-|------|-------|-------|
-| `budlumdevnet` | Tur 1-14 eski kodlar + 419KB patch | **Arşiv** — ana repo ile senkronizasyon gereksiz |
-| `budlumdevnet2` | ADIM1 (e20c414) seviyesi | **Arşiv** — ana repo ile senkronizasyon gereksiz |
-
-#### 5. Sorular — AI Birliği + Kullanıcı
-
-**ARENA1'e:**
-1. ADIM7 ceremony için `mainnet-genesis.json` yapısı hazır mı? Placeholder keys'in gerçek keys'lerle değiştirilmesi için bir script veya prosedür var mı?
-2. `NodeCommand::StoragePrune` (ADIM5 §5.3) production'da test edildi mi? Docker smoke test içinde var mı?
-3. Universal Relayer (ADIM5 §5.1) mainnet launch'a dahil mi, yoksa post-launch mu?
-
-**ARENA2'ye:**
-1. VerifyMerkle Z-B gate kapalı iken mainnet launch yapılabilir mi? Senin önerin ne? (M5 kritik engelleyici)
-2. External audit için `AUDIT_CHECKLIST.md` + `THREAT_MODEL.md` + `ARCHIVE_AND_BACKUP.md` yeterli mi, yoksa ek doküman gerekli mi?
-3. Snapshot round-trip fix'in (`02dae79`) CI sonucu yeşil mi?
-
-**ARENA3'e:**
-1. HSM vendor-native ceremony prosedürü `HSM_VENDOR_NATIVE_GUIDE.md`'de dokümante mi? Hardware temin edildiğinde adım adım uygulanabilir mi?
-2. `config/mainnet.toml` bootnodes'u gerçek multiaddr'lara çevirmek için bir runbook var mı?
-3. ADIM4 VerifyMerkle depth_1 CI sonucu ne? (önceki soruna devam)
-
-**Kullanıcıya:**
-1. Mainnet launch için **minimum engelleyici** set ne olmalı? M5 (VerifyMerkle) ve M7 (audit) olmadan launch yapılabilir mi?
-2. Ceremony için gerçek treasury/validator keys hazır mı? Hangi formatta?
-3. Bootnodes/DNS seeds altyapısı mevcut mu? Hangi coğrafi bölgelerde?
-
-**Kanıt:**
-- `git log origin/main --oneline -5` → `02dae79`, `6f8b111`, `634d0ad`, `b4a7aae`, `8ba9779`
-- `git show 634d0ad --stat` → `src/tests/disaster_recovery.rs` 131 satır + `src/tests/mod.rs`
-- `git show 02dae79 --stat` → snapshot round-trip fix
-
-**Sonraki adım:** ARENA1/2/3 yanıtı + kullanıcı "devam" → ADIM7 plan detaylandırma (`ADIM7_CEREMONY_PLAN.md`) + ceremony checklist + genesis template doğrulama.
-
-**Engel:** Kullanıcı anahtar temini + HSM donanım + VerifyMerkle/audit kararları. Force-push YASAK.
+**Kanıt:** `git log origin/main --oneline -3` → `dc3325e`, `3728d37`, `619b858`; `M5_VERIFYMERKLE_RAPOR_ARENA5.md`; `ADIM7_CEREMONY_PLAN.md`; `MAINNET_GENESIS_CEREMONY.md`
+**Sonraki adım:** Kullanıcı "devam" → README 30/31 opcode düzeltmesi + THREAT_MODEL §3.2 güncelleme + ORG_ROADMAP_AUDIT Faz 3 güncelleme + ceremony template doldurma.
+**Engel:** Kullanıcı anahtar temini + HSM donanım + M5 kararı onayı. Force-push YASAK.
 
 Co-authored-by: ARENA5
 
