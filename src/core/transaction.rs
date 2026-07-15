@@ -51,7 +51,35 @@ impl crate::core::chain_config::Network {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ExternalChain {
+    Ethereum,
+    Solana,
+    Bitcoin,
+    Avalanche,
+    Polygon,
+    Arbitrum,
+    Optimism,
+    Custom(u32),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExternalTransaction {
+    pub chain: ExternalChain,
+    pub target_address: String,
+    pub payload: Vec<u8>,
+    pub external_nonce: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RelayerExternalResult {
+    pub chain: ExternalChain,
+    pub tx_hash: String,
+    pub success: bool,
+    pub receipt_proof: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TransactionType {
     Transfer,
     Stake,
@@ -61,8 +89,21 @@ pub enum TransactionType {
     BnsRegister,
     BnsSetContent,
     BnsRegisterSubdomain,
+    BnsSetStorage,
     NftMint,
     NftTransfer,
+    NftBurn,
+    NftBoost { nft_id: u64, amount: u64 },
+    UniversalRelay(ExternalTransaction),
+    RelayerResult(RelayerExternalResult),
+    AiOfferData { cid: crate::storage::content_id::ContentId, price: u64 },
+    AiPurchaseData { offer_id: u64 },
+    HubRegisterApp {
+        name: String,
+        category: crate::hub::types::AppCategory,
+        website_url: String,
+        manifest_id: Option<crate::storage::content_id::ContentId>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -109,17 +150,10 @@ impl Transaction {
     pub fn new_proposal(from: Address, p_type: ProposalType, duration: u64, nonce: u64) -> Self {
         let mut data = Vec::new();
         data.extend_from_slice(&duration.to_le_bytes());
-        // Tur 11: proposal type goes into tx `data` which is hashed; must not
-        // silently serialize to empty (would make distinct proposals collide).
         data.extend_from_slice(
             &serde_json::to_vec(&p_type).expect("BUG: ProposalType must serialize"),
         );
 
-        // Tur 9.5 (security audit §10): a non-zero default fee is set
-        // so the consensus-level cost-floor check in
-        // `apply_transaction_checked` is satisfied for proposals
-        // built via this helper. Callers can still override the
-        // fee afterwards if they need a different value.
         Self::new_with_chain_id(
             from,
             Address::zero(),
@@ -137,10 +171,6 @@ impl Transaction {
         data.push(if vote_for { 1 } else { 0 });
         data.extend_from_slice(&proposal_id.to_le_bytes());
 
-        // Tur 9.5 (security audit §10): same rationale as
-        // `new_proposal` — the consensus cost-floor check needs a
-        // non-zero fee, and this helper is the canonical
-        // governance-vote constructor.
         Self::new_with_chain_id(
             from,
             Address::zero(),
@@ -177,7 +207,6 @@ impl Transaction {
         chain_id: u64,
         tx_type: TransactionType,
     ) -> Self {
-        // Tur 11 / A3: avoid panic if system clock is before UNIX_EPOCH.
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis())
@@ -236,7 +265,7 @@ impl Transaction {
     }
     pub fn signing_hash(&self) -> [u8; 32] {
         let mut hasher = Sha3_256::new();
-        hasher.update(b"BDLM_TX_V2");
+        hasher.update(b"BDLM_TX_V3"); // Upgraded to V3 for more variants
         hasher.update(self.from.as_bytes());
         hasher.update(self.to.as_bytes());
         hasher.update(self.amount.to_le_bytes());
@@ -252,6 +281,19 @@ impl Transaction {
             TransactionType::Unstake => 2,
             TransactionType::Vote => 3,
             TransactionType::ContractCall => 4,
+            TransactionType::BnsRegister => 5,
+            TransactionType::BnsSetContent => 6,
+            TransactionType::BnsRegisterSubdomain => 7,
+            TransactionType::BnsSetStorage => 8,
+            TransactionType::NftMint => 9,
+            TransactionType::NftTransfer => 10,
+            TransactionType::NftBurn => 11,
+            TransactionType::NftBoost { .. } => 12,
+            TransactionType::UniversalRelay(_) => 13,
+            TransactionType::RelayerResult(_) => 14,
+            TransactionType::AiOfferData { .. } => 15,
+            TransactionType::AiPurchaseData { .. } => 16,
+            TransactionType::HubRegisterApp { .. } => 17,
         };
         hasher.update([type_byte]);
 
@@ -318,17 +360,6 @@ impl Transaction {
                     return false;
                 }
             }
-            // Tur 9.5 (security audit §10): Unstake and Vote need
-            // explicit cost-floor + shape validation. Without these
-            // an attacker can submit zero-fee, zero-amount, empty-data
-            // Unstake/Vote transactions that pass every other check
-            // and bloat the mempool / chain. The precheck layer
-            // (`tx_precheck`) catches them at the RPC boundary, but
-            // internal paths (consensus-driven apply, replay, etc.)
-            // bypass that layer — so the canonical check must live
-            // in `is_valid` (and is mirrored in
-            // `apply_transaction_checked` so consensus cannot be
-            // fooled by a forged tx that cleared `is_valid` somehow).
             TransactionType::Unstake => {
                 if self.amount == 0 {
                     println!("Unstake amount cannot be 0");
@@ -348,9 +379,6 @@ impl Transaction {
                     println!("Vote fee cannot be 0 (cost-floor)");
                     return false;
                 }
-                // A governance vote is 9 bytes (bool + u64 proposal_id),
-                // a proposal is >8 bytes (u64 duration + JSON ProposalType).
-                // Anything shorter is a malformed / spam vote.
                 if self.data.len() < 9 {
                     println!("Vote TX data too short (need 9 bytes for vote or >8 for proposal)");
                     return false;
@@ -366,13 +394,11 @@ impl Transaction {
                     return false;
                 }
             }
+            _ => {} // Other types handled in executor
         }
         true
     }
     pub fn to_bytes(&self) -> Vec<u8> {
-        // Tur 11: used for persistence/network; a silent empty encoding would be
-        // an invalid transaction blob. Transaction is a plain data type (no
-        // tuple-key maps), so serialization failure is a deterministic bug.
         serde_json::to_vec(self).expect("BUG: Transaction must serialize to_bytes")
     }
     pub fn total_cost(&self) -> u64 {
@@ -385,6 +411,7 @@ impl Transaction {
             TransactionType::Stake | TransactionType::Unstake => schedule.stake_gas,
             TransactionType::Vote => schedule.vote_gas,
             TransactionType::ContractCall => schedule.contract_call_gas,
+            _ => schedule.transfer_gas, // Default
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature

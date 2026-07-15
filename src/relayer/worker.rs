@@ -62,8 +62,28 @@ impl RelayerWorker {
         match ext_tx.chain {
             crate::core::transaction::ExternalChain::Ethereum => {
                 info!("Relaying to Ethereum...");
-                // Placeholder: Here the relayer would use its own ETH for gas, 
-                // and get reimbursed in $BUD or taking fee from asset.
+                // Mock success for now.
+                let result = crate::core::transaction::RelayerExternalResult {
+                    chain: ext_tx.chain,
+                    tx_hash: "0x".to_string() + &hex::encode([0xEE; 32]),
+                    success: true,
+                    receipt_proof: vec![1, 2, 3], // Mock proof
+                };
+                
+                // Submit result back to Budlum
+                let mut result_tx = Transaction::new_with_chain_id(
+                    self.relayer_address,
+                    Address::zero(),
+                    0,
+                    100, // Fee
+                    self.chain.get_nonce(&self.relayer_address).await,
+                    Vec::new(),
+                    self.chain.get_chain_id().await,
+                    TransactionType::RelayerResult(result),
+                );
+                // Note: The relayer would sign here with its own key.
+                
+                let _ = self.chain.add_transaction(result_tx).await;
             }
             _ => {
                 warn!("Relay for {:?} not yet implemented", ext_tx.chain);

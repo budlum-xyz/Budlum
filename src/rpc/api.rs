@@ -421,6 +421,10 @@ pub trait BudlumApi {
     #[method(name = "bud_socialGetProfile")]
     async fn social_get_profile(&self, address: String) -> Result<serde_json::Value, ErrorObjectOwned>;
 
+    /// B.U.D. SocialFi: Get global social feed.
+    #[method(name = "bud_socialGetFeed")]
+    async fn social_get_feed(&self, limit: usize) -> Result<serde_json::Value, ErrorObjectOwned>;
+
     /// Prepare an NFT post transaction (Mint).
     #[method(name = "bud_socialPreparePost")]
     async fn social_prepare_post(

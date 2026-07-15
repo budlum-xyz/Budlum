@@ -271,6 +271,10 @@ pub enum ChainCommand {
         owner: Address,
         response: oneshot::Sender<Vec<crate::nft::types::Nft>>,
     },
+    NftGetFeed {
+        limit: usize,
+        response: oneshot::Sender<Vec<crate::nft::types::Nft>>,
+    },
 }
 
 #[derive(Clone)]
@@ -1208,6 +1212,12 @@ impl ChainHandle {
         let _ = self.tx.send(ChainCommand::NftGetByOwner { owner, response: tx }).await;
         rx.await.unwrap_or_default()
     }
+
+    pub async fn nft_get_feed(&self, limit: usize) -> Vec<crate::nft::types::Nft> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self.tx.send(ChainCommand::NftGetFeed { limit, response: tx }).await;
+        rx.await.unwrap_or_default()
+    }
 }
 pub struct ChainActor {
     blockchain: Blockchain,
@@ -1836,6 +1846,10 @@ impl ChainActor {
                 ChainCommand::NftGetByOwner { owner, response } => {
                     let nft_ids = self.blockchain.state.nft_registry.ownership.get(&owner).cloned().unwrap_or_default();
                     let nfts: Vec<_> = nft_ids.iter().filter_map(|id| self.blockchain.state.nft_registry.get_nft(*id)).cloned().collect();
+                    let _ = response.send(nfts);
+                }
+                ChainCommand::NftGetFeed { limit, response } => {
+                    let nfts: Vec<_> = self.blockchain.state.nft_registry.nfts.values().rev().take(limit).cloned().collect();
                     let _ = response.send(nfts);
                 }
             }
