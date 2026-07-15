@@ -61,4 +61,3 @@ mod bls_keypair_integrity_test {
         );
     }
 }
-
