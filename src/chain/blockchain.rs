@@ -37,6 +37,22 @@ pub const MAX_REORG_DEPTH: usize = 100;
 pub const FINALITY_DEPTH: usize = 50;
 pub const EPOCH_LENGTH: u64 = 32;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StorageEconomicsEventKind {
+    OperatorRewardAccrued,
+    OperatorBondSlashed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StorageEconomicsEvent {
+    pub epoch: u64,
+    pub deal_id: u64,
+    pub operator: Address,
+    pub amount: u64,
+    pub balance_effect: u64,
+    pub kind: StorageEconomicsEventKind,
+}
+
 pub struct Blockchain {
     pub chain: Vec<Block>,
     pub consensus: Arc<dyn ConsensusEngine>,
@@ -75,6 +91,20 @@ pub struct Blockchain {
     /// struct so chain_actor can drive automatic challenge issuance and
     /// proof aggregation without going through the RPC layer.
     pub storage_registry: crate::domain::storage_deal::StorageRegistry,
+    /// B.U.D. Faz 5 economics ledger: total declared operator bond slashed
+    /// by finalized missed retrieval challenges.
+    pub storage_slashed_bond_total: u64,
+    /// B.U.D. Faz 5 economics ledger: total actually burned from operator
+    /// account balances when slashing was applied. May be lower than the
+    /// declared slash if the operator account has insufficient liquid balance.
+    pub storage_burned_bond_total: u64,
+    /// B.U.D. Faz 5 economics ledger: protocol reward accrual per operator.
+    pub storage_operator_rewards: BTreeMap<Address, u64>,
+    /// Last epoch rewarded per deal, preventing duplicate reward accrual
+    /// when maintenance runs multiple times at the same height.
+    pub storage_last_reward_epoch: BTreeMap<u64, u64>,
+    /// Append-only in-memory event log consumed by RPC/gossip/reporting layers.
+    pub storage_economics_events: Vec<StorageEconomicsEvent>,
 }
 impl Blockchain {
     pub fn with_metrics(mut self, metrics: Arc<crate::core::metrics::Metrics>) -> Self {
@@ -422,6 +452,11 @@ impl Blockchain {
             proof_claims: crate::prover::ProofClaimRegistry::new(),
             pending_storage_root: None,
             storage_registry: crate::domain::storage_deal::StorageRegistry::new(),
+            storage_slashed_bond_total: 0,
+            storage_burned_bond_total: 0,
+            storage_operator_rewards: BTreeMap::new(),
+            storage_last_reward_epoch: BTreeMap::new(),
+            storage_economics_events: Vec::new(),
         };
 
         if let Some(first) = bc.chain.first() {
@@ -3277,6 +3312,71 @@ impl Blockchain {
 
     // ─── B.U.D. Faz 5 (ARENA2): On-chain storage operations ────────────
 
+    /// Accrue storage operator rewards up to `current_epoch`. This is the
+    /// canonical Faz 5 accounting path used by ChainActor maintenance ticks.
+    /// It credits the operator account and records an event, while avoiding
+    /// double-accrual with `storage_last_reward_epoch`.
+    pub fn accrue_storage_operator_rewards(&mut self, current_epoch: u64) -> (u32, u64) {
+        let deals: Vec<(u64, Address, u64, u64, u64)> = self
+            .storage_registry
+            .all_deals()
+            .iter()
+            .filter(|deal| deal.is_active())
+            .map(|deal| {
+                (
+                    deal.deal_id,
+                    deal.operator,
+                    deal.deal_start_epoch,
+                    deal.deal_end_epoch,
+                    deal.economics.fee_per_epoch,
+                )
+            })
+            .collect();
+
+        let mut rewarded = 0u32;
+        let mut total = 0u64;
+        for (deal_id, operator, start_epoch, end_epoch, fee_per_epoch) in deals {
+            let last_epoch = self
+                .storage_last_reward_epoch
+                .get(&deal_id)
+                .copied()
+                .unwrap_or(start_epoch);
+            let reward_until = current_epoch.min(end_epoch);
+            if reward_until <= last_epoch || fee_per_epoch == 0 {
+                self.storage_last_reward_epoch
+                    .entry(deal_id)
+                    .or_insert(last_epoch);
+                continue;
+            }
+
+            let epochs = reward_until.saturating_sub(last_epoch);
+            let amount = epochs.saturating_mul(fee_per_epoch);
+            if amount == 0 {
+                continue;
+            }
+
+            self.state.add_balance(&operator, amount);
+            let reward_entry = self.storage_operator_rewards.entry(operator).or_default();
+            *reward_entry = reward_entry.saturating_add(amount);
+            self.storage_last_reward_epoch.insert(deal_id, reward_until);
+            self.storage_economics_events.push(StorageEconomicsEvent {
+                epoch: current_epoch,
+                deal_id,
+                operator,
+                amount,
+                balance_effect: amount,
+                kind: StorageEconomicsEventKind::OperatorRewardAccrued,
+            });
+            rewarded += 1;
+            total = total.saturating_add(amount);
+        }
+        (rewarded, total)
+    }
+
+    pub fn storage_economics_events(&self) -> &[StorageEconomicsEvent] {
+        &self.storage_economics_events
+    }
+
     /// Issue retrieval challenges for all active storage deals whose
     /// `challenge_interval` has elapsed since their last challenge (or since
     /// deal creation). Returns the number of challenges issued.
@@ -3340,13 +3440,32 @@ impl Blockchain {
         let mut finalized = 0u32;
         let mut total_slashed = 0u64;
 
-        for (challenge_id, _deal_id) in pending_challenges {
+        for (challenge_id, deal_id) in pending_challenges {
+            let operator = self
+                .storage_registry
+                .get_deal(deal_id)
+                .map(|deal| deal.operator)
+                .unwrap_or_else(Address::zero);
             if let Ok(result) = self
                 .storage_registry
                 .finalize_missed_challenge(challenge_id, current_epoch)
             {
                 if result.outcome == crate::domain::storage_deal::ChallengeOutcome::Missed {
-                    total_slashed += result.slashed_bond;
+                    total_slashed = total_slashed.saturating_add(result.slashed_bond);
+                    self.storage_slashed_bond_total = self
+                        .storage_slashed_bond_total
+                        .saturating_add(result.slashed_bond);
+                    let burned = self.state.burn_from(&operator, result.slashed_bond);
+                    self.storage_burned_bond_total =
+                        self.storage_burned_bond_total.saturating_add(burned);
+                    self.storage_economics_events.push(StorageEconomicsEvent {
+                        epoch: current_epoch,
+                        deal_id,
+                        operator,
+                        amount: result.slashed_bond,
+                        balance_effect: burned,
+                        kind: StorageEconomicsEventKind::OperatorBondSlashed,
+                    });
                 }
                 finalized += 1;
             }
@@ -3412,6 +3531,11 @@ impl Clone for Blockchain {
             proof_claims: self.proof_claims.clone(),
             pending_storage_root: self.pending_storage_root,
             storage_registry: self.storage_registry.clone(),
+            storage_slashed_bond_total: self.storage_slashed_bond_total,
+            storage_burned_bond_total: self.storage_burned_bond_total,
+            storage_operator_rewards: self.storage_operator_rewards.clone(),
+            storage_last_reward_epoch: self.storage_last_reward_epoch.clone(),
+            storage_economics_events: self.storage_economics_events.clone(),
         }
     }
 }

@@ -191,6 +191,12 @@ pub enum ChainCommand {
     SubmitStorageProof(crate::domain::Hash32, oneshot::Sender<Result<(), String>>),
     /// B.U.D. Faz 5 (ARENA2): Query all active storage deals.
     GetStorageDeals(oneshot::Sender<Vec<crate::domain::storage_deal::StorageDeal>>),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics event log.
+    GetStorageEconomicsEvents(
+        oneshot::Sender<Vec<crate::chain::blockchain::StorageEconomicsEvent>>,
+    ),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics accounting summary.
+    GetStorageEconomicsSummary(oneshot::Sender<serde_json::Value>),
     /// B.U.D. Faz 5 (ARENA2): Query all storage challenges.
     GetStorageChallenges(oneshot::Sender<Vec<crate::domain::storage_deal::RetrievalChallenge>>),
     SignPrevote {
@@ -1002,6 +1008,28 @@ impl ChainHandle {
         let _ = self.tx.send(ChainCommand::GetStorageChallenges(tx)).await;
         rx.await.map_err(|_| "Actor dropped".to_string())
     }
+
+    /// Query storage economics events for reporting/gossip adapters.
+    pub async fn get_storage_economics_events(
+        &self,
+    ) -> Result<Vec<crate::chain::blockchain::StorageEconomicsEvent>, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsEvents(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
+
+    /// Query aggregate storage economics accounting.
+    pub async fn get_storage_economics_summary(&self) -> Result<serde_json::Value, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsSummary(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
 }
 
 pub struct ChainActor {
@@ -1013,6 +1041,49 @@ impl ChainActor {
     pub fn new(blockchain: Blockchain) -> (Self, ChainHandle) {
         let (tx, rx) = mpsc::channel(1000);
         (Self { blockchain, rx }, ChainHandle { tx })
+    }
+
+    fn run_storage_maintenance(&mut self, block_height: u64) {
+        let (rewarded, reward_total) = self
+            .blockchain
+            .accrue_storage_operator_rewards(block_height);
+        if rewarded > 0 {
+            tracing::info!(
+                "B.U.D. storage maintenance accrued rewards for {} deals at height {} (amount={})",
+                rewarded,
+                block_height,
+                reward_total
+            );
+        }
+
+        match self.blockchain.issue_storage_challenges(block_height) {
+            Ok(issued) if issued > 0 => tracing::info!(
+                "B.U.D. storage maintenance issued {} retrieval challenges at height {}",
+                issued,
+                block_height
+            ),
+            Ok(_) => {}
+            Err(error) => tracing::warn!(
+                "B.U.D. storage challenge issuance failed at height {}: {}",
+                block_height,
+                error
+            ),
+        }
+
+        match self.blockchain.finalize_missed_storage_challenges(block_height) {
+            Ok((finalized, slashed)) if finalized > 0 => tracing::info!(
+                "B.U.D. storage maintenance finalized {} missed challenges at height {} (slashed_bond={})",
+                finalized,
+                block_height,
+                slashed
+            ),
+            Ok(_) => {}
+            Err(error) => tracing::warn!(
+                "B.U.D. missed-challenge finalization failed at height {}: {}",
+                block_height,
+                error
+            ),
+        }
     }
 
     pub async fn run(mut self) {
@@ -1053,6 +1124,7 @@ impl ChainActor {
                 ChainCommand::ProduceBlock(producer, tx) => {
                     let block = self.blockchain.produce_block(producer);
                     if let Some(ref b) = block {
+                        self.run_storage_maintenance(b.index);
                         if crate::chain::finality::is_checkpoint_height(b.index) {
                             self.blockchain.start_prevote_phase(b.index, b.hash.clone());
                         }
@@ -1060,11 +1132,15 @@ impl ChainActor {
                     let _ = tx.send(block);
                 }
                 ChainCommand::ValidateAndAddBlock(block, res_tx) => {
-                    let _ = res_tx.send(
-                        self.blockchain
-                            .validate_and_add_block(block)
-                            .map_err(|e| e.to_string()),
-                    );
+                    let height = block.index;
+                    let res = self
+                        .blockchain
+                        .validate_and_add_block(block)
+                        .map_err(|e| e.to_string());
+                    if res.is_ok() {
+                        self.run_storage_maintenance(height);
+                    }
+                    let _ = res_tx.send(res);
                 }
                 ChainCommand::GetTransactionByHash(hash, tx) => {
                     let tx_obj = self.blockchain.get_transaction_by_hash(&hash);
@@ -1473,6 +1549,29 @@ impl ChainActor {
                         .cloned()
                         .collect();
                     let _ = res_tx.send(deals);
+                }
+                ChainCommand::GetStorageEconomicsEvents(res_tx) => {
+                    let events = self.blockchain.storage_economics_events().to_vec();
+                    let _ = res_tx.send(events);
+                }
+                ChainCommand::GetStorageEconomicsSummary(res_tx) => {
+                    let operator_rewards: Vec<_> = self
+                        .blockchain
+                        .storage_operator_rewards
+                        .iter()
+                        .map(|(operator, amount)| {
+                            serde_json::json!({
+                                "operator": operator.to_string(),
+                                "amount": amount,
+                            })
+                        })
+                        .collect();
+                    let _ = res_tx.send(serde_json::json!({
+                        "slashedBondTotal": self.blockchain.storage_slashed_bond_total,
+                        "burnedBondTotal": self.blockchain.storage_burned_bond_total,
+                        "operatorRewards": operator_rewards,
+                        "eventCount": self.blockchain.storage_economics_events().len(),
+                    }));
                 }
                 ChainCommand::GetStorageChallenges(res_tx) => {
                     let challenges = self

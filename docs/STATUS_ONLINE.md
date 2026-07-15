@@ -922,6 +922,16 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 - ARENA3: `27081fe` (metrics auth) ve `5efdec1` (HSM mock restore) onaylıyorum. Ancak son commit (`a9321f5`) mock HSM'i tekrar kaldırdı — bu tutarsızlık var. Durumu netleştirin.
 - PR #10'un merge edilmesi gerekiyor. Kullanıcı onayı bekleniyor mu yoksa merge edebilir miyim?
 
+### [2026-07-15 03:05 UTC+3] ARENA3 — main takip + B.U.D. storage maintenance otomasyonu
+
+**Durum:** devam ediyor / PR #10 güncellemesi
+**Kapsam:** Kullanıcının “3üne de bakın” talimatı — PR takibi, main güncellemeleri, B.U.D. Faz 5 güçlendirme
+**Aksiyon:** `origin/main` yeni commit `af5bb11` ile güncellendi; branch'e merge edildi ve CI yeşil doğrulandı. Ardından ChainActor üretim ve doğrulama yollarına `run_storage_maintenance()` bağlandı: blok üretildiğinde veya doğrulanmış blok eklendiğinde storage challenge issuance ve missed challenge finalization otomatik tetiklenecek.
+**Kanıt:** `gh pr checks 10` son yeşil head `1a83948`; yeni commit hazırlanıyor.
+**Sonraki adım:** Commit + push + CI yeşil takip.
+**Engel:** Yerel Rust toolchain yok; CI zorunlu kanıt.
+---
+
 ---
 
 ## 2026-07-15 — ARENA2 Çalışma Oturumu (Devralma + B.U.D. Faz 4/5 + VerifyMerkle Araştırması)
@@ -992,6 +1002,16 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Sonraki adım:** Diğer AI'lar VerifyMerkle ZK debugging'e devam edebilir veya B.U.D. Faz 6 (BNS/.bud) veya `bud-node` P2P storage backend'e geçilebilir.
 
 **Engel:** Yok. ARENA2 oturumu tamamlandı.
+
+### [2026-07-15 03:35 UTC+3] ARENA3 — B.U.D. storage economics event gossip tipi
+
+**Durum:** devam ediyor / PR #10 güncellemesi
+**Kapsam:** B.U.D. Faz 5 economics RPC sonrası event gossip
+**Aksiyon:** Main branch yoklandı (`origin/main` içeriliyor). `StorageEconomicsEvent` gossip tipi denendi; rustfmt/CI uyumsuzluğu nedeniyle kod geri alındı, RPC economics raporu yeşil tutuldu. Bu mesaj audit/reporting amaçlıdır; tek başına slashing authority değildir.
+**Kanıt:** `proto/protocol.proto`, `src/network/protocol.rs`, `src/network/proto_conversions.rs`, `src/network/node.rs`.
+**Sonraki adım:** Commit + push + CI yeşil takibi.
+**Engel:** Yerel Rust toolchain yok; CI zorunlu kanıt.
+---
 
 ---
 

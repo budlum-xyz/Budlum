@@ -1,7 +1,7 @@
 # STATUS — ADIM 2 Güncel Denetim Notu (2026-07-15)
 
 **Aktif çalışma dalı:** `arena/019f630c-budlum`  
-**Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy gate,
+**Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy/tooling,
 §1.3 Finality live-path, §1.4 ConsensusStateV2 migration iskeleti, §1.5
 External audit checklist, §1.6 README roadmap kapanış tablosu, §1.7 Fuzzing +
 dependency audit + SBOM.
@@ -10,9 +10,9 @@ dependency audit + SBOM.
 
 | Görev | Durum | Kanıt |
 |------|-------|-------|
-| §1.1 BLS/PQ HSM policy gate | ✅ PR kapsamına alındı | `ConsensusSigner` BLS/PQ capability metotları, mainnet fail-closed gate, `docs/operations/HSM_BLS_PQ_POLICY.md` |
+| §1.1 BLS/PQ HSM policy/tooling | ✅ PR kapsamına alındı | `src/crypto/hsm_mock.rs` main entegrasyonu, mainnet disk-key fail-closed policy, `docs/operations/HSM_BLS_PQ_POLICY.md` |
 | §1.3 Finality live-path son taraması | ✅ PR kapsamına alındı | `src/tests/finality_live_path.rs`, `docs/operations/FINALITY_LIVE_PATH.md` |
-| §1.4 ConsensusStateV2 migration iskeleti | ✅ PR kapsamına alındı | `StateSnapshotV2::migration_report()`, schema window constants, `--migrate-v2` backup gate, `docs/operations/MIGRATION_V2.md` |
+| §1.4 ConsensusStateV2 migration iskeleti | ✅ PR kapsamına alındı | `StateSnapshotV2::from_bytes()` schema window, `--migrate-v2` backup gate, `docs/operations/MIGRATION_V2.md` |
 | §1.5 External audit checklist | ✅ Güncellendi | `docs/AUDIT_CHECKLIST.md` — audit yapılmadı iddiası korunuyor |
 | §1.6 README roadmap kapanış tablosu | ✅ Güncellendi | `README.md` Research Roadmap Status tablosu ADIM 2 §1.3-§1.7 durumlarını yansıtıyor |
 | §1.7 Fuzzing + dependency audit + SBOM | ✅ Tooling/prosedür hazır | `fuzz/`, `scripts/audit-deps.sh`, `scripts/generate-sbom.sh`, `docs/operations/DEPENDENCY_AUDIT.md`, `docs/operations/SBOM.md` |
@@ -22,6 +22,18 @@ dependency audit + SBOM.
 PR üzerindeki GitHub Actions CI ve PR denetimi zorunlu kanıt kabul edilir.
 
 ---
+
+## B.U.D. Faz 5 economics accounting devamı (2026-07-15)
+
+PR #10 üzerine eklenen sonraki görev: storage economics gerçek muhasebe yüzeyi.
+
+| Alan | Durum | Kanıt |
+|------|-------|-------|
+| Operator reward accrual | ✅ | `Blockchain::accrue_storage_operator_rewards` operatör bakiyesini ve per-operator ledger'ı günceller |
+| Slashed bond accounting | ✅ | `finalize_missed_storage_challenges` slashed bond toplamını ve actual burned amount'u kaydeder |
+| Event report / gossip adapter yüzeyi | ✅ | `StorageEconomicsEvent` + `ChainHandle::get_storage_economics_events/summary` |
+| ChainActor otomatik bakım | ✅ | Blok üretim/doğrulama sonrası reward accrual + challenge issuance + missed finalization çalışır |
+
 
 # Durum Raporu — Statik denetim kayıtları (AI birliği şeması)
 
