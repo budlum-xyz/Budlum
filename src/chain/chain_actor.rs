@@ -191,6 +191,12 @@ pub enum ChainCommand {
     SubmitStorageProof(crate::domain::Hash32, oneshot::Sender<Result<(), String>>),
     /// B.U.D. Faz 5 (ARENA2): Query all active storage deals.
     GetStorageDeals(oneshot::Sender<Vec<crate::domain::storage_deal::StorageDeal>>),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics event log.
+    GetStorageEconomicsEvents(
+        oneshot::Sender<Vec<crate::chain::blockchain::StorageEconomicsEvent>>,
+    ),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics accounting summary.
+    GetStorageEconomicsSummary(oneshot::Sender<serde_json::Value>),
     /// B.U.D. Faz 5 (ARENA2): Query all storage challenges.
     GetStorageChallenges(oneshot::Sender<Vec<crate::domain::storage_deal::RetrievalChallenge>>),
     SignPrevote {
@@ -1002,6 +1008,28 @@ impl ChainHandle {
         let _ = self.tx.send(ChainCommand::GetStorageChallenges(tx)).await;
         rx.await.map_err(|_| "Actor dropped".to_string())
     }
+
+    /// Query storage economics events for reporting/gossip adapters.
+    pub async fn get_storage_economics_events(
+        &self,
+    ) -> Result<Vec<crate::chain::blockchain::StorageEconomicsEvent>, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsEvents(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
+
+    /// Query aggregate storage economics accounting.
+    pub async fn get_storage_economics_summary(&self) -> Result<serde_json::Value, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsSummary(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
 }
 
 pub struct ChainActor {
@@ -1016,6 +1044,18 @@ impl ChainActor {
     }
 
     fn run_storage_maintenance(&mut self, block_height: u64) {
+        let (rewarded, reward_total) = self
+            .blockchain
+            .accrue_storage_operator_rewards(block_height);
+        if rewarded > 0 {
+            tracing::info!(
+                "B.U.D. storage maintenance accrued rewards for {} deals at height {} (amount={})",
+                rewarded,
+                block_height,
+                reward_total
+            );
+        }
+
         match self.blockchain.issue_storage_challenges(block_height) {
             Ok(issued) if issued > 0 => tracing::info!(
                 "B.U.D. storage maintenance issued {} retrieval challenges at height {}",
@@ -1510,6 +1550,29 @@ impl ChainActor {
                         .collect();
                     let _ = res_tx.send(deals);
                 }
+                ChainCommand::GetStorageEconomicsEvents(res_tx) => {
+                    let events = self.blockchain.storage_economics_events().to_vec();
+                    let _ = res_tx.send(events);
+                }
+                ChainCommand::GetStorageEconomicsSummary(res_tx) => {
+                    let operator_rewards: Vec<_> = self
+                        .blockchain
+                        .storage_operator_rewards
+                        .iter()
+                        .map(|(operator, amount)| {
+                            serde_json::json!({
+                                "operator": operator.to_string(),
+                                "amount": amount,
+                            })
+                        })
+                        .collect();
+                    let _ = res_tx.send(serde_json::json!({
+                        "slashedBondTotal": self.blockchain.storage_slashed_bond_total,
+                        "burnedBondTotal": self.blockchain.storage_burned_bond_total,
+                        "operatorRewards": operator_rewards,
+                        "eventCount": self.blockchain.storage_economics_events().len(),
+                    }));
+                }
                 ChainCommand::GetStorageChallenges(res_tx) => {
                     let challenges = self
                         .blockchain
@@ -1741,5 +1804,13 @@ mod tests {
         // 6. Verify challenges list is empty
         let challenges = chain.get_storage_challenges().await.unwrap();
         assert!(challenges.is_empty());
+
+        // 7. Economics reporting endpoints are wired even when no deal exists.
+        let events = chain.get_storage_economics_events().await.unwrap();
+        assert!(events.is_empty());
+        let summary = chain.get_storage_economics_summary().await.unwrap();
+        assert_eq!(summary["eventCount"], serde_json::json!(0));
+        assert_eq!(summary["slashedBondTotal"], serde_json::json!(0));
+        assert_eq!(summary["burnedBondTotal"], serde_json::json!(0));
     }
 }

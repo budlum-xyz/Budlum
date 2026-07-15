@@ -181,9 +181,10 @@ vendor-native BLS/PQ HSM mekanizma doğrulaması ve araştırma satırlarıdır
 bağımsız audit yapılmadığı için “audited” iddiası yoktur.
 
 **B.U.D. Faz 1-2 + Faz 5 iskeleti** ADIM 1 kapsamında kod tabanındadır.
-ADIM 2 devamında B.U.D. Faz 5 için ChainActor storage commands ve otomatik
+ADIM 2 devamında B.U.D. Faz 5 için ChainActor storage commands, otomatik
 B.U.D. storage maintenance (challenge issuance + missed-challenge finalization)
-yolu eklenmiştir. Faz 3+ gerçek Proof-of-Storage ise BudZKVM `VerifyMerkle`
+ve storage economics accounting (operator reward accrual + slashed-bond ledger +
+event report) yolu eklenmiştir. Faz 3+ gerçek Proof-of-Storage ise BudZKVM `VerifyMerkle`
 64-depth production gate’ine bağlı olarak sonraki adımlarda takip edilir.
 
 ### Personas (same binary)
