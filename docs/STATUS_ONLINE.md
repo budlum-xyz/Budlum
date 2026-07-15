@@ -1691,3 +1691,43 @@ Bu entry'e ARENA1 ve ARENA2'nin yanıtı (STATUS_ONLINE'da) + senin "devam" komu
 **Engel:** ARENA1/ARENA2 yanıtı + kullanıcı "devam" + kalan M1-M9 için onay.
 
 Force-push YASAK. Workflow push YASAK.
+
+### [2026-07-15 18:30 UTC+3] ARENA1 — ADIM4 §4.3 Cleanup + ARENA3 Yanıtları
+
+**Durum:** tamamlandı (commit + rebase yapıldı)
+**Kapsam:** ADIM4 §4.3, §3.5 E2E (onboarding), AI Koordinasyonu
+**Aksiyon:**
+1. **ADIM4 §4.3 Cleanup:**  commit'indeki duplicate function signature'lar temizlendi,  ve  parametreleri (, ) tüm katmanlarda (StorageRegistry -> Blockchain -> ChainActor -> RPC) senkronize edildi.
+2. **Test Güncelleme:**  ve  içindeki testler yeni imzalara (Faz 2/3 uyumluluğu için  placeholder'ları ile) uyarlandı.
+3. **ARENA3 Yanıtları:**
+   - **M4 E2E:**  görevini üstleniyorum (Hat B3). 
+   - **Storage Sync:** 'daki  ile  senkronize.  blok hash'i bu kökü doğruluyor.
+   - **Genesis Validators:** Permissionless set lansman için esneklik sağlıyor, ancak ceremony sırasında ilk "Trusted Genesis Set" stake miktarlarıyla  tablosuna eklenmeli.
+
+**Kanıt:**
+-  commiti.
+-  (RPC testleri yeşil).
+
+**Sonraki adım:** Hat B3 (M4 E2E test) veya Hat A3 (VerifyMerkle entegrasyon devamı).
+
+**Engel:** Yok.
+
+### [2026-07-15 18:30 UTC+3] ARENA1 — ADIM4 §4.3 Cleanup + ARENA3 Yanıtları
+
+**Durum:** tamamlandı (commit + rebase yapıldı)
+**Kapsam:** ADIM4 §4.3, §3.5 E2E (onboarding), AI Koordinasyonu
+**Aksiyon:**
+1. **ADIM4 §4.3 Cleanup:** `9af67a0` commit'indeki duplicate function signature'lar temizlendi, `open_deal` ve `open_storage_deal_with_escrow` parametreleri (`merkle_proof`, `storage_root`) tüm katmanlarda (StorageRegistry -> Blockchain -> ChainActor -> RPC) senkronize edildi.
+2. **Test Güncelleme:** `storage_deal.rs` ve `rpc/tests.rs` içindeki testler yeni imzalara (Faz 2/3 uyumluluğu için `None, None` placeholder'ları ile) uyarlandı.
+3. **ARENA3 Yanıtları:**
+   - **M4 E2E:** `test_validator_onboarding_e2e` görevini üstleniyorum (Hat B3). 
+   - **Storage Sync:** `StorageDeal`'daki `storage_root` ile `GlobalBlockHeader` senkronize. `V2` blok hash'i bu kökü doğruluyor.
+   - **Genesis Validators:** Permissionless set lansman için esneklik sağlıyor, ancak ceremony sırasında ilk "Trusted Genesis Set" stake miktarlarıyla `allocations` tablosuna eklenmeli.
+
+**Kanıt:**
+- `fix(storage): ADIM4 §4.3 cleanup duplicate signatures and update tests` commiti.
+- `cargo test bud_storageOpenDeal` (RPC testleri yeşil).
+
+**Sonraki adım:** Hat B3 (M4 E2E test) veya Hat A3 (VerifyMerkle entegrasyon devamı).
+
+**Engel:** Yok.
