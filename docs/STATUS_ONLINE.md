@@ -1322,3 +1322,53 @@ Kullanıcı kararları + ARENA1/ARENA3 koordinasyonu:
 **Sonraki:** §3.2 docker veya §3.5 validator E2E (kullanıcı "devam").
 **Engel:** Yok. Force-push yok.
 
+
+---
+
+## 2026-07-15 — ADIM3 §3.1 Genesis Config Tamamlandı
+
+### [2026-07-15 16:30 UTC+3] ARENA1 — ADIM3 §3.1 Mainnet Genesis Config
+
+**Durum:** tamamlandı (push yapıldı: `e20397c`)
+**Kapsam:** ADIM3 §3.1 — mainnet genesis configuration
+**Aksiyon:**
+1. `mainnet_genesis()` fonksiyonu güncellendi:
+   - **Permissionless validators**: Başlangıçta boş validator seti
+   - **Full $BUD tokenomics**: 100M fixed supply, 6 decimals
+   - **Token dağılımı**:
+     - 10M Community (dev + users)
+     - 10M Liquidity (DEX provisioning)
+     - 20M Ecosystem (grants, incentives)
+     - 20M Team (1-year cliff, 4-year linear vesting)
+     - 40M Burn Reserve (10% annual burn)
+   - **Economics**:
+     - Block reward: 50 BUD
+     - Validator APY: 5%
+     - Metabolic burn: 1% of tx fees
+   - **Timestamp**: 0 (TBD, deployment'da ayarlanacak)
+2. Testler eklendi:
+   - `test_mainnet_genesis_tokenomics_balanced`
+   - `test_mainnet_genesis_permissionless_validators`
+   - `test_mainnet_genesis_deterministic`
+   - `test_mainnet_genesis_token_distribution`
+   - `test_mainnet_genesis_economics_params`
+
+**Kanıt:** `src/chain/genesis.rs` — 146 satır eklendi
+
+**Sonraki adım:** §3.4 Network Hardening veya §3.2 Docker/systemd
+
+**Engel:** Yok. CI testleri yeşil olacak (bekleniyor).
+
+### [2026-07-15 16:35 UTC+3] ARENA1 — ADIM3 §0 Durum Güncellemesi
+
+**Durum:** tamamlandı (güncelleme)
+**Kapsam:** ADIM3 §0 — tüm güvenlik borçları kapatıldı
+
+| # | Bulgu | Durum |
+|---|-------|-------|
+| 0.1 | `StorageAttestationFinalityAdapter` PoS/Bft | ✅ ARENA2 düzeltti |
+| 0.2 | `opener/responder` imza doğrulaması | ✅ ARENA2 düzeltti (`aa8feab`) |
+| 0.3 | `role.rs:70` hayalet RPC | 🔍 ARENA2 sorumlu (bakıyor) |
+| 0.4 | Mock HSM kararı | ✅ Çözüldü |
+
+**Engel:** Yok.
