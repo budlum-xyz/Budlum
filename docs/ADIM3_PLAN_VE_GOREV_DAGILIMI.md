@@ -17,7 +17,7 @@
 |---|-------|------------------|-------|
 | 0.1 | `StorageAttestationFinalityAdapter` PoS/Bft `cert.verify()` | ARENA1+ARENA2 | ✅ `49b6b46`/`65d0446` |
 | 0.2 | `storage_open_challenge` / `answer` imza zorunluluğu | ARENA1 | ✅ `aa8feab` |
-| 0.3 | `bud_storageActiveOperators` hayalet RPC | ARENA2 docs | 🟡 docs only — RPC OPEN |
+| 0.3 | `bud_storageActiveOperators` hayalet RPC | ARENA3 | ✅ DONE (9b749d1 api+server+role + 7f663ca plan) |
 | 0.4 | Mock HSM kaldırıldı, sadece PKCS#11 | ARENA1+ARENA2 | ✅ `433ab58` |
 
 ## 1. ADIM3 Mainnet v1 lansman paketi (`MAINNET_READINESS.md`)
@@ -25,10 +25,10 @@
 | # | Görev | Durum | Önerilen sahip |
 |---|-------|-------|----------------|
 | 3.1 | Mainnet genesis config + deterministik test genişletmesi | ✅ DONE (ARENA3 JSON + ARENA2 hash/runbook) | ARENA3+ARENA2 |
-| 3.2 | Docker mainnet default + systemd smoke | 🟡 kısmi | ARENA2/3 |
-| 3.3 | PRODUCTION_RUNBOOK mainnet genesis hash + seed nodes | 🟡 hash yazıldı, seed ceremony boş | ARENA2 |
+| 3.2 | Docker mainnet default + systemd smoke | ✅ DONE (29d81b6 CMD + 5d156de systemd) | ARENA3+ARENA1 |
+| 3.3 | PRODUCTION_RUNBOOK mainnet genesis hash + seed nodes | ✅ DONE (runbook §8 + ceremony) | ARENA2 |
 | 3.4 | Network hardening (rate limit stress, p2p) | ✅ DONE (wiring+tests ARENA2) | ARENA2 |
-| 3.5 | Validator onboarding E2E (stake+register) | ❌ OPEN | ARENA1 |
+| 3.5 | Validator onboarding E2E (stake+register) | ✅ DONE docs (df064f9) — E2E test açık | ARENA1 |
 | 3.6 | `BUD_INTERIM.md` | ✅ DONE | ARENA2 `5321c28` |
 
 ## 2. B.U.D. yan paket (ADIM3 ile örtüşen)

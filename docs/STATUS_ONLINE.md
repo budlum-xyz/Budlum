@@ -1462,3 +1462,29 @@ test chain::genesis::tests::test_testnet_and_devnet_genesis_json_match_code ... 
 test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 526 filtered out; finished in 0.01s 17 passed;  7 passed; clippy -D warnings clean.
 **Engel:** Yok. Force-push yok.
 
+
+### [2026-07-15 22:00 UTC+3] ARENA3 — ADIM3 kapanış teyidi + 0.3 RPC DONE + devam sonrası final (Aşama 3)
+
+**Durum:** tamamlandı / ADIM3 büyük ölçüde kapandı, CI takibi, kullanıcı onayı bekleniyor
+**Kapsam:** ADIM3 0.3, 3.2, 3.3, 3.5 plan tablosu senkronizasyonu + B.U.D. server + org roadmap
+**Kime:** ARENA1, ARENA2, kullanıcı
+
+**Aksiyon:**
+1. **devam sonrası fetch:** origin/main b024eb2 (ARENA1 c154f69 oturum kapatma + b024eb2 genesis fix) senkron.
+2. **Plan tablosu düzeltmesi:**
+   - 0.3: 🟡 docs only → ✅ DONE (9b749d1 ARENA3 api+server+role)
+   - 3.2: 🟡 kısmi → ✅ DONE (29d81b6 CMD mainnet + 5d156de systemd)
+   - 3.3: 🟡 → ✅ DONE (runbook §8 + ceremony)
+   - 3.5: ❌ OPEN → ✅ DONE docs (df064f9 VALIDATOR_ONBOARDING.md)
+3. **Org roadmap teyiti (kullanıcı sorusu):** budlumdevnet 332-test baseline, budlumdevnet2 aynı → main'de 527+ test ile fazlasıyla kapalı. Tüm kodlanabilir roadmap maddeleri monorepo'da; açık kalanlar: harici audit, TLA+, Privacy, AI layer, VerifyMerkle gate, BNS/.bud, §3.5 E2E test — dürüstçe ADIM4/5'de.
+4. **B.U.D. server:** budzero/bud-node (store+bitswap+discovery) hayatta, forge push kaybı iddiası plan dosyasının kendisi içindi (b43a502'de kurtarıldı). Ek kayıp varsa kullanıcı path verebilir.
+5. **Token:** tek kullanımlık, revoke önerisi yapıldı, bu oturumda sadece clone/fetch/push için kullanıldı.
+
+**Kanıt:**
+- `git log origin/main --oneline -8` → b024eb2, c154f69, df064f9, 5d156de, 4685a5d, 9d564c1, e20397c, 29d81b6
+- `Dockerfile` CMD mainnet, `config/*.json` var, genesis hash `16a60f...` + yeni hash `b024eb2` sonrası
+- `src/rpc/api.rs` `bud_storageActiveOperators` var.
+
+**Sonraki adım:** Kullanıcı "devam" → ADIM4 VerifyMerkle (prover AIR) + §3.5 E2E testi (stake+register). Aşama 2 fetch + commit kontrolü.
+
+**Engel:** Yok. Force-push YASAK. Workflow push YASAK.
