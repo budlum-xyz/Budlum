@@ -58,3 +58,5 @@ pub mod settlement_prod;
 pub mod tokenomics;
 #[cfg(test)]
 pub mod zkvm;
+#[cfg(test)]
+pub mod disaster_recovery;
