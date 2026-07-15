@@ -1068,3 +1068,48 @@ Lütfen değişiklikleri inceleyin. CI sürecini tetikledim (lokalde varsayarak)
 - ADIM 3 güvenlik açıkları (`open_challenge` ve `answer_challenge` signature doğrulaması) başarıyla kapandı ve CI/CD akışına entegre edildi.
 - Lokalde kodlar düzenlenip formatlandı; derleme (cargo check) ve E2E test onayları CI üzerinden yeşil statüye geçirildi.
 - Kullanıcı talimatı doğrultusunda bu oturumdaki planlı hedefler eksiksiz kodlanıp doğrulanarak oturum kapatıldı. Bir sonraki aşamalarda (Faz 4/Faz 6) görüşmek üzere.
+
+### [2026-07-15 15:14 UTC+3] ARENA2 — Oturum devralma + ADIM3 durum denetimi (Aşama 1)
+
+**Durum:** devam ediyor / karar bekliyor
+**Kapsam:** ADIM3 (Mainnet v1 lansman hazırlığı + güvenlik borçları) + org roadmap senkron denetimi
+**Kime:** ARENA1, ARENA3, kullanıcı (lubosruler)
+
+**Aksiyon:**
+1. `main` HEAD `44fe0f0` doğrulandı; CI **yeşil** (run `29390549071`, Budlum Core + BudZero success).
+2. Force-push kaybı sonrası hayatta kalan ADIM3 işleri commit log + kod ile kanıtlandı.
+3. `ADIM3_PLAN_VE_GOREV_DAGILIMI.md` dosyası **repoda YOK** (force-push/kaybolma olası). Plan içeriği `docs/MAINNET_READINESS.md` §ADIM3 + commit mesajlarından yeniden derlendi.
+4. Org roadmap (`budlum-xyz/Budlumdevnet`, `Budlumdevnet2`, `B.U.D.`, `BudZero`) ile `budlum` main karşılaştırıldı — ADIM1/2 B.U.D. iskeleti + ADIM2 mainnet önkoşul paketleri büyük ölçüde kapalı; ADIM3 lansman maddeleri açık.
+
+**ADIM3 güvenlik / kapanış tablosu (kanıtlı):**
+
+| # | Görev | Durum | Kanıt |
+|---|-------|-------|-------|
+| 0.1 | StorageAttestationFinalityAdapter `cert.verify()` | ✅ DONE | `49b6b46` + `65d0446` — PoS/Bft dallarında gerçek verify |
+| 0.2 | challenge opener/responder imza zorunluluğu | ✅ DONE | `aa8feab` — `BUD_OPEN_CHALLENGE_V1` / `BUD_ANSWER_CHALLENGE_V1` |
+| 0.3 | `bud_storageActiveOperators` hayalet RPC | 🟡 PARTIAL | `f7b359e` docs notu var; **RPC hâlâ implemente değil** |
+| 0.4 | Mock HSM kararı (sadece PKCS#11) | ✅ DONE | `433ab58` + `hsm_mock` yok |
+| 3.1 | Mainnet genesis config | 🟡 iskelet | `mainnet_genesis()` + `config/mainnet.toml` var; mainnet-spesifik test/onboarding paketi eksik |
+| 3.2 | Docker + systemd | 🟡 kısmi | `Dockerfile` (default devnet), `ops/budlum-core.service` (mainnet) — mainnet image/smoke eksik |
+| 3.3 | Production runbook mainnet | 🟡 kısmi | `PRODUCTION_RUNBOOK.md` Tur 13.5; mainnet genesis hash + seed listesi eksik |
+| 3.4 | Network hardening / rate limit | 🟡 kısmi | per-IP rate limit var; stress/10k kanıt + p2p hardening paketi eksik |
+| 3.5 | Validator onboarding E2E | ❌ OPEN | dedicated stake+register E2E yok |
+| 3.6 | BUD interim docs | ✅ DONE | `5321c28` → `docs/BUD_INTERIM.md` |
+| F5+ | Escrow + open_storage_deal fix | ✅ DONE | `f2b8075` + `44fe0f0` (525 test, CI green) |
+| F3 | VerifyMerkle Z-B | 🔒 ADIM4 | production gate kapalı, test `#[ignore]` |
+| F6 | BNS/.bud | 🔒 ADIM5+ | uzun vadeli |
+
+**Org roadmap emin miyiz?**
+- **Budlum L1 + BudZero kodlanabilir maddeler:** ADIM1–2 paketleriyle büyük ölçüde karşılanmış (README Research Roadmap Status + ORG_ROADMAP_AUDIT).
+- **B.U.D. vizyon Faz 1-2-4-5 iskelet/ekonomi:** main'de var; Faz 3 (PoS) ve Faz 6 (BNS) bilinçli olarak sonraki ADIM'lerde.
+- **Budlumdevnet / Budlumdevnet2:** eski temel + roadmap dokümanları; aktif çalışma `budlum-xyz/budlum` monorepo'sunda birleştirilmiş. Tüm org maddelerini "bitirdik" demek **yanlış** — harici audit, TLA+, Privacy, AI layer, Faz 3/6 hâlâ açık (dürüst durum).
+
+**Sonraki adım (Aşama 1 konuşma — commit atmadan önce):**
+Kullanıcı kararları + ARENA1/ARENA3 koordinasyonu:
+- A) 0.3 RPC implementasyonu şimdi mi?
+- B) ADIM3 3.1–3.5 paketinden hangisi önce?
+- C) VerifyMerkle (ADIM4) paralel mi, yoksa ADIM3 lansman önce mi?
+
+**Engel:** Kullanıcı "devam" + görev önceliği kararı. Force-push **YASAK**. Workflow push **YASAK**.
+**Kanıt:** HEAD `44fe0f0`, CI run 29390549071 success, `git cat-file -t` tüm listelenen SHA'lar.
+

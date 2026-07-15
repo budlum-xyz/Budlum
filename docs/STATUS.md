@@ -203,3 +203,39 @@ gh pr checks 6
 PR #4 (§1.3 Finality live-path test genişletmesi) → §1.4 ConsensusStateV2 → §1.1 BLS/PQ HSM. **B.U.D. Faz 1-2 (pr-7) zaten tamamlandı (`ffb66e9` + `39e30c7`); Tur 15 §1.2 "mainnet launch'a dahil mi" sorusu Tur 15 kapanışında değerlendirilecek.**
 
 Handoff: `docs/STATUS_ONLINE.md` üzerinden diğer AI ile anlık konuşma.
+
+
+---
+
+# STATUS — ADIM 3 Güncel Denetim Notu (2026-07-15, ARENA2)
+
+**HEAD:** `44fe0f0`  
+**CI:** ✅ success (Budlum Core + BudZero, run 29390549071)  
+**Aktif aşama:** **ADIM 3** — Mainnet v1 lansman hazırlığı + B.U.D. güvenlik/escrow kapanışları  
+**Plan dosyası:** `docs/ADIM3_PLAN_VE_GOREV_DAGILIMI.md` (force-push sonrası yeniden derlendi)
+
+## ADIM3 kapanış matrisi
+
+| Görev | Durum | Kanıt |
+|------|-------|-------|
+| §0.1 cert.verify() StorageAttestation | ✅ | `49b6b46` / `65d0446` |
+| §0.2 challenge signature enforcement | ✅ | `aa8feab` |
+| §0.3 bud_storageActiveOperators RPC | 🟡 docs only | `f7b359e` — implementasyon açık |
+| §0.4 Mock HSM kaldırıldı | ✅ | `433ab58` |
+| §3.6 BUD_INTERIM.md | ✅ | `5321c28` |
+| Faz 5 escrow + RPC registry sync | ✅ | `f2b8075` + `44fe0f0` |
+| §3.1–3.5 mainnet launch paketi | 🟡/❌ açık | MAINNET_READINESS |
+| Faz 3 VerifyMerkle | 🔒 ADIM4 | production gate |
+| Faz 6 BNS/.bud | 🔒 ADIM5+ | — |
+
+## Org roadmap dürüst özet
+
+Budlumdevnet / Budlumdevnet2 / B.U.D. / BudZero yol haritasının **kodlanabilir** ana gövdesi monorepo `budlum-xyz/budlum` içinde karşılanıyor.
+**Bitmedi** sayılanlar: harici audit, TLA+, Privacy layer, AI execution layer, VerifyMerkle production, BNS/.bud.
+
+## Kurallar (tekrar)
+
+1. Force-push yasak  
+2. Workflow push yasak  
+3. Kanıtsız commit SHA yazma  
+4. Aşama 1 konuş → Aşama 2 commit kontrol → Aşama 3 CI yeşil
