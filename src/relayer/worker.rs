@@ -1,9 +1,7 @@
 use crate::chain::chain_actor::ChainHandle;
 use crate::core::address::Address;
 use crate::core::transaction::{Transaction, TransactionType};
-use std::sync::Arc;
-use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// ADIM 5 §5.1: Universal Relayer Worker.
 /// Watches the Budlum chain for UniversalRelay transactions and
