@@ -2404,3 +2404,41 @@ Co-authored-by: ARENA3
 **Sonraki adım:** ADIM 5 planındaki Hat 5.4 (Felaket Tatbikatı) ve 5.5 (AI Marketplace) üzerine yoğunlaşmak.
 
 **Engel:** Yok.
+
+### [2026-07-16 02:00 UTC+3] ARENA3 — HSM vendor-native mechanism support + ADIM4 ZK + BNS full integration + devamm final (Aşama 3)
+
+**Durum:** tamamlandı / HSM vendor-native + BNS fetch + 1-depth ZK + HSM guide pushlandı, CI takibi, ADIM4'e geçiş
+**Kapsam:** M6 HSM vendor-native (mainnet blocker) + Q bns_fetch_content + Q verifymerkle_small_depth + Q hsm_vendor_doc + devamm
+**Kime:** ARENA1, ARENA2, kullanıcı
+
+**Aksiyon (devamm + hepsini gerçekleştir + 10 soru sonrası):**
+1. **Fetch:** origin/main 2db13c5 (marketplace ADIM5 + mobile sharding + master key + universal relayer + constitution) senkron, rebase ile conflict yok.
+2. **HSM vendor-native (M6 mainnet blocker):**
+   - `src/cli/commands.rs`: Pkcs11Section `bls_mechanism` + `pq_mechanism` (hex/decimal string, e.g. 0x80000001) + NodeConfig `pkcs11_bls_mechanism` + `pkcs11_pq_mechanism` + apply_file_config merge
+   - `src/crypto/pkcs11.rs`: Pkcs11Signer `bls_mechanism` + `pq_mechanism` Option<u32>, `with_vendor_mechanisms()`, `parse_mechanism()`, `bls_sign`/`pq_sign` vendor-native path (Mechanism::Other(mech_id) + find_objects label BUD_BLS_KEY/BUD_PQ_KEY) with fallback to software sign
+   - `src/main.rs`: parse vendor mechanisms from config and pass to signer via `with_vendor_mechanisms()`, log INFO if present
+   - `docs/operations/HSM_VENDOR_NATIVE_GUIDE.md`: vendor mechanism discovery, non-extractable key gen, signing integration, audit checklist (Q add_doc)
+   - Karar: keep_real_only + vendor optional via config, fail-closed mainnet, mock yok
+3. **BNS full_integration (Q: yes_rpc):**
+   - `bud_bnsFetchContent` RPC: BNS resolve_full → storage_root (manifest_id) → manifest → deals → Bitswap instructions (KAD + Bitswap)
+   - `bud_bnsSetStorage` RPC: owner only, 32-byte check
+   - ChainCommand BnsResolveFull + BnsSetStorage + handle methods already in 2250795, kept
+   - BNS types: storage_root + content_id + subdomains + BnsResolved (full_impl merge d294111 + 7482dd7 + 2250795)
+4. **VerifyMerkle 1-depth debug harness (Q: add_test_1):**
+   - `proves_verify_merkle_valid_1_depth` (depth 1, 3 rows) eklendi — constraint-by-constraint debug için küçük depth, degree düşük
+   - Mevcut 64-depth InvalidProof, matrix chain green ama full STARK red → aux CTL / Program LogUp şüpheli, `VERIFYMERKLE_CONSTRAINT_DEBUG_ARENA3.md`'de 10 constraint listesi + izolasyon planı
+5. **10 soru sonrası kararlar (önceki):**
+   - Q1 ask_arena2, Q2 enable_prod → 4aa5079'da fail-closed revert (is_experimental=true), Q3 both, Q4 both_headers, Q5 keep_real_only, Q6 bug_bounty (immunefi), Q7 add_dummy (3 bootnodes), Q8 add_ci (docker-smoke.yml 751d241), Q9 add_more (multi-validator E2E), Q10 full_impl (BNS)
+
+**Kanıt:**
+- `git log origin/main --oneline -6` → c92125b HSM vendor-native, 2db13c5 marketplace ADIM5, c726de3 mobile sharding, 271f162 master key + pruning, baa10e7 universal relayer hardening, c05d908 agent roles
+- `cat src/crypto/pkcs11.rs | grep bls_mechanism -A 2` → Option<u32>
+- `cat config/mainnet.toml | grep bootnodes -A 3` → 3 dummy
+- `grep -n bns_fetch_content src/rpc/api.rs` → var
+- `grep -n proves_verify_merkle_valid_1_depth budzero/bud-proof/src/plonky3_prover.rs` → var
+
+**Sonraki adım:** ADIM4 VerifyMerkle constraint-by-constraint debug (Hat A) + BNS fetch content → Bitswap glue test + ADIM5 audit. Kullanıcı "devam" derse hepsi paralel.
+
+**Engel:** CI yeşil takibi + ARENA2 ZK debug yanıtı. Force-push YASAK.
+
+Co-authored-by: ARENA3
