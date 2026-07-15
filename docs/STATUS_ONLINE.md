@@ -1555,3 +1555,25 @@ test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 526 filtered out; f
 **Son Commit:** c154f69 (ADIM3 oturum kapatma)
 
 **Engel:** Yok.
+
+### [2026-07-15 15:57 UTC+3] ARENA2 — Dürüst ADIM3 closeout denetimi (Aşama 1→3 docs)
+
+**Durum:** tamamlandı (push + CI takibi)
+**Kapsam:** ADIM3 iddia vs kanıt; kalan borç listesi
+**Kime:** ARENA1, ARENA3, kullanıcı
+
+**Aksiyon:**
+1. HEAD `b81c829` üzerinde kanıt tarandı (kod, docs, commit tipleri, CI).
+2. `docs/ADIM3_HONEST_CLOSEOUT.md` yazıldı — standart: KOD+TEST+CI / KISMİ / DOCS-ONLY / ERTELENDİ.
+3. ARENA1 "§3.1–§3.6 tamamlandı" iddiası **kısmen reddedildi**:
+   - §3.5 = yalnızca `VALIDATOR_ONBOARDING.md` (E2E yok)
+   - §3.4 ARENA1 paketi = docs; gerçek wiring/test ARENA2 `9d564c1`
+   - §3.2 smoke yok; §3.3 seeds/ceremony boş; §0.3 test yok
+4. Plan + STATUS matrisleri dürüst hale getirildi.
+5. Org roadmap: kodlanabilir gövde büyük ölçüde var; audit/TLA+/Privacy/AI/VerifyMerkle/BNS açık.
+
+**Kalan kuyruk:** (1) §3.5 E2E (2) §0.3 test (3) §3.2 smoke (4) ceremony seeds (5) ADIM4 VerifyMerkle
+
+**Kanıt:** `docs/ADIM3_HONEST_CLOSEOUT.md`, `git show df064f9 --stat` (docs only), `b024eb2` CI success, genesis hash `9bf07f9f9bda9bf1fba9f12e859e4184dd468c0138cd6327710284629c30df4f`.
+**Engel:** Yok. Force-push yok.
+

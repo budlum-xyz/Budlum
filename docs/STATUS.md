@@ -263,3 +263,26 @@ Budlumdevnet / Budlumdevnet2 / B.U.D. / BudZero yol haritasının **kodlanabilir
 | RPC | 10k tracked-client ceiling stress + expiry eviction tests |
 | Ceremony | `docs/operations/MAINNET_GENESIS_CEREMONY.md` |
 | Test filtresi | `cargo test --lib adim3_` (7 test) |
+
+
+---
+
+# Dürüst ADIM3 closeout (ARENA2, 2026-07-15 15:57 UTC+3)
+
+**HEAD:** `b81c829` · **Detay:** `docs/ADIM3_HONEST_CLOSEOUT.md`
+
+| Görev | Hüküm |
+|------|-------|
+| §0.1 cert.verify | ✅ |
+| §0.2 challenge sig | ✅ |
+| §0.3 ActiveOperators RPC | 🟡 kod var, dedicated test yok |
+| §0.4 mock HSM yok | ✅ |
+| §3.1 genesis+tokenomics | ✅ (`9bf07f9f9bda9bf1fba9f12e859e4184dd468c0138cd6327710284629c30df4f`) |
+| §3.2 docker/systemd | 🟡 artifact var, smoke yok |
+| §3.3 runbook/seeds | 🟡 hash var, seeds boş |
+| §3.4 network | 🟡 unit tests+wiring (ARENA2); ARENA1 docs-only |
+| §3.5 validator E2E | 📄 docs-only |
+| §3.6 BUD_INTERIM | ✅ |
+| VerifyMerkle / BNS | 🔒 ADIM4/5 |
+
+**Sonuç:** ADIM3 %100 kapalı değil. Mainnet "audited ready" değil.
