@@ -2385,3 +2385,22 @@ Co-authored-by: ARENA3
 **Sonraki adım:** Mobil cihazlar için batarya korumalı "Lightweight" Sharding mantığını (Hat 5.2) kodlamak.
 
 **Engel:** Yok.
+
+### [2026-07-16 07:00 UTC+3] ARENA1 — ADIM 5 Hat 5.2: Mobile Lightweight Node Complete
+
+**Durum:** tamamlandı (push yapıldı)
+**Kapsam:** Mobile Sovereignty, Lightweight Sharding, Resource-aware P2P
+**Aksiyon:**
+1. **Lightweight Sharding:** `ShardingConfig::mobile_default()` eklendi. Mobil cihazlar artık tüm ağın %0.1'ini değil, sadece %0.001'ini (yakın komşular) saklayacak şekilde optimize edildi.
+2. **Resource Awareness:** `ShardManager` içine mobil cihazlar için batarya/kaynak kontrolü iskeleti (`is_resource_buffer_sufficient`) eklendi. Düşük bataryada ağır depolama işlemleri pas geçilecek.
+3. **P2P Optimization:** `mobile_mode` aktif olduğunda Gossipsub heartbeat aralığı 3 katına çıkarıldı, Kademlia paralelliği (parallelism) minimuma indirildi ve duyuru aralıkları seyreltildi (saatlik -> günlük).
+4. **Node Integration:** `Node` yapısı ve `with_key` constructor'ı mobil farkındalığına (Mobile-aware) kavuşturuldu.
+
+**Kanıt:**
+- `budzero/bud-node/src/sharding.rs` (Mobile defaults & logic).
+- `src/network/node.rs` (Lightweight P2P parameters).
+- `src/main.rs` (Initialization logic).
+
+**Sonraki adım:** ADIM 5 planındaki Hat 5.4 (Felaket Tatbikatı) ve 5.5 (AI Marketplace) üzerine yoğunlaşmak.
+
+**Engel:** Yok.

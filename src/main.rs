@@ -676,11 +676,16 @@ async fn main() {
     let (storage_node, sharding_config) = if config.storage_enabled {
         let store = Arc::new(bud_node::MemoryContentStore::with_default_capacity());
         let bitswap = Arc::new(bud_node::BudBitswap::new(store));
-        let s_config = bud_node::ShardingConfig {
-            replication_factor: config.storage_replication_factor,
-            max_xor_distance: u128::MAX / 1000,
-            mandatory: config.storage_mandatory_sharding,
+        
+        let mut s_config = if config.mobile_mode {
+            bud_node::ShardingConfig::mobile_default()
+        } else {
+            bud_node::ShardingConfig::default()
         };
+        
+        s_config.replication_factor = config.storage_replication_factor;
+        s_config.mandatory = config.storage_mandatory_sharding;
+        
         (Some(bitswap), Some(s_config))
     } else {
         (None, None)

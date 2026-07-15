@@ -223,6 +223,7 @@ pub struct Node {
     pub metrics: Option<Arc<crate::core::metrics::Metrics>>,
     pub storage_node: Option<Arc<bud_node::BudBitswap>>,
     pub shard_manager: Option<Arc<bud_node::ShardManager>>,
+    pub mobile_mode: bool,
 }
 
 impl Node {
@@ -239,26 +240,42 @@ impl Node {
         sharding_config: Option<bud_node::ShardingConfig>,
     ) -> Result<Self, Box<dyn Error>> {
         let peer_id = PeerId::from(local_key.public());
+        let mobile_mode = sharding_config.as_ref().map(|c| c.mobile_mode).unwrap_or(false);
 
-        let shard_manager =
-            sharding_config.map(|config| Arc::new(bud_node::ShardManager::new(peer_id, config)));
-        info!("Node ID: {} (mDNS: {})", peer_id, mdns_enabled);
+        let shard_manager = sharding_config.map(|config| {
+            Arc::new(bud_node::ShardManager::new(peer_id, config))
+        });
+        info!("Node ID: {} (mDNS: {}, Mobile: {})", peer_id, mdns_enabled, mobile_mode);
+        
         let message_id_fn = |message: &gossipsub::Message| {
             let mut s = DefaultHasher::new();
             message.data.hash(&mut s);
             gossipsub::MessageId::from(s.finish().to_string())
         };
-        let gossipsub_config = gossipsub::ConfigBuilder::default()
-            .heartbeat_interval(Duration::from_secs(10))
+        
+        // ADIM 5 §5.2: Lightweight Gossipsub for mobile
+        let mut gossipsub_config_builder = gossipsub::ConfigBuilder::default();
+        if mobile_mode {
+            gossipsub_config_builder
+                .heartbeat_interval(Duration::from_secs(30)) // Less frequent heartbeats
+                .history_length(3) // Smaller history
+                .history_gossip(3);
+        } else {
+            gossipsub_config_builder.heartbeat_interval(Duration::from_secs(10));
+        }
+
+        let gossipsub_config = gossipsub_config_builder
             .validation_mode(gossipsub::ValidationMode::Strict)
             .message_id_fn(message_id_fn)
             .max_transmit_size(crate::network::protocol::MAX_MESSAGE_SIZE)
             .build()
             .map_err(std::io::Error::other)?;
+            
         let gossipsub = gossipsub::Behaviour::new(
             gossipsub::MessageAuthenticity::Signed(local_key.clone()),
             gossipsub_config,
         )?;
+        
         let swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
             .with_tcp(
@@ -272,10 +289,15 @@ impl Node {
                     key.public().to_peer_id(),
                 )?;
                 let kad_store = MemoryStore::new(key.public().to_peer_id());
-                let kad_config =
-                    KademliaConfig::new(libp2p::StreamProtocol::new("/budlum/kad/1.0.0"));
-                let kademlia =
-                    Kademlia::with_config(key.public().to_peer_id(), kad_store, kad_config);
+                
+                // ADIM 5 §5.2: Lightweight Kademlia for mobile
+                let mut kad_config = KademliaConfig::new(libp2p::StreamProtocol::new("/budlum/kad/1.0.0"));
+                if mobile_mode {
+                    kad_config.set_parallelism(std::num::NonZeroUsize::new(1).unwrap());
+                    kad_config.set_publication_interval(Some(Duration::from_secs(24 * 3600)));
+                }
+                
+                let kademlia = Kademlia::with_config(key.public().to_peer_id(), kad_store, kad_config);
                 let identify = identify::Behaviour::new(identify::Config::new(
                     "/budlum/1.0.0".to_string(),
                     key.public(),
@@ -325,7 +347,7 @@ impl Node {
             peer_count,
             sync_state,
             in_progress_snapshots: HashMap::new(),
-            max_peers: MAX_PEERS,
+            max_peers: if mobile_mode { 10 } else { MAX_PEERS },
             validator_address: None,
             last_precommit_height: 0,
             identity_path: None,
@@ -334,6 +356,7 @@ impl Node {
             metrics: None,
             storage_node,
             shard_manager,
+            mobile_mode,
         })
     }
 
@@ -547,8 +570,16 @@ impl Node {
         let mut dht_interval = tokio::time::interval(DHT_BOOTSTRAP_INTERVAL);
         let mut banning_interval = tokio::time::interval(Duration::from_secs(60));
         let mut ban_persist_interval = tokio::time::interval(Duration::from_secs(300));
-        let mut storage_announce_interval = tokio::time::interval(Duration::from_secs(3600)); // Every hour
-        let mut storage_sharding_check_interval = tokio::time::interval(Duration::from_secs(600)); // Every 10 mins
+        let mut storage_announce_interval = tokio::time::interval(if self.mobile_mode { 
+            Duration::from_secs(24 * 3600) // Daily on mobile
+        } else {
+            Duration::from_secs(3600) // Hourly on server
+        });
+        let mut storage_sharding_check_interval = tokio::time::interval(if self.mobile_mode {
+            Duration::from_secs(3600) // Hourly on mobile
+        } else {
+            Duration::from_secs(600) // 10 mins on server
+        });
         let mut last_voted_height: u64 = 0;
 
         loop {
