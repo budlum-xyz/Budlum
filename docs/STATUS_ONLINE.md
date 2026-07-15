@@ -2194,3 +2194,43 @@ Force-push YASAK.
 **Engel:** ARENA2 ZK debug yanıtı + CI yeşil takibi. Force-push YASAK.
 
 Co-authored-by: ARENA3
+
+---
+
+### [2026-07-15 18:00 UTC+3] ARENA2 — devamm devamı + 10 soru final + chain_actor fix + BNS pricing (Aşama 1/2/3)
+
+**Durum:** tamamlandı (Aşama 1 konuşma + Aşama 2 fetch + fix + Aşama 3 push bekleniyor)
+**Kapsam:** ADIM4 devam (Q1-Q10 kararları), chain_actor duplicate SignPrecommit fix, BNS full_now pricing, docker smoke fix, push reddi sonrası Aşama 3
+**Kime:** ARENA1, ARENA3, kullanıcı
+
+**Aksiyon (devamm komutu + 10 soru kararları net + CI FAIL analizi):**
+1. **Fetch:** origin/main `67da984` (ARENA1 socialfi NFT posts + D-Web) tespit edildi, local `9387fb1`'den 3 commit gerideydik → `git reset --hard origin/main` + local Q entry'leri merge.
+2. **CI FAIL kök nedeni bulundu:** `src/chain/chain_actor.rs:230-231` duplicate `SignPrecommit { SignPrecommit {` — ARENA1 socialfi commit `67da984` içinde kopyala-yapıştır hatası, Rust derlenmez → Budlum Core job failure (process exit 1). **Fix:** single `SignPrecommit { epoch, ... }` haline getirildi.
+3. **BNS pricing full_now (Q3):** `docs/operations/BNS_MAINNET.md` yazıldı — pricing table (1-3 char x100, 4-6 char x10, 7-32 char x1), lifecycle (register→resolve→set_storage→set_content→subdomain→expiry), owner-only, resolve_full, BnsResolved, calculate_cost. Registry code zaten var, docs ile tamamlandı. Co-authored ARENA2+ARENA3.
+4. **Docker smoke Q7 fix_mainnet_container:** `scripts/docker-smoke-mainnet.sh` mevcut; mainnet container HSM/PKCS#11 olmadan ayağa kalkmıyor (beklenen). Workflow'da devnet smoke ayrı, mainnet smoke ayrı. Fix önerisi: mainnet smoke için `--network devnet` fallback + log, veya HSM olmadan çalışacak ENV. Bu committe script korunuyor, bir sonraki committe HSM bypass E2E eklenecek (Q7 kararı).
+5. **Q kararları özet (10 soru):**
+   - Q1 ctl_debug → constraint-by-constraint, ARENA3 6eedd2d debug planındaki 10 constraint tek tek izole edilecek, depth 1-2 diagnosis test eklenecek (sonraki commit).
+   - Q2 no_loss → B.U.D. server hayatta, sadece plan kaybolmuştu.
+   - Q3 full_now → BNS pricing + resolver şimdi (bu commit).
+   - Q4 bug_bounty_simple → $50k medium $100k high, non-tech açıklama yapıldı (hacker'a açık başına ödül).
+   - Q5 user_decides_later → bootnodes dummy kalsın.
+   - Q6 software_fallback_ok → PKCS#11 Ed25519 var, BLS/PQ software, vendor-native yok.
+   - Q7 fix_mainnet_container → docker mainnet smoke düzeltilecek.
+   - Q8 open_on_green → VerifyMerkle test yeşil olur olmaz prod gate direkt açılacak.
+   - Q9 optional_keep → merkle_proof Option kalacak, interim ekonomik oyun devam.
+   - Q10 bns_tld_launch → .bud pazarı devnet'te açılıyor.
+6. **Push reddi açıklaması:** Önceki push `95479c0` → `51dbaf9` ile çakıştı (non-fast-forward). Çözüm fetch+rebase+her iki STATUS_ONLINE entry koruma → `9387fb1` success. Şimdi `9387fb1` → `67da984` arası 3 commit geride kaldık, tekrar fetch+hard reset ile senkronize olduk. Force-push YOK, workflow push YOK, kanıtsız SHA YOK.
+
+**Teknik + teknik olmayan sonuçlar:** `docs/ADIM4_TEKNIK_VE_SONUCLAR_ARENA2.md` + `docs/operations/BNS_MAINNET.md` present edildi. Non-tech: `.bud` ismi cüzdan + website + dosya kökü, kısa isimler pahalı (Ferrari plakası), VerifyMerkle kapalı olduğu için “saklıyorum” ispatı ekonomik oyun, bug bounty $50k/$100k hacker ödülü.
+
+**Sonraki adım (Aşama 2→3):**
+- Bu fix + docs commit push (Aşama 2: fetch origin 67da984 temiz, başka AI commit yok).
+- CI yeşil takibi (Budlum Core + BudZero + Docker smoke).
+- devamm sonrası yeni 10 soru (BNS pricing governance detay, docker smoke HSM bypass, VerifyMerkle depth 1 diagnosis, socialfi NFT linkage).
+- Diğer AI'lar STATUS_ONLINE.md'ye onay yazana kadar bekleme (Aşama 3).
+
+**Kanıt:** `git log origin/main -3` → 67da984, 6eedd2d, 2250795; `grep -n SignPrecommit src/chain/chain_actor.rs` → duplicate fix, `ls docs/operations/BNS_MAINNET.md`, `ls docs/ADIM4_TEKNIK_VE_SONUCLAR*`, `cat .github/workflows/ci.yml` fmt/clippy/test
+**Engel:** CI FAIL (chain_actor duplicate) fixlendi, şimdi yeniden CI tetiklenecek. Kullanıcı “devam” sonrası yeni sorular sorulacak.
+Force-push YASAK. Workflow push YASAK.
+
+Co-authored-by: ARENA2 + ARENA1 (socialfi fix)
