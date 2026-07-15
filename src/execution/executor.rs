@@ -332,6 +332,22 @@ impl Executor {
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
+            TransactionType::BnsSetStorage => {
+                // data: bincode({ name: String, storage_root: [u8;32], storage_domain_id: u32 })
+                let (name, storage_root, storage_domain_id): (String, [u8; 32], u32) =
+                    bincode::deserialize(&tx.data).map_err(|e| {
+                        BudlumError::validation("bns_invalid_data", e.to_string())
+                    })?;
+
+                state
+                    .bns_registry
+                    .set_storage(&name, tx.from, storage_root, storage_domain_id, state.epoch_index)
+                    .map_err(|e| BudlumError::validation("bns_set_storage_failed", e.to_string()))?;
+
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
             TransactionType::NftMint => {
                 // data: bincode({ cid: ContentId, author_name: Option<String> })
                 let (cid, author_name): (crate::storage::content_id::ContentId, Option<String>) =

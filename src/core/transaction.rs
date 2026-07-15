@@ -61,6 +61,7 @@ pub enum TransactionType {
     BnsRegister,
     BnsSetContent,
     BnsRegisterSubdomain,
+    BnsSetStorage,
     NftMint,
     NftTransfer,
     NftBurn,
@@ -253,6 +254,13 @@ impl Transaction {
             TransactionType::Unstake => 2,
             TransactionType::Vote => 3,
             TransactionType::ContractCall => 4,
+            TransactionType::BnsRegister => 5,
+            TransactionType::BnsSetContent => 6,
+            TransactionType::BnsRegisterSubdomain => 7,
+            TransactionType::BnsSetStorage => 8,
+            TransactionType::NftMint => 9,
+            TransactionType::NftTransfer => 10,
+            TransactionType::NftBurn => 11,
         };
         hasher.update([type_byte]);
 
@@ -367,6 +375,27 @@ impl Transaction {
                     return false;
                 }
             }
+            TransactionType::BnsRegister
+            | TransactionType::BnsSetContent
+            | TransactionType::BnsRegisterSubdomain
+            | TransactionType::BnsSetStorage => {
+                if self.fee == 0 {
+                    println!("BNS fee cannot be 0 (cost-floor)");
+                    return false;
+                }
+                if self.data.is_empty() {
+                    println!("BNS TX data must be non-empty");
+                    return false;
+                }
+            }
+            TransactionType::NftMint
+            | TransactionType::NftTransfer
+            | TransactionType::NftBurn => {
+                if self.data.is_empty() {
+                    println!("NFT TX data must be non-empty");
+                    return false;
+                }
+            }
         }
         true
     }
@@ -386,6 +415,13 @@ impl Transaction {
             TransactionType::Stake | TransactionType::Unstake => schedule.stake_gas,
             TransactionType::Vote => schedule.vote_gas,
             TransactionType::ContractCall => schedule.contract_call_gas,
+            TransactionType::BnsRegister
+            | TransactionType::BnsSetContent
+            | TransactionType::BnsRegisterSubdomain
+            | TransactionType::BnsSetStorage => schedule.contract_call_gas,
+            TransactionType::NftMint | TransactionType::NftTransfer | TransactionType::NftBurn => {
+                schedule.contract_call_gas
+            }
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature
