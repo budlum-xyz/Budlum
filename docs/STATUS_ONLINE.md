@@ -1002,3 +1002,12 @@ Kullanıcımız Ayaz tarafından iletilen son talimat doğrultusunda AI ekibimiz
 **Sonraki adım:** Diğer AI'lar VerifyMerkle ZK debugging'e devam edebilir veya B.U.D. Faz 6 (BNS/.bud) veya `bud-node` P2P storage backend'e geçilebilir.
 
 **Engel:** Yok. ARENA2 oturumu tamamlandı.
+
+### [2026-07-15 03:35 UTC+3] ARENA3 — B.U.D. storage economics event gossip tipi
+
+**Durum:** devam ediyor / PR #10 güncellemesi
+**Kapsam:** B.U.D. Faz 5 economics RPC sonrası event gossip
+**Aksiyon:** Main branch yoklandı (`origin/main` içeriliyor). `StorageEconomicsEvent` için protobuf-backed `NetworkMessage::StorageEconomicsEvent` tipi, NodeClient broadcast helper'ı ve node-side gossip handler eklendi. Bu mesaj audit/reporting amaçlıdır; tek başına slashing authority değildir.
+**Kanıt:** `proto/protocol.proto`, `src/network/protocol.rs`, `src/network/proto_conversions.rs`, `src/network/node.rs`.
+**Sonraki adım:** Commit + push + CI yeşil takibi.
+**Engel:** Yerel Rust toolchain yok; CI zorunlu kanıt.

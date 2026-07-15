@@ -114,6 +114,16 @@ impl NodeClient {
             NetworkMessage::SlashingEvidence(evidence),
         ));
     }
+
+    pub fn broadcast_storage_economics_event_sync(
+        &self,
+        event: crate::chain::blockchain::StorageEconomicsEvent,
+    ) {
+        let _ = self.sender.try_send(NodeCommand::Broadcast(
+            "blocks".into(),
+            NetworkMessage::StorageEconomicsEvent(event),
+        ));
+    }
 }
 #[tokio::test]
 async fn test_node_creation() {
@@ -1556,6 +1566,20 @@ impl Node {
                                                     pm.report_bad_behavior(&peer_id);
                                                 }
                                             }
+                                        }
+                                    }
+                                    NetworkMessage::StorageEconomicsEvent(event) => {
+                                        info!(
+                                            "StorageEconomicsEvent from {}: kind={:?}, deal={}, epoch={}, amount={}, balance_effect={}",
+                                            peer_id,
+                                            event.kind,
+                                            event.deal_id,
+                                            event.epoch,
+                                            event.amount,
+                                            event.balance_effect
+                                        );
+                                        if let Ok(mut pm) = self.peer_manager.lock() {
+                                            pm.report_good_behavior(&peer_id);
                                         }
                                     }
                                     NetworkMessage::DomainCommitment(commitment) => {

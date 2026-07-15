@@ -128,6 +128,9 @@ pub enum NetworkMessage {
     DomainCommitment(crate::domain::DomainCommitment),
     VerifiedDomainCommitment(crate::domain::VerifiedDomainCommitment),
     SlashingEvidence(crate::consensus::pos::SlashingEvidence),
+    /// B.U.D. Faz 5 economics event gossip. This is an audit/reporting
+    /// message, not a slashing authority by itself.
+    StorageEconomicsEvent(crate::chain::blockchain::StorageEconomicsEvent),
     GlobalHeader(crate::settlement::GlobalBlockHeader),
     CrossDomainMessage(crate::cross_domain::CrossDomainMessage),
 }
