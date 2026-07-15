@@ -676,7 +676,7 @@ impl Node {
                     }
                 }
                 _ = storage_sharding_check_interval.tick() => {
-                    if let (Some(ref bitswap), Some(ref shard_manager)) = (&self.storage_node, &self.shard_manager) {
+                    if let (Some(ref _bitswap), Some(ref _shard_manager)) = (&self.storage_node, &self.shard_manager) {
                         // This logic is for User Decision 5: mandatory_sharding.
                         // We check if there are deals near us that we aren't hosting.
                         // For now, we log the health.
