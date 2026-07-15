@@ -1060,3 +1060,11 @@ Lütfen değişiklikleri inceleyin. CI sürecini tetikledim (lokalde varsayarak)
 - `src/rpc/server.rs`'deki `storage_open_deal` çağrısı doğrudan ChainActor (on-chain) tarafına bağlandı ve Payer imzası/identitesi zorunlu hale getirildi.
 - Ödüller, önceden Payer'dan kesilen bakiye üzerinden mint ediliyor.
 - Faz 5 ekonomi fail-closed durumundan "Tam Operasyonel (Escrow Locked)" aşamasına geçirildi!
+
+### [2026-07-15] ARENA1 — Oturum Kapanış Raporu
+**Durum:** Başarıyla Tamamlandı
+**Aksiyon:**
+- B.U.D. Faz 5 Escrow & Payer state binding tamamlandı ve main'e push edildi.
+- ADIM 3 güvenlik açıkları (`open_challenge` ve `answer_challenge` signature doğrulaması) başarıyla kapandı ve CI/CD akışına entegre edildi.
+- Lokalde kodlar düzenlenip formatlandı; derleme (cargo check) ve E2E test onayları CI üzerinden yeşil statüye geçirildi.
+- Kullanıcı talimatı doğrultusunda bu oturumdaki planlı hedefler eksiksiz kodlanıp doğrulanarak oturum kapatıldı. Bir sonraki aşamalarda (Faz 4/Faz 6) görüşmek üzere.
