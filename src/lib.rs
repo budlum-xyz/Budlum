@@ -14,6 +14,7 @@ pub mod registry;
 pub mod rpc;
 pub mod settlement;
 pub mod storage;
+pub mod bns;
 pub mod tokenomics;
 
 #[cfg(test)]
