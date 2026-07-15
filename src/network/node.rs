@@ -973,7 +973,7 @@ impl Node {
                                             peer_id, locator.len(), limit);
 
                                         let start_idx_opt = self.chain.find_common_height(locator).await;
-                                        let start_idx = start_idx_opt.map(|i| i + 1).unwrap_or(0) as usize;
+                                        let start_idx = start_idx_opt.map_or(0, |i| i + 1) as usize;
 
                                         let height = self.chain.get_height().await + 1;
                                         let end_idx = (start_idx + limit as usize).min(height as usize);
@@ -1692,7 +1692,7 @@ impl Node {
                                                 match msg {
                                                     NetworkMessage::GetHeaders { locator, limit } => {
                                                         let start_idx_opt = self.chain.find_common_height(locator).await;
-                                                        let start_idx = start_idx_opt.map(|i| i + 1).unwrap_or(0) as usize;
+                                                        let start_idx = start_idx_opt.map_or(0, |i| i + 1) as usize;
                                                         let height = self.chain.get_height().await + 1;
                                                         let end_idx = (start_idx + limit as usize).min(height as usize);
 

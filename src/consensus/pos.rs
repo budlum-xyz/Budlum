@@ -560,7 +560,7 @@ impl ConsensusEngine for PoSEngine {
 
     fn fork_choice_score(&self, chain: &[Block]) -> u128 {
         let last_checkpoint_height = if let Ok(guard) = self.checkpoints.read() {
-            guard.last().map(|c| c.block_index).unwrap_or(0)
+            guard.last().map_or(0, |c| c.block_index)
         } else {
             0
         };
