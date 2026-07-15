@@ -302,4 +302,26 @@ mod tests {
         assert_ne!(block.validator_set_hash, "0".repeat(64));
         assert_eq!(block.hash, block.calculate_hash());
     }
+
+    #[test]
+    fn test_mainnet_genesis_deterministic() {
+        // ADIM3 §3.1: mainnet genesis must be deterministic — same config → same hash
+        let cfg = GenesisConfig::for_network(Network::Mainnet);
+        let g1 = cfg.build_genesis_block();
+        let g2 = cfg.build_genesis_block();
+        assert_eq!(g1.hash, g2.hash);
+        assert_eq!(g1.chain_id, Network::Mainnet.chain_id().value());
+        assert_eq!(g1.hash, g1.calculate_hash());
+    }
+
+    #[test]
+    fn test_mainnet_genesis_hash_distinct_from_testnet_devnet() {
+        // ADIM3 §3.1: distinct networks must produce distinct genesis hashes
+        let mainnet = GenesisConfig::for_network(Network::Mainnet).build_genesis_block();
+        let testnet = GenesisConfig::for_network(Network::Testnet).build_genesis_block();
+        let devnet = GenesisConfig::for_network(Network::Devnet).build_genesis_block();
+        assert_ne!(mainnet.hash, testnet.hash);
+        assert_ne!(mainnet.hash, devnet.hash);
+        assert_ne!(testnet.hash, devnet.hash);
+    }
 }
