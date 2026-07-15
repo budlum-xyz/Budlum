@@ -411,6 +411,20 @@ pub trait BudlumApi {
         cid: String,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
+    /// B.U.D. Name Service (BNS): Set storage binding for existing name (owner only, Phase 6 full_impl)
+    #[method(name = "bud_bnsSetStorage")]
+    async fn bns_set_storage(
+        &self,
+        name: String,
+        owner: String,
+        storage_root: String,
+        storage_domain_id: u32,
+    ) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    /// B.U.D. Name Service (BNS): Fetch content via BNS name → storage_root → manifest → chunk (Phase 6 full_integration)
+    #[method(name = "bud_bnsFetchContent")]
+    async fn bns_fetch_content(&self, name: String) -> Result<serde_json::Value, ErrorObjectOwned>;
+
     // --- B.U.D. SocialFi ---
 
     /// Get an NFT post by ID.

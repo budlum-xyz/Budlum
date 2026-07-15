@@ -1919,6 +1919,134 @@ impl BudlumApiServer for RpcServer {
         }))
     }
 
+    async fn bns_set_storage(
+        &self,
+        name: String,
+        owner: String,
+        storage_root: String,
+        storage_domain_id: u32,
+    ) -> Result<serde_json::Value, ErrorObjectOwned> {
+        let clean_owner = owner.strip_prefix("0x").unwrap_or(&owner);
+        let owner_addr = Address::from_hex(clean_owner).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid owner address: {}", e), None::<()>)
+        })?;
+        let clean_root = storage_root.strip_prefix("0x").unwrap_or(&storage_root);
+        let root_bytes = hex::decode(clean_root).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid storage_root hex: {}", e), None::<()>)
+        })?;
+        if root_bytes.len() != 32 {
+            return Err(ErrorObjectOwned::owned(
+                -32602,
+                "storage_root must be 32 bytes",
+                None::<()>,
+            ));
+        }
+        let mut root_arr = [0u8; 32];
+        root_arr.copy_from_slice(&root_bytes);
+
+        self.chain
+            .bns_set_storage(name.clone(), owner_addr, root_arr, storage_domain_id)
+            .await
+            .map_err(|e| ErrorObjectOwned::owned(-32602, format!("BNS set_storage failed: {}", e), None::<()>))?;
+
+        Ok(serde_json::json!({
+            "name": name,
+            "owner": owner,
+            "storage_root": storage_root,
+            "storage_domain_id": storage_domain_id,
+            "status": "storage binding updated",
+        }))
+    }
+
+    async fn bns_fetch_content(&self, name: String) -> Result<serde_json::Value, ErrorObjectOwned> {
+        let resolved = self
+            .chain
+            .bns_resolve_full(name.clone())
+            .await
+            .ok_or_else(|| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("BNS name not found or expired: {}", name),
+                    None::<()>,
+                )
+            })?;
+
+        let storage_root = resolved.storage_root.ok_or_else(|| {
+            ErrorObjectOwned::owned(
+                -32602,
+                format!("BNS name {} has no storage_root binding (Phase 6)", name),
+                None::<()>,
+            )
+        })?;
+
+        let storage_domain_id = resolved.storage_domain_id.unwrap_or(0);
+        let manifest_id = crate::storage::content_id::ContentId(storage_root);
+
+        let manifest_opt = {
+            let reg = self.storage.lock().map_err(|e| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("storage registry lock poisoned: {e}"),
+                    None::<()>,
+                )
+            })?;
+            reg.get_manifest(&manifest_id).cloned()
+        };
+
+        let (manifest_json, shard_count, total_size) = if let Some(manifest) = manifest_opt {
+            (
+                serde_json::json!({
+                    "manifestId": format!("0x{}", hex::encode(manifest.manifest_id.0)),
+                    "totalSize": manifest.total_size,
+                    "shardCount": manifest.shard_count,
+                    "shards": manifest.shards.iter().map(|s| {
+                        serde_json::json!({
+                            "shardId": format!("0x{}", hex::encode(s.shard_id.0)),
+                            "size": s.size,
+                        })
+                    }).collect::<Vec<_>>(),
+                }),
+                manifest.shard_count,
+                manifest.total_size,
+            )
+        } else {
+            (serde_json::Value::Null, 0u32, 0u64)
+        };
+
+        let deals = {
+            let reg = self.storage.lock().map_err(|e| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("storage registry lock poisoned: {e}"),
+                    None::<()>,
+                )
+            })?;
+            reg.deals_for_manifest(&manifest_id)
+                .iter()
+                .map(|d| storage_deal_to_json(d))
+                .collect::<Vec<_>>()
+        };
+
+        Ok(serde_json::json!({
+            "name": name,
+            "owner": Self::to_0x_hash(resolved.owner.to_hex()),
+            "address": resolved.address.map(|a| Self::to_0x_hash(a.to_hex())),
+            "storage_root": format!("0x{}", hex::encode(storage_root)),
+            "storage_domain_id": storage_domain_id,
+            "content_id": resolved.content_id.map(|c| format!("0x{}", hex::encode(c.0))),
+            "manifest": manifest_json,
+            "shardCount": shard_count,
+            "totalSize": total_size,
+            "deals": deals,
+            "bitswap_instructions": {
+                "step1": "Use ContentDiscovery (KAD) to find providers for ContentId (storage_root)",
+                "step2": "Use BudBitswap request_response to fetch shards from providers",
+                "step3": "Verify shards via ContentStore integrity check",
+                "manifestId": format!("0x{}", hex::encode(storage_root)),
+            }
+        }))
+    }
+
     async fn social_get_post(&self, id: u64) -> Result<serde_json::Value, ErrorObjectOwned> {
         if let Some(nft) = self.chain.nft_get(id).await {
             Ok(serde_json::json!({
