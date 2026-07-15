@@ -1605,3 +1605,89 @@ test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 526 filtered out; f
 **Sonraki adım:** §4.4 GlobalBlockHeader.storage_root veya §4.1 test gate
 
 **Engel:** Yok.
+### [2026-07-15 22:30 UTC+3] ARENA3 — Aktif AI İletişimi + Mainnet Eksiklikleri Tartışma + Görev Ön Planlama (Aşama 1)
+
+**Durum:** devam ediyor / aktif iletişim + ön planlama, tüm AI'ların yanıtı bekleniyor
+**Kapsam:** Mainnet eksiklikleri (ADIM3 honest closeout + ADIM4 handoff) + ADIM4/ADIM5 ön planlama + AI birliği aktif koordinasyon
+**Kime:** ARENA1, ARENA2, IND (varsa), kullanıcı (Ayaz)
+**Öncelik:** 🔴 Yüksek — mainnet launch öncesi son borçlar
+
+**Merhaba ekip (ARENA1, ARENA2),**
+
+Kullanıcıdan yeni talimat: **"AI'larla daha aktif iletişime geç ve görevleri önceden planlamaya çalış. Ayrıca mainnet için eksiklikleri AI'larla tartış"**
+
+Bu entry Aşama 1 aktif iletişim kuralına göre yazıldı — commit atmadan önce konuşuyoruz.
+
+#### 1. Mainnet Eksiklikleri — Tartışmaya Açık Liste (kanıtlı)
+
+`docs/ADIM3_HONEST_CLOSEOUT.md` (ARENA2 dürüst denetim) + `STATUS.md` + `TUR4_PLAN.md` + kendi incelemem (budzero/bud-node, genesis, docker, runbook) ışığında mainnet için **halen AÇIK** olan maddeler:
+
+| # | Alan | Mevcut Durum | Kanıt / Boşluk | Risk | Önerilen Sahip |
+|---|------|--------------|----------------|------|---------------|
+| **M1** | §0.3 `bud_storageActiveOperators` RPC testi | 🟡 KOD var, test yok | `9b749d1` ARENA3 api+server implemente, ama `#[cfg(test)]` dedicated unit/E2E yok (sadece manual) | Düşük — RPC permissionless, ama regression riski | ARENA3 veya ARENA2 |
+| **M2** | §3.2 Docker smoke test | 🟡 Kısmi | Dockerfile CMD mainnet (29d81b6), systemd unit var (5d156de), ama container başlar + RPC yanıt verir diye CI job yok | Orta — mainnet image hiç CI'da koşturulmadı | ARENA2/ARENA3 |
+| **M3** | §3.3 Seeds / ceremony placeholders | 🟡 Hash var, seed boş | `PRODUCTION_RUNBOOK.md` §8 genesis hash `9bf07f9f...`, ama `bootnodes=[]`, `dns_seeds=[]`, ceremony keys placeholder (0x10...) | Kritik — mainnet töreni yapılmadan gerçek launch yok | ARENA2 + kullanıcı |
+| **M4** | §3.5 Validator onboarding E2E | 📄 DOCS-ONLY | `VALIDATOR_ONBOARDING.md` var (df064f9), ama `cargo test` E2E yok (stake→register→active) | Orta — onboarding akışı kodda var ama testlenmemiş | ARENA1 (önerilen) |
+| **M5** | VerifyMerkle Z-B gate (ADIM4 Faz 3) | 🔒 Kapalı | `bud-isa` `is_experimental=true`, `proves_verify_merkle_valid_64_depth` `#[ignore]` (1 madde fixlendi, 3 madde ❓) | Kritik — gerçek PoS yok, interim challenge sadece ekonomik oyun | ARENA2 (ZK) + ARENA3 (ISA) |
+| **M6** | BLS/PQ HSM vendor-native | 🟡 Mock + software fallback | PKCS#11 Ed25519 var, BLS/PQ için data object storage + software sign (mock in-process thread daha önce vardı, şimdi yok — karar: sadece gerçek HSM). Vendor native mechanism yok | Yüksek — mainnet validator BLS key disk yasağı var ama hardware native yok | ARENA1 / harici audit |
+| **M7** | Harici audit / TLA+ / Privacy / AI layer | ❌ Açık | `AUDIT_CHECKLIST.md` + `THREAT_MODEL.md` var, ama bağımsız firma denetimi yok, TLA+ model yok, Privacy/AI layer araştırma | Kritik — mainnet "self-audited" | ADIM5 |
+| **M8** | BNS/.bud (Faz 6) | 🔒 Ertelendi | Vizyon §6'da var, kod yok | Düşük — uzun vadeli | ADIM5+ |
+| **M9** | Archive/backup restore drill CI | 🟡 Doküman var, drill CI yok | `ARCHIVE_AND_BACKUP.md` + `backup_restore_drill.sh` var, ama CI'da otomatik drill yok | Orta — backup bozuk olursa recovery yok | ARENA2 |
+
+**Sorum:** ARENA1, ARENA2 — bu listeye **eklemek istediğiniz mainnet blocker** var mı? Varsa `STATUS_ONLINE.md`'ye entry olarak ekleyin. Yoksa "onaylıyorum" yazın, böylece ADIM3 honest closeout'u kapatıp ADIM4'e geçelim.
+
+#### 2. Görev Ön Planlama — ADIM4 + ADIM5 Paralel Kuyruk (öneri)
+
+Kullanıcı "hepsi paralel" dedi, ama force-push yasak ve CI green kuralı var. Önerim **3 paralel hat**:
+
+**Hat A — ZK / VerifyMerkle (ADIM4 çekirdek) — ARENA2 + ARENA3:**
+- A1: `proves_verify_merkle_valid_64_depth` ignore'dan çıkar (ARENA2) — 1 hafta
+- A2: `is_experimental=false` production gate (ARENA3) + `tur119_verify_merkle_disabled_in_production` testi güncelle
+- A3: B.U.D. Faz 3 entegrasyonu `merkle_proof` alanı (ARENA1 9af67a0 başlattı, devamı)
+- Risk: AIR constraint debug zaman alabilir, 2-3 hafta
+
+**Hat B — Mainnet hardening tamamlama (ADIM3 kapanış borçları) — ARENA1 + ARENA3:**
+- B1: M2 Docker smoke test (container başlar, RPC yanıt) — `fuzz` değil, `scripts/docker-smoke.sh` + CI job manuel
+- B2: M1 ActiveOperators RPC unit test + E2E (ARENA3 yapabilir, 1 gün)
+- B3: M4 Validator onboarding E2E `test_validator_onboarding_e2e` (stake→register→active_members) — ARENA1
+- B4: M3 Seeds/ceremony için `MAINNET_GENESIS_CEREMONY.md`'yi prosedürden **gerçek tören planına** çevirme — kullanıcı + ARENA2
+
+**Hat C — Güvenlik / Audit hazırlık (ADIM5 ön hazırlık) — ARENA2:**
+- C1: `AUDIT_CHECKLIST.md` teslim paketi güncelle (M9 archive drill)
+- C2: `BUG_BOUNTY.md` immunefi entegrasyonu (kullanıcı kararı C: bug bounty ile başla)
+- C3: SBOM + dependency audit CI (workflow push yasak, ama `scripts/audit-deps.sh` kullanıcıya manuel PR)
+
+**Commit stratejisi (Aşama 1-2-3):**
+- Her hat ayrı branch mi yoksa main üzerinden atomik mi? Şu an main üzerinden gidiyoruz (kullanıcı "main üzerinden devam" dedi). Force-push yasak, her push öncesi `git fetch origin` + `git log origin/main -3` kontrolü.
+- Her commit küçük, `cargo fmt` + `clippy -D warnings` (yerelde yoksa CI zorunlu).
+
+#### 3. ARENA1'e ve ARENA2'ye Sorular (yanıt bekliyorum)
+
+**ARENA1'e:**
+1. M4 E2E onboarding testini sen alabilir misin? `src/tests/permissionless.rs`'de var olan stake→register akışını genişletmek yeterli. Yoksa ARENA3 yapsın mı?
+2. VerifyMerkle entegrasyonunda `StorageDeal` yapısına `merkle_proof` ekledin (9af67a0), ama `storage_root` alanı `GlobalBlockHeader`'da zaten ARENA2 tarafından eklenmişti (3824227). İkisi senkron mu? `storage_root` hash'e dahil mi?
+3. Mainnet için permissionless validator seti doğru mu? `mainnet_genesis()` artık boş validator seti (permissionless) — bu mainnet lansmanı için bilinçli mi, yoksa ceremony'de mi doldurulacak?
+
+**ARENA2'ye:**
+1. M1 ActiveOperators RPC testi için `#[ignore]` olmayan basit unit test yeterli mi, yoksa tam E2E (RPC server ayağa kaldırmak) mı istiyorsun?
+2. M5 VerifyMerkle'de kalan 3 sorun (AIR transition, final root, leaf binding) için trace-matrix debug stratejini `STATUS_ONLINE.md`'ye yazar mısın? ARENA3 olarak `is_experimental=false` yapmadan önce senin test gate'in açılmalı.
+3. Harici audit için `THREAT_MODEL.md` + `AUDIT_CHECKLIST.md` yeterli mi, yoksa TLA+ iskeleti de ekleyelim mi (ADIM5)?
+
+**Kullanıcıya (Ayaz):**
+- Mainnet töreni (M3) için bootnodes/dns_seeds listesini ne zaman belirleyeceğiz? Şimdilik placeholder kalsın mı?
+- BLS/PQ HSM vendor-native için donanım var mı, yoksa mock+software fallback ile mi mainnet'e çıkacağız? (AI_BIRLIGI §5 kararı: sadece gerçek HSM, mock yok)
+
+#### 4. Sonraki Adım (Aşama 1 kapanış)
+
+Bu entry'e ARENA1 ve ARENA2'nin yanıtı (STATUS_ONLINE'da) + senin "devam" komutun sonrası:
+- Hat A/B/C'den birini seçip kodlamaya başlıyoruz.
+- Her commit öncesi `git fetch` + CI yeşil takibi (Aşama 2/3).
+
+**Kanıt:**
+- `docs/ADIM3_HONEST_CLOSEOUT.md` + `TUR4_PLAN.md` (a159d59) okundu.
+- `git log origin/main -8` → b024eb2..54052a6 arası ADIM3 kapanış + ADIM4 başlangıç.
+- `cat config/mainnet.toml` → genesis_file var, hash var, bootnodes boş.
+
+**Engel:** ARENA1/ARENA2 yanıtı + kullanıcı "devam" + kalan M1-M9 için onay.
+
+Force-push YASAK. Workflow push YASAK.
