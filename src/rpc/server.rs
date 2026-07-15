@@ -131,13 +131,15 @@ pub enum RpcMode {
 struct RpcSecurityLayer {
     config: Arc<RpcSecurityConfig>,
     per_ip_rates: Arc<Mutex<HashMap<IpAddr, VecDeque<Instant>>>>,
+    metrics: Option<Arc<crate::core::metrics::Metrics>>,
 }
 
 impl RpcSecurityLayer {
-    fn new(config: RpcSecurityConfig) -> Self {
+    fn new(config: RpcSecurityConfig, metrics: Option<Arc<crate::core::metrics::Metrics>>) -> Self {
         Self {
             config: Arc::new(config),
             per_ip_rates: Arc::new(Mutex::new(HashMap::new())),
+            metrics,
         }
     }
 }
@@ -150,6 +152,7 @@ impl<S> Layer<S> for RpcSecurityLayer {
             inner,
             config: self.config.clone(),
             per_ip_rates: self.per_ip_rates.clone(),
+            metrics: self.metrics.clone(),
         }
     }
 }
@@ -159,6 +162,7 @@ struct RpcSecurityService<S> {
     inner: S,
     config: Arc<RpcSecurityConfig>,
     per_ip_rates: Arc<Mutex<HashMap<IpAddr, VecDeque<Instant>>>>,
+    metrics: Option<Arc<crate::core::metrics::Metrics>>,
 }
 
 impl<S, B> Service<HttpRequest<B>> for RpcSecurityService<S>
@@ -191,6 +195,9 @@ where
 
         let client_ip = extract_client_ip(&self.config, &req);
         if !is_per_ip_rate_limited(&self.config, &self.per_ip_rates, client_ip) {
+            if let Some(ref m) = self.metrics {
+                m.rpc_rate_limited_total.inc();
+            }
             return Box::pin(async {
                 Ok(text_response(
                     StatusCode::TOO_MANY_REQUESTS,
@@ -198,9 +205,21 @@ where
                 ))
             });
         }
+        if let Some(ref m) = self.metrics {
+            m.rpc_requests_total.inc();
+        }
 
+        let start = std::time::Instant::now();
+        let metrics = self.metrics.clone();
         let mut inner = self.inner.clone();
-        Box::pin(async move { inner.call(req).await })
+        Box::pin(async move {
+            let result = inner.call(req).await;
+            if let Some(ref m) = metrics {
+                m.rpc_request_duration_seconds
+                    .observe(start.elapsed().as_secs_f64());
+            }
+            result
+        })
     }
 }
 
@@ -214,6 +233,10 @@ pub struct RpcServer {
     /// producers. The public RPC surface mutates it; the chain layer reads
     /// from a snapshot at block-application time.
     storage: Arc<Mutex<StorageRegistry>>,
+    /// Prometheus metrics handle for RPC latency and rate-limit counters.
+    /// If `None`, metrics are silently skipped (e.g. in tests without a
+    /// global registry).
+    metrics: Option<Arc<crate::core::metrics::Metrics>>,
 }
 
 impl RpcServer {
@@ -224,6 +247,7 @@ impl RpcServer {
             security: RpcSecurityConfig::default(),
             mode: RpcMode::Public,
             storage: Arc::new(Mutex::new(StorageRegistry::new())),
+            metrics: None,
         }
     }
 
@@ -238,6 +262,7 @@ impl RpcServer {
             security,
             mode: RpcMode::Public,
             storage: Arc::new(Mutex::new(StorageRegistry::new())),
+            metrics: None,
         }
     }
 
@@ -253,7 +278,13 @@ impl RpcServer {
             security,
             mode,
             storage: Arc::new(Mutex::new(StorageRegistry::new())),
+            metrics: None,
         }
+    }
+
+    pub fn with_metrics(mut self, metrics: Arc<crate::core::metrics::Metrics>) -> Self {
+        self.metrics = Some(metrics);
+        self
     }
 
     /// Construct with a shared storage registry (e.g. a chain-level one).
@@ -268,13 +299,16 @@ impl RpcServer {
             security: RpcSecurityConfig::default(),
             mode: RpcMode::Public,
             storage,
+            metrics: None,
         }
     }
 
     pub async fn run(self, addr: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         use jsonrpsee::server::ServerBuilder;
-        let http_middleware =
-            ServiceBuilder::new().layer(RpcSecurityLayer::new(self.security.clone()));
+        let http_middleware = ServiceBuilder::new().layer(RpcSecurityLayer::new(
+            self.security.clone(),
+            self.metrics.clone(),
+        ));
         let mut builder = ServerBuilder::default().set_http_middleware(http_middleware);
 
         if let Some(limit) = self.security.max_request_body_size {
@@ -370,6 +404,9 @@ impl RpcServer {
             "replayNonceRoot": Self::bytes32_to_0x(h.replay_nonce_root),
             "proposer": h.proposer.map(|p| p.to_string()),
             "settlementFinalityRoot": Self::bytes32_to_0x(h.settlement_finality_root),
+            // B.U.D. Faz 4 (ARENA2): storage_root anchoring — null when no
+            // storage proofs in this block, 0x-prefixed hex when present.
+            "storageRoot": h.storage_root.map(Self::bytes32_to_0x),
         })
     }
 
@@ -1308,6 +1345,66 @@ impl BudlumApiServer for RpcServer {
         }))
     }
 
+    async fn storage_open_deal(
+        &self,
+        domain_id: u32,
+        manifest: crate::storage::ContentManifest,
+        shard_id: String,
+        operator: String,
+        replica_index: u8,
+        start_epoch: u64,
+        end_epoch: u64,
+        economics: crate::domain::storage_deal::StorageEconomicsParams,
+        domain_params: crate::domain::storage_params::StorageDomainParams,
+    ) -> Result<serde_json::Value, ErrorObjectOwned> {
+        let clean_shard = shard_id.strip_prefix("0x").unwrap_or(&shard_id);
+        let s_bytes = hex::decode(clean_shard).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid shard_id hex: {e}"), None::<()>)
+        })?;
+        if s_bytes.len() != 32 {
+            return Err(ErrorObjectOwned::owned(
+                -32602,
+                "shard_id must be 32 bytes",
+                None::<()>,
+            ));
+        }
+        let mut s_arr = [0u8; 32];
+        s_arr.copy_from_slice(&s_bytes);
+        let s_id = ContentId(s_arr);
+
+        let op_addr = Address::from_hex(&operator).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid operator hex: {e}"), None::<()>)
+        })?;
+
+        let mut reg = self.storage.lock().map_err(|e| {
+            ErrorObjectOwned::owned(
+                -32602,
+                format!("storage registry lock poisoned: {e}"),
+                None::<()>,
+            )
+        })?;
+        let deal_id = reg
+            .open_deal(
+                domain_id,
+                &manifest,
+                s_id,
+                op_addr,
+                replica_index,
+                start_epoch,
+                end_epoch,
+                economics,
+                &domain_params,
+            )
+            .map_err(|e| {
+                ErrorObjectOwned::owned(-32602, format!("open_deal failed: {e:?}"), None::<()>)
+            })?;
+        Ok(serde_json::json!({
+            "dealId": deal_id,
+            "status": "Active",
+            "operator": operator,
+        }))
+    }
+
     async fn storage_get_manifest(
         &self,
         manifest_id: String,
@@ -1336,6 +1433,25 @@ impl BudlumApiServer for RpcServer {
                 None::<()>,
             )
         })?;
+        if let Some(manifest) = reg.get_manifest(&id) {
+            let shards: Vec<serde_json::Value> = manifest
+                .shards
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "shardId": format!("0x{}", hex::encode(s.shard_id.0)),
+                        "size": s.size,
+                    })
+                })
+                .collect();
+            return Ok(serde_json::json!({
+                "manifestId": format!("0x{}", hex::encode(id.0)),
+                "found": true,
+                "totalSize": manifest.total_size,
+                "shardCount": manifest.shard_count,
+                "shards": shards,
+            }));
+        }
         let shards: Vec<serde_json::Value> = reg
             .deals_for_manifest(&id)
             .iter()
@@ -1409,14 +1525,7 @@ impl BudlumApiServer for RpcServer {
         &self,
         request: RetrievalChallengeRequest,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
-        // `opener` is resolved from the call's transaction — for the
-        // permissionless RPC surface the opener is taken from the bound
-        // `ChainHandle` (in this Tur 14 layer we don't yet have a signed
-        // tx, so we accept a zero address as a placeholder; Tur 15 will
-        // bind the actual signature). The op-chain-side enforcement
-        // happens via `submit_registry_slashing_report`'s reporter path.
-        // The opener_bond itself is the anti-spam gate (zero bond = rejected).
-        let opener = Address::zero();
+        let opener = request.opener.unwrap_or_default();
         let mut reg = self.storage.lock().map_err(|e| {
             ErrorObjectOwned::owned(
                 -32602,
@@ -1448,11 +1557,7 @@ impl BudlumApiServer for RpcServer {
         &self,
         response: RetrievalResponse,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
-        // The responder is the signer of the bound tx (zero placeholder
-        // in this Tur 14 layer; the chain-side `StorageRegistry` enforces
-        // the operator-identity match, so a non-operator gets a
-        // `NotTheOperator` error regardless of who calls this RPC).
-        let responder = Address::zero();
+        let responder = response.responder;
         let mut reg = self.storage.lock().map_err(|e| {
             ErrorObjectOwned::owned(
                 -32602,
@@ -1724,5 +1829,25 @@ mod security_tests {
         assert!(config.allowed_ips.contains(&"127.0.0.1".to_string()));
         assert!(config.allowed_ips.contains(&"::1".to_string()));
         assert!(config.max_connections.is_some());
+    }
+
+    #[test]
+    fn test_rpc_rate_limit_enforces_tracked_client_ceiling() {
+        let config = RpcSecurityConfig {
+            rate_limit_per_minute: Some(10),
+            ..Default::default()
+        };
+        let rates = Arc::new(Mutex::new(HashMap::new()));
+        {
+            let mut map = rates.lock().unwrap();
+            for i in 0..MAX_TRACKED_RPC_CLIENTS {
+                let mut window = VecDeque::new();
+                window.push_back(Instant::now());
+                let ip = std::net::IpAddr::V4(std::net::Ipv4Addr::from(i as u32));
+                map.insert(ip, window);
+            }
+        }
+        let new_ip: std::net::IpAddr = "255.255.255.255".parse().unwrap();
+        assert!(!is_per_ip_rate_limited(&config, &rates, Some(new_ip)));
     }
 }

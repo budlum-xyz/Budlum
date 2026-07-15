@@ -14,7 +14,7 @@ This chapter is the operational truth table for the current repository. Budlum C
 | Snapshot staging | Snapshot files are numerically ordered; corrupt latest files are quarantined. `StateSnapshotV2` is the canonical runtime format with full consensus metadata (epoch, fees, rewards, cross-domain roots, unbonding queue, finality certs). |
 | RPC | Separate public and operator HTTP listeners. Public: API-key auth, CORS allowlists, per-IP rate limiting, trusted-proxy validation, 10MB body limit, 500 max connections. Operator: localhost-only, no auth, 50MB body limit. `bud_health` and `bud_nodeInfo` endpoints. |
 | CI | GitHub Actions pins Rust `1.94.0`, checks formatting, runs `cargo check`, denies Clippy warnings, executes workspace tests, and builds `--release --locked`. |
-| PKCS#11 | `ConsensusSigner` trait + `Pkcs11Signer` adapter (via `cryptoki`) + `KeyPairSigner` local fallback. `ConsensusEngine` trait exposes `fn signer()`. Block signing uses HSM when configured, with local file fallback. |
+| PKCS#11 | `ConsensusSigner` trait + `Pkcs11Signer` adapter (via `cryptoki`) + `KeyPairSigner` local fallback. `ConsensusEngine` trait exposes `fn signer()`. Block signing uses HSM when configured, with local file fallback only outside mainnet validator mode; mainnet rejects disk keys and Ed25519-only HSM backends. |
 | BLS Finality | `BlsKeypair` in `ValidatorKeys` with new `sign_bls()` / `verify_bls_sig()` primitives. `ConsensusEngine::bls_secret_key()` exposed through PoS engine. Validators produce BLS-signed prevote/precommit messages. Periodic auto-precommit triggers when prevote quorum is reached. `FinalityCert` verification via BLS pairing. |
 | P2P Hardening | Persistent node identity via `p2p_identity_file` (load-or-generate pattern). Durable peer bans persisted to JSON every 5 minutes and reloaded on startup. mDNS policy honors per-network `mdns_enabled` flag. DNS seed resolution via `resolve_dns_seeds()`. |
 
@@ -22,12 +22,12 @@ This chapter is the operational truth table for the current repository. Budlum C
 
 | Area | Boundary |
 | --- | --- |
-| Finality | Prevote/Precommit structs, `FinalityAggregator`, certificate production and BLS verification are all implemented and tested. BLS-signed vote production from validators is wired: `sign_prevote()` and `sign_precommit()` use the validator's BLS secret key. The periodic voting loop auto-signs and broadcasts BLS prevotes; auto-precommit fires when the aggregator reports prevote quorum reached. Adversarial multi-node finality tests are implemented. |
+| Finality | Prevote/Precommit structs, `FinalityAggregator`, certificate production and BLS verification are all implemented and tested. BLS-signed vote production from validators is wired: `sign_prevote()` and `sign_precommit()` use the validator's BLS secret key or a signer backend BLS capability. The periodic voting loop auto-signs and broadcasts BLS prevotes; auto-precommit fires when the aggregator reports prevote quorum reached. Adversarial multi-node finality tests are implemented. |
 | P2P | Version and chain ID are enforced. Persistent identity, durable bans, mDNS policy, and DNS seed resolution are wired at runtime. Validator-set hash and supported-scheme policy remain pending. |
 | RPC | Separate public/operator listeners, trusted-proxy validation, per-IP sliding-window quotas, a 10,000-client accounting ceiling, and operator-only guards for administrative mutation helpers. Health and node-info endpoints are live. |
 | Metrics | Prometheus descriptors and endpoint exist. Live collectors include chain/finality/mempool/P2P counters plus block-propagation, consensus-round and storage read/write histograms, settlement commitments and sealed global headers. Deployment SLOs and external dashboards remain operator work. |
 | Snapshot V2 | V2 is the canonical runtime format. `AccountState::from_snapshot_v2()` restores consensus metadata; P2P snapshot chunks bind `session_id`; replay equivalence is tested. Archive nodes now fail closed against pruning and require rotating backups. |
-| Storage | Durable block commit plus checksummed atomic database backup, retention, empty-target restore and integrity drill exist. Complete released `ConsensusStateV2` migrations remain Tur 13.9 work. |
+| Storage | Durable block commit plus checksummed atomic database backup, retention, empty-target restore and integrity drill exist. ADIM 2 adds a migration skeleton and `--migrate-v2` backup gate; future multi-step schema transforms remain release-audited work. |
 | Deployment | Docker/systemd/devnet/Prometheus packages plus production, PoA and archive runbooks exist. Signed release ceremony and full incident exercises remain. |
 
 ## 3. Explicit Mainnet Blockers
@@ -52,14 +52,14 @@ nix develop --command cargo build --release --locked
 git diff --check
 ```
 
-Current: **332 tests, 0 clippy warnings.** All gates pass.
+Current test count is tracked by CI; do not treat this document as an audited release report.
 
 ## 5. What Remains for Mainnet v1
 
 - External security audit
-- Staged migration framework for `ConsensusStateV2` (Tur 13.9)
+- Future multi-step `ConsensusStateV2` transforms beyond the ADIM 2 migration skeleton
 - Full incident-response exercises and signed release ceremony
-- BLS/PQ HSM signing paths beyond Ed25519 PKCS#11 (Tur 13.9)
+- BLS/PQ HSM policy gate beyond Ed25519 PKCS#11 is in place; vendor-native BLS/Dilithium mechanisms remain an audit item
 
 Tur 13.5 closed the archive/restore policy, baseline production/PoA runbook,
 bounded per-IP quota accounting, operator-only guards and live latency

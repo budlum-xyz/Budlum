@@ -1,42 +1,60 @@
-# Dependency Audit (Tur 15 §1.7)
+# Dependency Audit Raporu (ADIM 2 §1.7)
 
-> **Otomatik üretilir:** `./scripts/audit-deps.sh` çalıştırıldığında bu
-> dosya yenilenir. CI'da `dependency-audit` job'ı bu scripti çalıştırır.
+**Güncelleme:** 2026-07-15  
+**Araç:** `cargo-audit` (https://github.com/rustsec/rustsec)  
+**Repo:** `lubosruler/budlum`  
+**Durum:** Tooling hazır; bu sandbox oturumunda Rust toolchain (`cargo`/`rustc`) bulunmadığı için audit komutu yerelde koşturulamadı.
 
-**Araç:** [cargo-audit](https://github.com/rustsec/rustsec)
-**Format:** RustSec Advisory Database
-**Kapsam:** Tüm `Cargo.toml` + transitive bağımlılıklar (budzero dahil).
+> Bu dosya harici audit/supply-chain teslim paketinin parçasıdır. “Bilinen CVE yok”
+> iddiası ancak yetkili ortamda `./scripts/audit-deps.sh` başarıyla çalıştırıldıktan
+> ve çıktı bu dosyaya işlendiğinde yapılabilir.
 
-## Kullanım
+## Çalıştırma
 
 ```bash
 ./scripts/audit-deps.sh
 ```
 
-**Çıktı:** `docs/operations/DEPENDENCY_AUDIT.md` (bu dosya) + stdout.
+Script davranışı:
+
+1. `cargo-audit` yoksa `cargo install --locked cargo-audit` ile kurmayı dener.
+2. `Cargo.lock` üzerinde RustSec advisory taraması yapar.
+3. Bu raporu günceller.
+4. Audit exit code’unu CI/release ortamına geri döndürür.
+
+## Son doğrulama notları
+
+Aktif lockfile üzerinde offline gözlem:
+
+| Crate | Aktif sürüm | Önceki bulguya göre durum |
+|-------|-------------|---------------------------|
+| `crossbeam-epoch` | `0.9.20` | Önceki `>=0.9.20` önerisi karşılanmış görünüyor. |
+| `protobuf` | `3.7.2` | Önceki `>=3.7.2` önerisi karşılanmış görünüyor. |
+| `quinn-proto` | `0.11.16` | Önceki `>=0.11.15` önerisi karşılanmış görünüyor. |
+| `hickory-proto` | `0.24.4` | RustSec durumunun yetkili `cargo audit` ile yeniden kontrolü gerekir. |
+| `ring` | `0.16.20` ve `0.17.14` | Eski `ring` transitive bağımlılığı için risk kabulü/upgrade yolu kontrol edilmeli. |
+| `rustls-webpki` | `0.101.7` ve `0.103.13` | Eski transitive sürüm için risk kabulü/upgrade yolu kontrol edilmeli. |
+
+Bu tablo `cargo audit` yerine geçmez; sadece lockfile’dan okunabilen sürüm
+kanıtıdır.
 
 ## Kabul kriteri
 
-- Bilinen güvenlik açığı (CVE) tespit edilirse **CI fail eder**.
-- `unmaintained` warning'leri **CI fail etmez** (ayrıca gözden geçirilir).
-- Audit çalıştırma zamanı ve commit hash rapora yazılır.
+- [x] `scripts/audit-deps.sh` mevcut ve rapor üretmek üzere tasarlı.
+- [x] `Cargo.lock` dependency sürümleri görünür.
+- [ ] Yetkili Rust ortamında `./scripts/audit-deps.sh` çalıştırıldı.
+- [ ] Çıktıdaki CVE/advisory listesi bu rapora işlendi.
+- [ ] High/critical bulgular için upgrade veya yazılı risk kabulü var.
 
-## CI entegrasyonu
+## Harici audit’e teslim edilecekler
 
-`.github/workflows/ci.yml` → `dependency-audit` job'ı her push'ta bu
-scripti çalıştırır. Başarısız olursa PR merge edilemez.
+```bash
+git rev-parse HEAD
+cargo tree > cargo-tree.txt
+cargo metadata --format-version=1 > cargo-metadata.json
+./scripts/audit-deps.sh
+./scripts/generate-sbom.sh
+```
 
-## Tur 15 kapsamı
-
-Bu doküman Tur 15 §1.7 "Fuzzing + dependency audit + SBOM" kapsamında
-oluşturuldu. **Tur 15 kapanışında:**
-- ✅ `scripts/audit-deps.sh` mevcut
-- ✅ `docs/operations/DEPENDENCY_AUDIT.md` mevcut
-- ✅ CI job'ı entegre
-- ⏳ İlk audit raporu üretilecek (CI ilk çalıştırmada)
-
-## İlgili
-
-- `scripts/audit-deps.sh` — script
-- `docs/operations/SBOM.md` — SBOM dokümanı
-- `the-plan/TUR15_PLAN.md` §1.7 — plan referansı
+Üretilen `cargo-tree.txt`, `cargo-metadata.json`, `docs/operations/DEPENDENCY_AUDIT.md`
+ve `sbom.cdx.json` audit paketine eklenmelidir.

@@ -1,3 +1,28 @@
+# STATUS — ADIM 2 Güncel Denetim Notu (2026-07-15)
+
+**Aktif çalışma dalı:** `arena/019f630c-budlum`  
+**Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy gate,
+§1.3 Finality live-path, §1.4 ConsensusStateV2 migration iskeleti, §1.5
+External audit checklist, §1.6 README roadmap kapanış tablosu, §1.7 Fuzzing +
+dependency audit + SBOM.
+
+## ADIM 2 §1.1 ve §1.3-§1.7 kapanış durumu
+
+| Görev | Durum | Kanıt |
+|------|-------|-------|
+| §1.1 BLS/PQ HSM policy gate | ✅ PR kapsamına alındı | `ConsensusSigner` BLS/PQ capability metotları, mainnet fail-closed gate, `docs/operations/HSM_BLS_PQ_POLICY.md` |
+| §1.3 Finality live-path son taraması | ✅ PR kapsamına alındı | `src/tests/finality_live_path.rs`, `docs/operations/FINALITY_LIVE_PATH.md` |
+| §1.4 ConsensusStateV2 migration iskeleti | ✅ PR kapsamına alındı | `StateSnapshotV2::migration_report()`, schema window constants, `--migrate-v2` backup gate, `docs/operations/MIGRATION_V2.md` |
+| §1.5 External audit checklist | ✅ Güncellendi | `docs/AUDIT_CHECKLIST.md` — audit yapılmadı iddiası korunuyor |
+| §1.6 README roadmap kapanış tablosu | ✅ Güncellendi | `README.md` Research Roadmap Status tablosu ADIM 2 §1.3-§1.7 durumlarını yansıtıyor |
+| §1.7 Fuzzing + dependency audit + SBOM | ✅ Tooling/prosedür hazır | `fuzz/`, `scripts/audit-deps.sh`, `scripts/generate-sbom.sh`, `docs/operations/DEPENDENCY_AUDIT.md`, `docs/operations/SBOM.md` |
+
+**Doğrulama notu:** Bu sandbox oturumunda `cargo`/`rustc` bulunmadığı için yerel
+`cargo fmt`, `clippy`, `test`, `cargo audit`, `cargo cyclonedx` çalıştırılamadı.
+PR üzerindeki GitHub Actions CI ve PR denetimi zorunlu kanıt kabul edilir.
+
+---
+
 # Durum Raporu — Statik denetim kayıtları (AI birliği şeması)
 
 **Son güncelleme:** 2026-07-14 (`main` branch üzerine ADIM 1 senkronizasyonu)

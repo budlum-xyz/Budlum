@@ -1,12 +1,13 @@
-# SBOM (Software Bill of Materials) (Tur 15 §1.7)
+# SBOM (Software Bill of Materials) (ADIM 2 §1.7)
 
-> **Otomatik üretilir:** `./scripts/generate-sbom.sh` çalıştırıldığında
-> `sbom.cdx.json` üretilir ve bu dosya yenilenir. CI'da `sbom` job'ı
-> bu scripti çalıştırır.
+**Güncelleme:** 2026-07-15  
+**Araç:** `cargo-cyclonedx` (https://github.com/CycloneDX/cyclonedx-rust-cargo)  
+**Format:** CycloneDX JSON  
+**Durum:** Üretim scripti hazır; bu sandbox oturumunda Rust toolchain (`cargo`/`rustc`) bulunmadığı için `sbom.cdx.json` yerelde üretilemedi.
 
-**Araç:** [cargo-cyclonedx](https://github.com/CycloneDX/cyclonedx-rust-cargo)
-**Format:** CycloneDX 1.5 (JSON)
-**Kapsam:** Tüm `Cargo.toml` + transitive bağımlılıklar (budzero dahil).
+> SBOM harici audit ve mainnet launch hazırlığı için zorunlu supply-chain teslim
+> kalemidir. Bu dosya prosedürü ve kabul kriterlerini taşır; gerçek SBOM artifact’i
+> yetkili Rust ortamında `./scripts/generate-sbom.sh` ile üretilecektir.
 
 ## Kullanım
 
@@ -14,44 +15,39 @@
 ./scripts/generate-sbom.sh
 ```
 
-**Çıktı:** `sbom.cdx.json` (repo root) + `docs/operations/SBOM.md` özeti.
+Beklenen çıktı:
+
+- `sbom.cdx.json` (repo root)
+- güncellenmiş `docs/operations/SBOM.md` özeti
+
+## Doğrulama
+
+```bash
+python3 -c "import json; json.load(open('sbom.cdx.json'))"
+python3 -c "import json; print(len(json.load(open('sbom.cdx.json')).get('components', [])))"
+```
+
+Kabul için JSON parse edilmeli ve component sayısı `0`dan büyük olmalıdır.
 
 ## Neden SBOM?
 
-- **ch12 §3.7 mainnet blocker:** Harici audit + mainnet launch için
-  zorunlu teslim kalemi.
-- **Supply chain güvenliği:** Bilinen CVE'leri, lisans uyumluluğunu,
-  transitive bağımlılık risklerini görünür kılar.
-- **Compliance:** Bazı regülasyonlar (AB NIS2, ABD EO 14028) SBOM
-  zorunluluğu getiriyor.
-
-## CycloneDX formatı
-
-CycloneDX, OWASP tarafından yönetilen açık SBOM standardı. JSON + XML
-formatlarını destekler. Bu repo JSON formatını kullanır.
-
-Örnek alanlar:
-- `components[]` — her bağımlılık (purl, version, license)
-- `dependencies[]` — bağımlılık grafiği
-- `metadata` — araç, zaman damgası, repo bilgisi
+- Harici audit firmasına transitive dependency envanteri verir.
+- RustSec/CVE triage sürecini dependency graph ile eşleştirir.
+- Mainnet öncesi supply-chain risklerini görünür yapar.
+- Regülasyon ve kurumsal alım süreçlerinde standart teslim formatı sağlar.
 
 ## Kabul kriteri
 
-- `sbom.cdx.json` oluşturulabiliyor.
-- JSON parse oluyor (doğrulama: `python3 -c "import json; json.load(open('sbom.cdx.json'))"`).
-- Bileşen sayısı 0'dan büyük.
-- CI'da `sbom` job'ı her push'ta bu scripti çalıştırır.
-
-## Tur 15 kapsamı
-
-Bu doküman Tur 15 §1.7 kapsamında oluşturuldu. **Tur 15 kapanışında:**
-- ✅ `scripts/generate-sbom.sh` mevcut
-- ✅ `sbom.cdx.json` oluşturulabiliyor (CI ilk çalıştırmada)
-- ✅ `docs/operations/SBOM.md` mevcut
-- ⏳ İlk SBOM üretilecek (CI ilk çalıştırmada)
+- [x] `scripts/generate-sbom.sh` mevcut.
+- [x] SBOM prosedürü dokümante edildi.
+- [ ] Yetkili Rust ortamında `sbom.cdx.json` üretildi.
+- [ ] JSON parse doğrulaması geçti.
+- [ ] Component sayısı `0`dan büyük.
+- [ ] SBOM artifact’i release/audit paketine eklendi.
 
 ## İlgili
 
-- `scripts/generate-sbom.sh` — script
-- `docs/operations/DEPENDENCY_AUDIT.md` — bağımlılık audit
-- `the-plan/TUR15_PLAN.md` §1.7 — plan referansı
+- `scripts/generate-sbom.sh` — SBOM üretici.
+- `docs/operations/DEPENDENCY_AUDIT.md` — dependency audit raporu.
+- `fuzz/README.md` — fuzz target seti ve manuel run prosedürü.
+- `docs/AUDIT_CHECKLIST.md` — harici audit teslim matrisi.

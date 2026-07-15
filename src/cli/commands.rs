@@ -172,6 +172,10 @@ pub struct NodeConfig {
     #[arg(long)]
     pub restore_backup: Option<String>,
 
+    /// Migrate an existing database at path to ConsensusStateV2 schema (requires atomic backup first) and exit.
+    #[arg(long)]
+    pub migrate_v2: Option<String>,
+
     #[arg(long)]
     pub p2p_identity_file: Option<String>,
 
@@ -275,6 +279,7 @@ impl Default for NodeConfig {
             backup_retention_count: 24,
             backup_now: false,
             restore_backup: None,
+            migrate_v2: None,
             p2p_identity_file: None,
             dns_seeds: Vec::new(),
             max_peers: None,
@@ -817,13 +822,13 @@ impl NodeConfig {
                     eprintln!("CRITICAL SECURITY FAILURE: PKCS#11 PIN environment variable '{}' is missing or empty.", pin_env);
                     std::process::exit(1);
                 }
-                // Tur 12.5 / B1: PKCS#11 only covers the consensus Ed25519
-                // signer today. Disk-backed ValidatorKeys still embed BLS +
-                // Dilithium5 secrets in plaintext — forbidden on mainnet until
-                // those materials also live in HSM-backed storage.
+                // ADIM 2 §1.1: PKCS#11 must cover the consensus Ed25519 signer
+                // and the BLS + Dilithium/PQ materials. Disk-backed
+                // ValidatorKeys embed those secrets in plaintext and remain
+                // forbidden on mainnet.
                 if self.validator_key_file.is_some() {
                     eprintln!(
-                        "CRITICAL SECURITY FAILURE: Mainnet validators must not load ValidatorKeys from disk (file holds BLS + post-quantum secrets in plaintext). Configure only PKCS#11 for consensus signing; BLS/PQ HSM paths are not yet available."
+                        "CRITICAL SECURITY FAILURE: Mainnet validators must not load ValidatorKeys from disk (file holds BLS + post-quantum secrets in plaintext). Configure PKCS#11 with Ed25519 plus BLS and Dilithium/PQ key material."
                     );
                     std::process::exit(1);
                 }
@@ -950,6 +955,12 @@ mod tests {
     #[test]
     fn test_consensus_type_parsing() {
         assert_eq!(ConsensusType::PoW as u8, 0);
+    }
+    #[test]
+    fn test_cli_migrate_v2_parsing() {
+        let args = vec!["budlum", "--migrate-v2", "./test.db"];
+        let cfg = NodeConfig::parse_from(args);
+        assert_eq!(cfg.migrate_v2, Some("./test.db".to_string()));
     }
 }
 

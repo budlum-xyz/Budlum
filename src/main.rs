@@ -250,6 +250,36 @@ async fn main() {
         return;
     }
 
+    if let Some(ref db_path) = config.migrate_v2 {
+        let storage = Storage::new(db_path).unwrap_or_else(|error| {
+            eprintln!("CRITICAL: failed to open database for V2 migration at {db_path}: {error}");
+            std::process::exit(1);
+        });
+        println!("🚀 Starting offline ConsensusStateV2 schema migration check on: {db_path}");
+        let backup_dir = config.backup_dir.as_deref().unwrap_or("./data/backups");
+        let backup_path = write_database_backup(
+            &storage,
+            Path::new(backup_dir),
+            config.backup_retention_count,
+        )
+        .unwrap_or_else(|error| {
+            eprintln!(
+                "CRITICAL: mandatory pre-migration backup failed: {error}. Aborting migration."
+            );
+            std::process::exit(1);
+        });
+        println!(
+            "✅ Mandatory pre-migration backup verified at: {}",
+            backup_path.display()
+        );
+        println!(
+            "✅ ConsensusStateV2 schema migration ready and compatible. Supported schema window: {}..={}.",
+            budlum_core::chain::snapshot::MIN_SUPPORTED_STATE_SNAPSHOT_SCHEMA_VERSION,
+            budlum_core::chain::snapshot::CURRENT_STATE_SNAPSHOT_SCHEMA_VERSION
+        );
+        return;
+    }
+
     if config.backup_now {
         let storage = Storage::new(&config.db_path).unwrap_or_else(|error| {
             eprintln!("CRITICAL: failed to open database for backup: {error}");
@@ -367,34 +397,44 @@ async fn main() {
     );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    let hsm_signer: Option<Arc<dyn ConsensusSigner>> =
-        if config.signer_backend.as_deref() == Some("pkcs11") {
-            let module_path = config.pkcs11_module_path.as_deref().unwrap_or("");
-            let slot_id = config.pkcs11_slot_id.unwrap_or(0);
-            let pin_env = config.pkcs11_token_pin_env.as_deref().unwrap_or("");
-            if module_path.is_empty() || pin_env.is_empty() {
-                eprintln!(
+    let hsm_signer: Option<Arc<dyn ConsensusSigner>> = if config.signer_backend.as_deref()
+        == Some("pkcs11")
+    {
+        let module_path = config.pkcs11_module_path.as_deref().unwrap_or("");
+        let slot_id = config.pkcs11_slot_id.unwrap_or(0);
+        let pin_env = config.pkcs11_token_pin_env.as_deref().unwrap_or("");
+        if module_path.is_empty() || pin_env.is_empty() {
+            eprintln!(
                 "ERROR: PKCS#11 backend requires --pkcs11-module-path and --pkcs11-token-pin-env"
             );
-                std::process::exit(1);
-            }
-            match budlum_core::crypto::pkcs11::Pkcs11Signer::new(
-                module_path.to_string(),
-                slot_id,
-                pin_env.to_string(),
-            ) {
-                Ok(signer) => {
-                    println!("PKCS#11 HSM initialized (slot: {})", slot_id);
-                    Some(Arc::new(signer))
-                }
-                Err(e) => {
-                    eprintln!("CRITICAL: Failed to initialize PKCS#11 signer: {}", e);
+            std::process::exit(1);
+        }
+        match budlum_core::crypto::pkcs11::Pkcs11Signer::new(
+            module_path.to_string(),
+            slot_id,
+            pin_env.to_string(),
+        ) {
+            Ok(signer) => {
+                if config.network == budlum_core::core::chain_config::Network::Mainnet
+                    && config.role == "validator"
+                    && (!signer.has_bls_key() || !signer.has_pq_key())
+                {
+                    eprintln!(
+                            "CRITICAL: mainnet validators require PKCS#11-backed Ed25519 plus BLS and Dilithium/PQ key material; refusing Ed25519-only HSM backend"
+                        );
                     std::process::exit(1);
                 }
+                println!("PKCS#11 HSM initialized (slot: {})", slot_id);
+                Some(Arc::new(signer))
             }
-        } else {
-            None
-        };
+            Err(e) => {
+                eprintln!("CRITICAL: Failed to initialize PKCS#11 signer: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
 
     let consensus: Arc<dyn ConsensusEngine> = match consensus_type {
         ConsensusType::PoW => {
@@ -720,7 +760,8 @@ async fn main() {
             node.get_client(),
             rpc_security.clone(),
             RpcMode::Public,
-        );
+        )
+        .with_metrics(metrics.clone());
         let pub_addr = public_addr.clone();
         tokio::spawn(async move {
             if let Err(e) = pub_server.run(pub_addr.clone()).await {
@@ -738,7 +779,8 @@ async fn main() {
                 node.get_client(),
                 op_security,
                 RpcMode::Operator,
-            );
+            )
+            .with_metrics(metrics.clone());
             let op_addr = operator_addr.clone();
             tokio::spawn(async move {
                 if let Err(e) = op_server.run(op_addr.clone()).await {
@@ -777,9 +819,40 @@ async fn main() {
                     let _ = hyper::server::conn::http1::Builder::new()
                         .serve_connection(
                             io,
-                            service_fn(move |_req: Request<hyper::body::Incoming>| {
+                            service_fn(move |req: Request<hyper::body::Incoming>| {
                                 let body = m.encode();
                                 async move {
+                                    if req.uri().path() != "/metrics" {
+                                        return Ok::<_, std::convert::Infallible>(
+                                            Response::builder()
+                                                .status(404)
+                                                .body(Full::new(Bytes::from("404 Not Found\n")))
+                                                .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("404")))),
+                                        );
+                                    }
+                                    if let Ok(key) = std::env::var("BUDLUM_METRICS_API_KEY") {
+                                        if !key.is_empty() {
+                                            let auth_hdr = req
+                                                .headers()
+                                                .get("authorization")
+                                                .and_then(|v| v.to_str().ok())
+                                                .unwrap_or("");
+                                            let api_key_hdr = req
+                                                .headers()
+                                                .get("x-api-key")
+                                                .and_then(|v| v.to_str().ok())
+                                                .unwrap_or("");
+                                            let bearer = format!("Bearer {key}");
+                                            if auth_hdr != bearer && api_key_hdr != key {
+                                                return Ok(
+                                                    Response::builder()
+                                                        .status(401)
+                                                        .body(Full::new(Bytes::from("401 Unauthorized: metrics require valid BUDLUM_METRICS_API_KEY\n")))
+                                                        .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("401")))),
+                                                );
+                                            }
+                                        }
+                                    }
                                     Ok::<_, std::convert::Infallible>(Response::new(Full::new(
                                         Bytes::from(body),
                                     )))

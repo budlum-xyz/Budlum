@@ -1,52 +1,67 @@
-# Fuzzing (Tur 15 §1.7)
+# Fuzzing (ADIM 2 §1.7)
 
-> **Durum:** Setup tamamlandı (Tur 15 §1.7 kapsamı). Fuzzing run'u
-> Tur 16+ kapsamında manuel olarak çalıştırılır.
+> **Durum:** Setup tamamlandı. Uzun fuzz run CI'da çalıştırılmaz; build/check ve
+> manuel run harici audit/mainnet hazırlığında kullanılır.
 
 ## Fuzz target'leri
 
 | Target | Amaç | Durum |
 |--------|------|-------|
-| `fuzz_blockchain_serialize` | Blockchain serialization roundtrip | ✅ Mevcut (minimal) |
+| `block_deserialize` | Rastgele bytes → `Block` bincode deserialize panik/DoS kontrolü | ✅ Mevcut |
+| `transaction_deserialize` | Rastgele bytes → `Transaction` bincode deserialize panik/DoS kontrolü | ✅ Mevcut |
+| `snapshot_deserialize` | `StateSnapshot` + `StateSnapshotV2::from_bytes` parse/migration hook fuzz | ✅ Mevcut |
+| `consensus_validate` | Rastgele header alanlarıyla `BlockHeader` serialize güvenliği | ✅ Mevcut |
+| `fuzz_blockchain_serialize` | Minimal byte-slice harness; gelecek roundtrip genişletmesi için placeholder | ✅ Mevcut |
 
 ## Çalıştırma
 
 **Önkoşul:** Rust nightly toolchain (sadece fuzzing için).
 
 ```bash
-# 1. Nightly yükle (sadece bir kez)
 rustup install nightly
-
-# 2. cargo-fuzz yükle
 cargo +nightly install cargo-fuzz
 
-# 3. Fuzz target çalıştır (30 saniye, sonra Ctrl+C)
+cargo +nightly fuzz run block_deserialize
+cargo +nightly fuzz run transaction_deserialize
+cargo +nightly fuzz run snapshot_deserialize
+cargo +nightly fuzz run consensus_validate
 cargo +nightly fuzz run fuzz_blockchain_serialize
-
-# 4. Bulgu raporları
-ls fuzz/artifacts/fuzz_blockchain_serialize/
 ```
 
-## CI entegrasyonu
+Kısa smoke-run örneği:
 
-**Tur 15'te CI'da fuzzing çalıştırılmaz** (aşağıdaki nedenlerle):
-- Fuzzing run uzun sürer (saatler/günler), CI dakikalarla sınırlı.
-- `cargo-fuzz` nightly gerektirir, CI stable kullanıyor.
-- Bulgu varsa crash raporu artifact olarak kaydedilir; bu akış Tur 16+.
+```bash
+cargo +nightly fuzz run snapshot_deserialize -- -max_total_time=30
+```
 
-CI'da sadece **build kontrolü** (Tur 15 §1.7 kabul kriteri):
-- `cargo check --manifest-path fuzz/Cargo.toml` (nightly ile)
-- Veya fuzz dizini `.gitignore` ile muaf tutulur (Tur 16+ kararı).
+## Seed corpus
+
+ZKVM odaklı seed corpus dosyaları `fuzz/corpus/zkvm/` altındadır. Yeni seed
+üretimi için:
+
+```bash
+./scripts/generate_zkvm_seed_corpus.sh
+```
+
+## CI entegrasyonu sınırı
+
+Bu repo için GitHub App token'ında workflow güncelleme yetkisi bulunmadığı
+önceki oturumlarda doğrulandı. Bu nedenle ADIM 2 §1.7 kapsamında `.github/workflows`
+değiştirilmez; fuzz target seti ve scriptler repo içinde teslim edilir. Uzun fuzz
+run'lar release/audit öncesi manuel veya ayrı yetkili CI job'ı ile çalıştırılır.
 
 ## Kabul kriteri
 
-- ✅ `fuzz/Cargo.toml` mevcut
-- ✅ `fuzz/fuzz_targets/` en az 1 target içeriyor
-- ✅ `cargo check --manifest-path fuzz/Cargo.toml` temiz
-- ⏳ Fuzzing run'u Tur 16+'da
+- [x] `fuzz/Cargo.toml` mevcut.
+- [x] `fuzz/fuzz_targets/` içinde 5 target mevcut.
+- [x] Target'lar `Cargo.toml` içinde explicit `[[bin]]` olarak kayıtlı.
+- [x] Deserialization target'ları panic yerine `Result` tüketir.
+- [ ] Yetkili ortamda `cargo +nightly fuzz check` temiz.
+- [ ] Uzun fuzz run raporları release öncesi artifact olarak saklanır.
 
 ## İlgili
 
-- `fuzz/Cargo.toml` — fuzz workspace
-- `fuzz/fuzz_targets/fuzz_blockchain_serialize.rs` — ilk target
-- `the-plan/TUR15_PLAN.md` §1.7 — plan referansı
+- `scripts/audit-deps.sh` — dependency audit raporu.
+- `scripts/generate-sbom.sh` — CycloneDX SBOM üretimi.
+- `docs/operations/DEPENDENCY_AUDIT.md` — son dependency audit durumu.
+- `docs/operations/SBOM.md` — SBOM üretim prosedürü.

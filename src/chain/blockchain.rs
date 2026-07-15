@@ -65,6 +65,16 @@ pub struct Blockchain {
     /// `submit_zk_proof` path persists into this registry so a duplicate or
     /// conflicting claim is rejected deterministically.
     pub proof_claims: crate::prover::ProofClaimRegistry,
+    /// B.U.D. Faz 4 (ARENA2): aggregated Merkle root of verified storage
+    /// proofs pending inclusion in the next `GlobalBlockHeader`. Reset to
+    /// `None` after each header is sealed. Populated by
+    /// `apply_storage_proofs()` (Faz 3, gated on BudZero VerifyMerkle).
+    pub pending_storage_root: Option<crate::domain::Hash32>,
+    /// B.U.D. Faz 5 (ARENA2): on-chain storage deal and challenge registry.
+    /// Mirrors the RPC-layer `StorageRegistry` but lives in the Blockchain
+    /// struct so chain_actor can drive automatic challenge issuance and
+    /// proof aggregation without going through the RPC layer.
+    pub storage_registry: crate::domain::storage_deal::StorageRegistry,
 }
 impl Blockchain {
     pub fn with_metrics(mut self, metrics: Arc<crate::core::metrics::Metrics>) -> Self {
@@ -410,6 +420,8 @@ impl Blockchain {
             finality_aggregator: None,
             metrics: None,
             proof_claims: crate::prover::ProofClaimRegistry::new(),
+            pending_storage_root: None,
+            storage_registry: crate::domain::storage_deal::StorageRegistry::new(),
         };
 
         if let Some(first) = bc.chain.first() {
@@ -968,6 +980,13 @@ impl Blockchain {
             merkle_root(&self.settlement_finality_hashes)
         };
 
+        // B.U.D. Faz 4 (ARENA2): storage_root is computed from any verified
+        // StorageProofResponses accumulated in this block period. Currently
+        // None (no proof aggregation pipeline wired yet — gated on BudZero
+        // VerifyMerkle Z-B gate, Faz 3). The field is set to None here and
+        // will be populated by `apply_storage_proofs()` once Faz 3 lands.
+        let storage_root = self.pending_storage_root;
+
         GlobalBlockHeader {
             version: 1,
             global_height: self.global_headers.len() as u64,
@@ -981,6 +1000,7 @@ impl Blockchain {
             replay_nonce_root: self.bridge_state.replay_root(),
             proposer,
             settlement_finality_root,
+            storage_root,
         }
     }
 
@@ -3170,11 +3190,6 @@ impl Blockchain {
         checkpoint_hash: &str,
         voter_id: &Address,
     ) -> Result<Prevote, String> {
-        let sk = self
-            .consensus
-            .bls_secret_key()
-            .ok_or("No BLS secret key available")?;
-
         let msg = {
             let dummy = Prevote {
                 epoch,
@@ -3186,7 +3201,15 @@ impl Blockchain {
             dummy.signing_message()
         };
 
-        let sig = crate::chain::finality::sign_bls(&sk, &msg);
+        let sig = if let Some(sk) = self.consensus.bls_secret_key() {
+            crate::chain::finality::sign_bls(&sk, &msg)
+        } else if let Some(signer) = self.consensus.signer() {
+            signer
+                .bls_sign(&msg)
+                .map_err(|e| format!("BLS signer backend failed: {}", e))?
+        } else {
+            return Err("No BLS signing capability available".to_string());
+        };
 
         Ok(Prevote {
             epoch,
@@ -3204,18 +3227,21 @@ impl Blockchain {
         checkpoint_hash: &str,
         voter_id: &Address,
     ) -> Result<Precommit, String> {
-        let sk = self
-            .consensus
-            .bls_secret_key()
-            .ok_or("No BLS secret key available")?;
-
         let msg = crate::chain::finality::checkpoint_signing_message(
             epoch,
             checkpoint_height,
             checkpoint_hash,
         );
 
-        let sig = crate::chain::finality::sign_bls(&sk, &msg);
+        let sig = if let Some(sk) = self.consensus.bls_secret_key() {
+            crate::chain::finality::sign_bls(&sk, &msg)
+        } else if let Some(signer) = self.consensus.signer() {
+            signer
+                .bls_sign(&msg)
+                .map_err(|e| format!("BLS signer backend failed: {}", e))?
+        } else {
+            return Err("No BLS signing capability available".to_string());
+        };
 
         Ok(Precommit {
             epoch,
@@ -3248,6 +3274,113 @@ impl Blockchain {
     pub fn consensus(&self) -> &dyn ConsensusEngine {
         self.consensus.as_ref()
     }
+
+    // ─── B.U.D. Faz 5 (ARENA2): On-chain storage operations ────────────
+
+    /// Issue retrieval challenges for all active storage deals whose
+    /// `challenge_interval` has elapsed since their last challenge (or since
+    /// deal creation). Returns the number of challenges issued.
+    ///
+    /// This is called by `ChainCommand::IssueStorageChallenges` from the
+    /// chain actor on each block (or every N blocks) to ensure operators
+    /// are periodically challenged.
+    pub fn issue_storage_challenges(&mut self, current_epoch: u64) -> Result<u32, String> {
+        /// Default challenge interval when domain params are not yet wired.
+        /// Matches the test default in `StorageDomainParams::default()`.
+        const DEFAULT_CHALLENGE_INTERVAL: u64 = 100;
+
+        let mut issued = 0u32;
+        let active_deals: Vec<(u64, u64)> = self
+            .storage_registry
+            .all_deals()
+            .iter()
+            .filter(|d| d.is_active())
+            .map(|d| (d.deal_id, d.deal_start_epoch))
+            .collect();
+
+        for (deal_id, start_epoch) in active_deals {
+            let interval = DEFAULT_CHALLENGE_INTERVAL;
+            let elapsed = current_epoch.saturating_sub(start_epoch);
+            if elapsed > 0 && elapsed % interval == 0 {
+                let byte_start = (deal_id.wrapping_mul(17) ^ current_epoch) % (256 * 1024);
+                let byte_end = (byte_start + 4096).min(256 * 1024);
+                let opener = crate::core::address::Address::from([0u8; 32]);
+                if let Ok(_challenge_id) = self.storage_registry.open_challenge(
+                    deal_id,
+                    byte_start,
+                    byte_end,
+                    current_epoch,
+                    current_epoch + 10,
+                    opener,
+                    1, // minimum opener bond for auto-challenges
+                ) {
+                    issued += 1;
+                }
+            }
+        }
+        Ok(issued)
+    }
+
+    /// Finalize all challenges whose deadline has passed without a valid
+    /// response. Slashes the operator bond per `StorageEconomicsParams`.
+    /// Returns the number of challenges finalized and total slashed amount.
+    pub fn finalize_missed_storage_challenges(
+        &mut self,
+        current_epoch: u64,
+    ) -> Result<(u32, u64), String> {
+        let pending_challenges: Vec<(u64, u64)> = self
+            .storage_registry
+            .all_challenges()
+            .iter()
+            .filter(|c| c.deadline_epoch <= current_epoch)
+            .filter(|c| self.storage_registry.get_result(c.challenge_id).is_none())
+            .map(|c| (c.challenge_id, c.deal_id))
+            .collect();
+
+        let mut finalized = 0u32;
+        let mut total_slashed = 0u64;
+
+        for (challenge_id, _deal_id) in pending_challenges {
+            if let Ok(result) = self
+                .storage_registry
+                .finalize_missed_challenge(challenge_id, current_epoch)
+            {
+                if result.outcome == crate::domain::storage_deal::ChallengeOutcome::Missed {
+                    total_slashed += result.slashed_bond;
+                }
+                finalized += 1;
+            }
+        }
+        Ok((finalized, total_slashed))
+    }
+
+    /// Accumulate a verified storage proof hash into `pending_storage_root`.
+    /// When multiple proofs are accumulated, the root is the hash of all
+    /// proof hashes concatenated (deterministic Merkle-like aggregation).
+    ///
+    /// This is called by `ChainCommand::SubmitStorageProof` after the proof
+    /// has been verified (currently: signature check only; real STARK
+    /// verification gated on Faz 3 / BudZero VerifyMerkle).
+    pub fn accumulate_storage_proof(&mut self, proof_hash: crate::domain::Hash32) {
+        let new_root = match self.pending_storage_root {
+            None => proof_hash,
+            Some(existing) => {
+                // Deterministic aggregation: hash(existing || new_proof)
+                crate::core::hash::hash_fields_bytes(&[
+                    b"BDLM_STORAGE_AGG_V1",
+                    &existing,
+                    &proof_hash,
+                ])
+            }
+        };
+        self.pending_storage_root = Some(new_root);
+    }
+
+    /// Reset `pending_storage_root` after it has been sealed into a
+    /// `GlobalBlockHeader`. Called after `seal_global_header()`.
+    pub fn reset_pending_storage_root(&mut self) {
+        self.pending_storage_root = None;
+    }
 }
 
 impl Clone for Blockchain {
@@ -3277,6 +3410,8 @@ impl Clone for Blockchain {
             finality_aggregator: None,
             metrics: self.metrics.clone(),
             proof_claims: self.proof_claims.clone(),
+            pending_storage_root: self.pending_storage_root,
+            storage_registry: self.storage_registry.clone(),
         }
     }
 }

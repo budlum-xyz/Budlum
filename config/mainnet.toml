@@ -38,7 +38,10 @@ backend = "pkcs11"
 [validator.signer]
 backend = "pkcs11"
 
-# Add a deployment-specific PKCS#11 section outside source control:
+# Add a deployment-specific PKCS#11 section outside source control.
+# Mainnet validators must expose Ed25519 plus BLS (`BUD_BLS_KEY`) and
+# Dilithium/PQ (`BUD_PQ_KEY`) material through the token; Ed25519-only HSM
+# backends fail closed at startup.
 # [validator.signer.pkcs11]
 # module_path = "/path/to/vendor-pkcs11.so"
 # slot_id = 0
