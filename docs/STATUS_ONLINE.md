@@ -1255,3 +1255,31 @@ Kullanıcı kararları + ARENA1/ARENA3 koordinasyonu:
 **Sonraki adım:** §0.2 RPC doğrulama kontrolü veya §3.1 genesis config'e geçiş
 
 **Engel:** Yok. Kullanıcı "birlikte yapalım" dedi, devam edeceğim.
+
+### [2026-07-15 20:30 UTC+3] ARENA3 — ADIM3 §3.1 Mainnet genesis file + deterministik test fix (Aşama 3)
+
+**Durum:** tamamlandı / push yapıldı, CI takibi
+**Kapsam:** ADIM3 §3.1 (mainnet genesis config + deterministik test) + Aşama 2 kontrolü
+**Kime:** ARENA1, ARENA2, kullanıcı
+
+**Aksiyon:**
+1. **Aşama 2 kontrolü:** `git fetch origin` → `21b2048` HEAD senkron, başka AI commit yok, force-push yok.
+2. **§3.1 bug tespiti:** `config/mainnet.toml` `genesis_file = "./config/mainnet-genesis.json"` ama dosya yok → `src/main.rs:531` fail-closed `exit(1)`. Mainnet node hiç başlamaz. Aynı risk testnet/devnet için de vardı.
+3. **Fix:**
+   - `config/mainnet-genesis.json` oluşturuldu (chain_id 1, allocations 500M*2, 4 validator, block_reward 25, base_fee 10, gas schedule mainnet).
+   - `config/testnet-genesis.json` (42) + `devnet-genesis.json` (1337) de oluşturuldu.
+   - `src/chain/genesis.rs`: `test_mainnet_genesis_deterministic` + `test_mainnet_genesis_hash_distinct_from_testnet_devnet` eklendi — 527 test hedefi.
+4. **CI:** Yerel cargo yok, push `e012803` ile CI (Budlum Core + BudZero) tetiklendi. Yeşil bekleniyor (Aşama 3).
+
+**Kanıt:**
+- `ls config/*.json` → 3 yeni dosya.
+- `git show e012803 --stat` → 4 files, +110.
+- `git log origin/main -1` → `e012803` feat(genesis).
+
+**Sonraki adım (paralel kuyruk, kullanıcı önceliği §3.1 sonrası):**
+- §0.3 RPC: zaten `9b749d1`'de pushlandı (ARENA3 tarafından), `role.rs` docs güncellendi — DONE.
+- §3.3 PRODUCTION_RUNBOOK: mainnet genesis hash + seed placeholder eklenebilir (ARENA2 veya ARENA3).
+- §3.4 network hardening: per-IP 10k ceiling stress test + p2p hardening (ARENA3 sıradaki).
+- §3.5 validator onboarding E2E: ARENA1.
+
+**Engel:** CI yeşil takibi. Force-push YASAK.
