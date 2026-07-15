@@ -32,12 +32,16 @@ Based on the strategic decisions made by the owner (Ayaz), the following rules a
         -   16% to the Content Creator/Context (if ad appears inside a profile/content).
         -   80% to Budlum Protocol (Treasury/Burn).
 -   **Interoperability:** Universal Bridge Hub (Master Key for all Web3).
+-   **Zero-Fee Inbound Bridge:** Inbound transfers to Budlum have no upfront $BUD cost. If a fee is required by the source chain or relayer, it is deducted automatically from the arriving asset, ensuring a frictionless entry for new users without $BUD holdings.
+-   **Universal Consensus Layer:** Budlum is the "Universal Consensus Layer"—the next layer of the internet focused on data sovereignty and societal flourishing. It is not just a chain; it is a paradigm shift towards a decentralized, human-centric digital world.
 
 ---
 
 ## 4. Universal Ecosystem & Relayer
--   **Budlum Hub:** A unified ecosystem interface where any blockchain application (dApp) can register and be visible to Budlum users.
--   **Universal Relayer:** The Budlum Relayer serves as a master translator, allowing Budlum wallets/HSMs to sign and execute transactions on external chains (EVM, Solana, Bitcoin, etc.), making the Budlum wallet the universal gateway.
+-   **Budlum Hub:** A unified ecosystem interface where any blockchain application (dApp) can register. The Hub is an open registration platform (Democratic Hub).
+-   **Universal Relayer:** The Budlum Relayer acts as a master translator, allowing Budlum wallets/HSMs to sign and execute transactions on external chains (EVM, Solana, etc.) using $BUD as the gas currency.
+-   **Relayer Incentives:** Relayers are rewarded by the protocol via $BUD minting for providing the service, and for inbound bridges, they take a small portion of the arriving asset as a fee.
+-   **Master Key Security:** Critical cross-chain operations require Multi-Sig/Multi-Device approval (e.g., Mobile + HSM) for maximum security.
 
 ---
 
