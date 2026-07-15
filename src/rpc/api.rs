@@ -365,6 +365,21 @@ pub trait BudlumApi {
     #[method(name = "bud_bnsResolve")]
     async fn bns_resolve(&self, name: String) -> Result<Option<String>, ErrorObjectOwned>;
 
+    /// B.U.D. Name Service (BNS): Full resolve — address + storage_root (Phase 6 full_impl)
+    /// Returns { owner, address, storage_root, storage_domain_id, is_expired } or null if not found/expired
+    #[method(name = "bud_bnsResolveFull")]
+    async fn bns_resolve_full(&self, name: String) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    /// B.U.D. Name Service (BNS): Set storage binding for existing name (owner only, Phase 6)
+    #[method(name = "bud_bnsSetStorage")]
+    async fn bns_set_storage(
+        &self,
+        name: String,
+        owner: String,
+        storage_root: String,
+        storage_domain_id: u32,
+    ) -> Result<serde_json::Value, ErrorObjectOwned>;
+
     /// B.U.D. Name Service (BNS): Prepare a registration transaction (offline helper).
     /// Note: To actually register, the user must submit a signed transaction.
     #[method(name = "bud_bnsPrepareRegister")]

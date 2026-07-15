@@ -1758,6 +1758,63 @@ impl BudlumApiServer for RpcServer {
         Ok(addr.map(|a| Self::to_0x_hash(a.to_hex())))
     }
 
+    async fn bns_resolve_full(&self, name: String) -> Result<serde_json::Value, ErrorObjectOwned> {
+        // Full BNS resolve: address + storage_root (Phase 6 full_impl, full_integration per Q)
+        if let Some(resolved) = self.chain.bns_resolve_full(name.clone()).await {
+            Ok(serde_json::json!({
+                "name": resolved.name,
+                "owner": Self::to_0x_hash(resolved.owner.to_hex()),
+                "address": resolved.address.map(|a| Self::to_0x_hash(a.to_hex())),
+                "storage_root": resolved.storage_root.map(|r| format!("0x{}", hex::encode(r))),
+                "storage_domain_id": resolved.storage_domain_id,
+                "is_expired": resolved.is_expired,
+            }))
+        } else {
+            Ok(serde_json::Value::Null)
+        }
+    }
+
+    async fn bns_set_storage(
+        &self,
+        name: String,
+        owner: String,
+        storage_root: String,
+        storage_domain_id: u32,
+    ) -> Result<serde_json::Value, ErrorObjectOwned> {
+        // Parse owner address
+        let clean_owner = owner.strip_prefix("0x").unwrap_or(&owner);
+        let owner_addr = Address::from_hex(clean_owner).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid owner address: {}", e), None::<()>)
+        })?;
+        // Parse storage_root as 32-byte hex
+        let clean_root = storage_root.strip_prefix("0x").unwrap_or(&storage_root);
+        let root_bytes = hex::decode(clean_root).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid storage_root hex: {}", e), None::<()>)
+        })?;
+        if root_bytes.len() != 32 {
+            return Err(ErrorObjectOwned::owned(
+                -32602,
+                "storage_root must be 32 bytes",
+                None::<()>,
+            ));
+        }
+        let mut root_arr = [0u8; 32];
+        root_arr.copy_from_slice(&root_bytes);
+
+        self.chain
+            .bns_set_storage(name.clone(), owner_addr, root_arr, storage_domain_id)
+            .await
+            .map_err(|e| ErrorObjectOwned::owned(-32602, format!("BNS set_storage failed: {}", e), None::<()>))?;
+
+        Ok(serde_json::json!({
+            "name": name,
+            "owner": owner,
+            "storage_root": storage_root,
+            "storage_domain_id": storage_domain_id,
+            "status": "storage binding updated",
+        }))
+    }
+
     async fn bns_prepare_register(
         &self,
         name: String,

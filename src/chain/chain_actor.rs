@@ -238,6 +238,17 @@ pub enum ChainCommand {
         name: String,
         response: oneshot::Sender<Option<Address>>,
     },
+    BnsResolveFull {
+        name: String,
+        response: oneshot::Sender<Option<crate::bns::types::BnsResolved>>,
+    },
+    BnsSetStorage {
+        name: String,
+        owner: Address,
+        storage_root: [u8; 32],
+        storage_domain_id: u32,
+        response: oneshot::Sender<Result<(), String>>,
+    },
 }
 
 #[derive(Clone)]
@@ -1115,6 +1126,36 @@ impl ChainHandle {
         let _ = self.tx.send(ChainCommand::BnsResolve { name, response: tx }).await;
         rx.await.unwrap_or(None)
     }
+
+    pub async fn bns_resolve_full(&self, name: String) -> Option<crate::bns::types::BnsResolved> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsResolveFull { name, response: tx })
+            .await;
+        rx.await.unwrap_or(None)
+    }
+
+    pub async fn bns_set_storage(
+        &self,
+        name: String,
+        owner: Address,
+        storage_root: [u8; 32],
+        storage_domain_id: u32,
+    ) -> Result<(), String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsSetStorage {
+                name,
+                owner,
+                storage_root,
+                storage_domain_id,
+                response: tx,
+            })
+            .await;
+        rx.await.unwrap_or_else(|_| Err("Actor dropped".to_string()))
+    }
 }
 
 pub struct ChainActor {
@@ -1710,6 +1751,25 @@ impl ChainActor {
                 }
                 ChainCommand::BnsResolve { name, response } => {
                     let _ = response.send(self.blockchain.state.bns_registry.resolve(&name, self.blockchain.state.epoch_index));
+                }
+                ChainCommand::BnsResolveFull { name, response } => {
+                    let _ = response.send(self.blockchain.state.bns_registry.resolve_full(&name, self.blockchain.state.epoch_index));
+                }
+                ChainCommand::BnsSetStorage {
+                    name,
+                    owner,
+                    storage_root,
+                    storage_domain_id,
+                    response,
+                } => {
+                    let result = self.blockchain.state.bns_registry.set_storage(
+                        &name,
+                        owner,
+                        storage_root,
+                        storage_domain_id,
+                        self.blockchain.state.epoch_index,
+                    ).map_err(|e| e.to_string());
+                    let _ = response.send(result);
                 }
             }
         }
