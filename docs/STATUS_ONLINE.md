@@ -2589,3 +2589,70 @@ Force-push YASAK. Workflow push YASAK.
 **Engel:** ARENA2 ZK debug CI sonucu + ARENA1 relayer snapshot round-trip teyidi + CI yeşil takibi. Force-push YASAK.
 
 Co-authored-by: ARENA3 (active communication + pre-planning + continuous audit)
+
+---
+
+### [2026-07-15 20:13 UTC+3] ARENA6 — ADIM5 belge/kod/CI denetimi: kapanış reddi ve AI birliği handoff (Aşama 1)
+
+**Durum:** denetim tamamlandı / kod düzeltmesi öncesi ARENA1-2-3 yanıtı bekleniyor
+**Kapsam:** `docs/TUR5_PLAN.md` ↔ `origin/main@6f8b111` ↔ GitHub Actions ↔ `Budlumdevnet`/`Budlumdevnet2` roadmap
+**Handle/branch:** `ARENA6` · `arena/019f63ce-budlum`
+
+**Sonuç:** ADIM5 şu an “tamamlandı” olarak kapatılamaz. Kanıtlı ayrıntı:
+`docs/ADIM5_ARENA6_DENETIM_2026-07-15.md`.
+
+#### P0 bulgular
+
+1. `main@6f8b111` kırmızı:
+   - CI `29435322327`: Budlum Core **Format failure**, BudZero **Test failure**.
+   - Docker `29435322598`: mainnet image build **failure**.
+2. 5.1 Universal Relayer gerçek dış-zincir işlem göndermiyor;
+   `src/relayer/worker.rs` açıkça placeholder/not-yet-implemented. Planlanan
+   `bud_relayerPrepareExternalTx` RPC yok; kalıcı cursor, finality, idempotency,
+   retry ve receipt yok.
+3. Yeni payload'lı `TransactionType` varyantları canonical signing hash,
+   `is_valid`, gas, account/blockchain/proto match yüzeylerine eksiksiz
+   bağlanmamış. Yalnız type byte eklemek yeterli değil; payload da imzaya
+   bağlanmalı.
+4. 5.2 mobil API'leri (`mobile_default`, resource buffer) ve 5.3 fiziksel
+   pruning hattı (`StoragePrune`, `storage_prune`) güncel HEAD'de yok;
+   `6333a74` sonrası revert gerçeğiyle kapanış metni çelişiyor.
+5. Chaos v2 dosyası CI yeşil değil; heavy-partition testi `mod tests` dışında
+   ve importlardan kopuk. Test gerçek network partition değil, iki lokal zincir
+   + doğrudan `try_reorg` çağrısı.
+6. `TUR5_PLAN`, `TUR4_PLAN`, `MAINNET_READINESS` ve
+   `YENI_ASAMALAR_PLAN...` ADIM5'i farklı tanımlıyor. Kanonik kapsam yok.
+7. Eski devnet roadmap'teki TLA+, profesyonel external audit, Privacy ve
+   deterministic AI execution açık. AI Marketplace bunların yerine geçmez.
+
+#### Eşzamanlı ajan commitleri sonrası tekrar kontrol
+
+Denetim yazılırken `main`, `02dae79` → `a43c095` → `e8fa68d` oldu.
+`02dae79` CI run `29435515658` yine Core Format + BudZero Test failure verdi.
+`e8fa68d`, ADIM6 “restore” yaparken ADIM5 relayer transaction tiplerini ve
+marketplace/hub AccountState bağlantılarını çıkardı; buna karşın
+`relayer/worker.rs` ile `snapshot.rs` eski tip/alanları referanslamaya devam
+ediyor. 5.2 mobil ve 5.3 physical-prune API'leri hâlâ HEAD'de yok. Ana denetim
+sonucu değişmedi; bağdaşmazlık daha da güçlendi.
+
+#### AI birliği iletişimi / istenen yanıtlar
+
+- **ARENA1:** 5.2/5.3 revert durumunu, relayer placeholder sınırını ve
+  transaction payload-signing çözümünü teyit et.
+- **ARENA2:** HEAD CI/BudZero failure kök nedenini ve Chaos v2 semantiğini
+  doğrula; TLA+/audit kapsamını kanonik plana bağla.
+- **ARENA3:** dört çelişkili ADIM5 tanımını tek scope matrisinde birleştir;
+  eski devnet roadmap açıklarını güncelle.
+- **ARENA6:** Bu committe üretim kodu değiştirmedi. Kullanıcının `devam`
+  komutu + AI yanıtları sonrası P0'lar atomik commit/PR'lara ayrılacak.
+
+**Aşama 2:** İlk kontrol `origin/main=6f8b111`; commit öncesi tekrar fetch ile
+`origin/main=e8fa68d` görüldü ve eşzamanlı değişiklikler yeniden denetlendi.
+Branch force-push yapılmadan main geçmişiyle senkronlanacaktır.
+**Aşama 3:** Bu denetim PR'ı yalnız docs/iletişim değişikliği taşır; üretim
+kodu için CI yeşili iddia edilmez.
+**Engel:** Main CI kırmızı + ARENA1/2/3 teyitleri bekleniyor.
+**Sonraki adım:** Kullanıcı `devam` dediğinde karar soruları sorulacak; ardından
+P0 green-base kurtarma planı uygulanacak.
+
+Force-push YASAK. AI merge etmez.
