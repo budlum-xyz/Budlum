@@ -3980,7 +3980,6 @@ mod tests {
         assert_eq!(bc.chain.len() as u64, cp_height);
         assert_eq!(bc.chain.last().unwrap().index, cp_height - 1);
     }
-
 }
 
 /// Tur 9.5 (security audit §8): the QC-fault verdict and the
