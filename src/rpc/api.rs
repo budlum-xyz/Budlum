@@ -283,11 +283,14 @@ pub trait BudlumApi {
         manifest: crate::storage::ContentManifest,
         shard_id: String,
         operator: String,
+        payer: String,
         replica_index: u8,
         start_epoch: u64,
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Look up a previously-registered `ContentManifest` by its
@@ -335,6 +338,16 @@ pub trait BudlumApi {
         response: crate::domain::storage_deal::RetrievalResponse,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
+    /// Query aggregate storage economics accounting from the chain actor.
+    /// Permissionless read: no official indexer or team-operated service.
+    #[method(name = "bud_storageGetEconomicsSummary")]
+    async fn storage_get_economics_summary(&self) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    /// Query storage economics events (operator reward accrual and slashed-bond
+    /// accounting) from the chain actor. Permissionless read.
+    #[method(name = "bud_storageGetEconomicsEvents")]
+    async fn storage_get_economics_events(&self) -> Result<serde_json::Value, ErrorObjectOwned>;
+
     /// Look up a finalized `ChallengeResult` by `challenge_id`.
     #[method(name = "bud_storageGetOutcome")]
     async fn storage_get_outcome(
@@ -342,7 +355,9 @@ pub trait BudlumApi {
         challenge_id: u64,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
-    /// Active storage operators (`STORAGE_OPERATOR` / role_id = 5).
+    /// Query active storage operators (STORAGE_OPERATOR RoleId=5).
+    /// ADIM3 §0.3 — previously documented as ghost RPC, now implemented.
+    /// Returns active `PermissionlessRegistry` members filtered by storage operator role.
     #[method(name = "bud_storageActiveOperators")]
     async fn storage_active_operators(&self) -> Result<serde_json::Value, ErrorObjectOwned>;
 }

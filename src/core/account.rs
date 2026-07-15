@@ -101,6 +101,10 @@ pub struct AccountState {
     pub tokenomics: crate::tokenomics::TokenomicsParams,
     /// State of the timed (annual) reserve burn.
     pub timed_burn: crate::tokenomics::TimedBurnState,
+    pub bns_registry: crate::bns::BnsRegistry,
+    pub nft_registry: crate::nft::NftRegistry,
+    pub marketplace: crate::marketplace::MarketplaceRegistry,
+    pub hub: crate::hub::HubRegistry,
     /// On-chain burn-reserve account the timed burn consumes. `None` when $BUD
     /// tokenomics is not enabled for this chain (e.g. plain devnet genesis).
     pub burn_reserve_address: Option<Address>,
@@ -140,6 +144,10 @@ impl AccountState {
             validators: BTreeMap::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
+            bns_registry: crate::bns::BnsRegistry::new(),
+            nft_registry: crate::nft::NftRegistry::new(),
+            marketplace: crate::marketplace::MarketplaceRegistry::new(),
+            hub: crate::hub::HubRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -168,6 +176,10 @@ impl AccountState {
             validators: BTreeMap::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
+            bns_registry: crate::bns::BnsRegistry::new(),
+            nft_registry: crate::nft::NftRegistry::new(),
+            marketplace: crate::marketplace::MarketplaceRegistry::new(),
+            hub: crate::hub::HubRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -211,6 +223,10 @@ impl AccountState {
             validators,
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
+            bns_registry: crate::bns::BnsRegistry::new(),
+            nft_registry: crate::nft::NftRegistry::new(),
+            marketplace: crate::marketplace::MarketplaceRegistry::new(),
+            hub: crate::hub::HubRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -389,6 +405,37 @@ impl AccountState {
         self.registry.upsert_stake(
             *address,
             crate::registry::role::roles::PROVER,
+            amount,
+            self.epoch_index,
+        );
+        Ok(amount)
+    }
+
+    /// ADIM3 §0.3: bond `amount` into the STORAGE_OPERATOR role (permissionless).
+    /// Used for B.U.D. operator reward eligibility and `bud_storageActiveOperators`.
+    pub fn bond_storage_operator(
+        &mut self,
+        address: &Address,
+        amount: u64,
+    ) -> Result<u64, crate::registry::RegistryError> {
+        if amount == 0 {
+            return Err(crate::registry::RegistryError::InsufficientStake {
+                required: 1,
+                provided: 0,
+            });
+        }
+        let account = self.get_or_create(address);
+        if account.balance < amount {
+            return Err(crate::registry::RegistryError::InsufficientStake {
+                required: amount,
+                provided: account.balance,
+            });
+        }
+        account.balance -= amount;
+        self.dirty_accounts.insert(*address);
+        self.registry.upsert_stake(
+            *address,
+            crate::registry::role::roles::STORAGE_OPERATOR,
             amount,
             self.epoch_index,
         );

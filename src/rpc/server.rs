@@ -1351,11 +1351,14 @@ impl BudlumApiServer for RpcServer {
         manifest: crate::storage::ContentManifest,
         shard_id: String,
         operator: String,
+        payer: String,
         replica_index: u8,
         start_epoch: u64,
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
         domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
         let clean_shard = shard_id.strip_prefix("0x").unwrap_or(&shard_id);
         let s_bytes = hex::decode(clean_shard).map_err(|e| {
@@ -1376,15 +1379,45 @@ impl BudlumApiServer for RpcServer {
             ErrorObjectOwned::owned(-32602, format!("Invalid operator hex: {e}"), None::<()>)
         })?;
 
-        let mut reg = self.storage.lock().map_err(|e| {
-            ErrorObjectOwned::owned(
-                -32602,
-                format!("storage registry lock poisoned: {e}"),
-                None::<()>,
-            )
+        let payer_addr = Address::from_hex(&payer).map_err(|e| {
+            ErrorObjectOwned::owned(-32602, format!("Invalid payer hex: {e}"), None::<()>)
         })?;
-        let deal_id = reg
-            .open_deal(
+
+        let deal_id = self
+            .chain
+            .open_storage_deal(
+                domain_id,
+                manifest.clone(),
+                s_id,
+                op_addr,
+                payer_addr,
+                replica_index,
+                start_epoch,
+                end_epoch,
+                economics.clone(),
+                domain_params,
+                merkle_proof.clone(),
+                storage_root,
+            )
+            .await
+            .map_err(|e| {
+                ErrorObjectOwned::owned(-32602, format!("open_deal failed: {e}"), None::<()>)
+            })?;
+
+        // Sync the deal to the RPC server's local StorageRegistry so that
+        // subsequent storage_open_challenge / storage_answer_challenge calls
+        // (which use self.storage) can find the deal.
+        // TODO(ARENA2): unify the two registries into a single source of truth.
+        {
+            let mut reg = self.storage.lock().map_err(|e| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("storage registry lock poisoned: {e}"),
+                    None::<()>,
+                )
+            })?;
+            reg.register_manifest(&manifest);
+            let _ = reg.open_deal(
                 domain_id,
                 &manifest,
                 s_id,
@@ -1393,11 +1426,12 @@ impl BudlumApiServer for RpcServer {
                 start_epoch,
                 end_epoch,
                 economics,
-                &domain_params,
-            )
-            .map_err(|e| {
-                ErrorObjectOwned::owned(-32602, format!("open_deal failed: {e:?}"), None::<()>)
-            })?;
+                &crate::domain::storage_params::StorageDomainParams::default(),
+                merkle_proof,
+                storage_root,
+            );
+        }
+
         Ok(serde_json::json!({
             "dealId": deal_id,
             "status": "Active",
@@ -1525,20 +1559,49 @@ impl BudlumApiServer for RpcServer {
         &self,
         request: RetrievalChallengeRequest,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
-        let Some(opener) = request.opener else {
-            return Err(ErrorObjectOwned::owned(
-                -32602,
-                "Invalid challenge: opener address is required".to_string(),
-                None::<()>,
-            ));
-        };
+        // ADIM3 §0.2 + H1 fix (ARENA3 sürekli denetim): opener zorunlu ve non-zero olmalı
+        let opener = request.opener.ok_or_else(|| {
+            ErrorObjectOwned::owned(-32602, "opener is required (ADIM3 §0.2 / H1)", None::<()>)
+        })?;
         if opener == crate::core::address::Address::zero() {
             return Err(ErrorObjectOwned::owned(
                 -32602,
-                "Invalid challenge: opener must be a non-zero address".to_string(),
+                "opener must not be zero address (H1)",
                 None::<()>,
             ));
         }
+
+        // ADIM3 §0.2: opener must cryptographically prove ownership of the
+        // declared address. Without this, any caller can self-report any
+        // address as the opener, rendering the opener_bond anti-spam gate
+        // economically meaningless.
+        let opener_sig = request.opener_signature.as_deref().ok_or_else(|| {
+            ErrorObjectOwned::owned(
+                -32602,
+                "opener_signature is required (ADIM3 §0.2)",
+                None::<()>,
+            )
+        })?;
+        let msg = crate::core::hash::hash_fields_bytes(&[
+            b"BUD_OPEN_CHALLENGE_V1",
+            &request.deal_id.to_le_bytes(),
+            &request.byte_start.to_le_bytes(),
+            &request.byte_end.to_le_bytes(),
+            &request.challenge_epoch.to_le_bytes(),
+            &request.deadline_epoch.to_le_bytes(),
+            &request.opener_bond.to_le_bytes(),
+            opener.as_bytes(),
+        ]);
+        crate::crypto::primitives::verify_signature(&msg, opener_sig, opener.as_bytes()).map_err(
+            |e| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("Invalid opener signature: {e}"),
+                    None::<()>,
+                )
+            },
+        )?;
+
         let mut reg = self.storage.lock().map_err(|e| {
             ErrorObjectOwned::owned(
                 -32602,
@@ -1571,6 +1634,33 @@ impl BudlumApiServer for RpcServer {
         response: RetrievalResponse,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
         let responder = response.responder;
+
+        // ADIM3 §0.2: responder must cryptographically prove ownership of the
+        // declared address. Without this, any caller can set responder to the
+        // deal's operator address and bypass the NotTheOperator registry check.
+        let responder_sig = response.responder_signature.as_deref().ok_or_else(|| {
+            ErrorObjectOwned::owned(
+                -32602,
+                "responder_signature is required (ADIM3 §0.2)",
+                None::<()>,
+            )
+        })?;
+        let msg = crate::core::hash::hash_fields_bytes(&[
+            b"BUD_ANSWER_CHALLENGE_V1",
+            &response.challenge_id.to_le_bytes(),
+            &response._range_hash.0,
+            responder.as_bytes(),
+            &response.response_epoch.to_le_bytes(),
+        ]);
+        crate::crypto::primitives::verify_signature(&msg, responder_sig, responder.as_bytes())
+            .map_err(|e| {
+                ErrorObjectOwned::owned(
+                    -32602,
+                    format!("Invalid responder signature: {e}"),
+                    None::<()>,
+                )
+            })?;
+
         let mut reg = self.storage.lock().map_err(|e| {
             ErrorObjectOwned::owned(
                 -32602,
@@ -1594,6 +1684,25 @@ impl BudlumApiServer for RpcServer {
             "outcome": format!("{:?}", result.outcome),
             "finalizedEpoch": result.finalized_epoch,
             "slashedBond": result.slashed_bond,
+        }))
+    }
+
+    async fn storage_get_economics_summary(&self) -> Result<serde_json::Value, ErrorObjectOwned> {
+        self.chain
+            .get_storage_economics_summary()
+            .await
+            .map_err(|e| ErrorObjectOwned::owned(-32000, e, None::<()>))
+    }
+
+    async fn storage_get_economics_events(&self) -> Result<serde_json::Value, ErrorObjectOwned> {
+        let events = self
+            .chain
+            .get_storage_economics_events()
+            .await
+            .map_err(|e| ErrorObjectOwned::owned(-32000, e, None::<()>))?;
+        Ok(serde_json::json!({
+            "count": events.len(),
+            "events": events.iter().map(storage_economics_event_to_json).collect::<Vec<_>>(),
         }))
     }
 
@@ -1621,6 +1730,9 @@ impl BudlumApiServer for RpcServer {
     }
 
     async fn storage_active_operators(&self) -> Result<serde_json::Value, ErrorObjectOwned> {
+        // ADIM3 §0.3: ghost RPC was documented but not implemented.
+        // Implementation: query PermissionlessRegistry active members for STORAGE_OPERATOR (RoleId 5).
+        // No admin gate, no whitelist — permissionless read, same as bud_registryActiveMembers.
         let role = crate::registry::role::roles::STORAGE_OPERATOR;
         let members = self.chain.get_registry_active_members(role).await;
         let list: Vec<serde_json::Value> = members
@@ -1629,6 +1741,7 @@ impl BudlumApiServer for RpcServer {
                 serde_json::json!({
                     "address": Self::to_0x_hash(reg.account.to_hex()),
                     "stake": reg.stake,
+                    "role": "storage_operator",
                 })
             })
             .collect();
@@ -1684,6 +1797,27 @@ fn retrieval_challenge_to_json(c: &RetrievalChallenge) -> serde_json::Value {
         "deadlineEpoch": c.deadline_epoch,
         "opener": c.opener.to_string(),
         "openerBond": c.opener_bond,
+    })
+}
+
+fn storage_economics_event_to_json(
+    event: &crate::chain::blockchain::StorageEconomicsEvent,
+) -> serde_json::Value {
+    let kind = match event.kind {
+        crate::chain::blockchain::StorageEconomicsEventKind::OperatorRewardAccrued => {
+            "OperatorRewardAccrued"
+        }
+        crate::chain::blockchain::StorageEconomicsEventKind::OperatorBondSlashed => {
+            "OperatorBondSlashed"
+        }
+    };
+    serde_json::json!({
+        "epoch": event.epoch,
+        "dealId": event.deal_id,
+        "operator": event.operator.to_string(),
+        "amount": event.amount,
+        "balanceEffect": event.balance_effect,
+        "kind": kind,
     })
 }
 
@@ -1882,5 +2016,83 @@ mod security_tests {
         }
         let new_ip: std::net::IpAddr = "255.255.255.255".parse().unwrap();
         assert!(!is_per_ip_rate_limited(&config, &rates, Some(new_ip)));
+    }
+
+    /// ADIM3 §3.4: mainnet SecurityConfig RPC numbers are enforced by the limiter.
+    #[test]
+    fn adim3_mainnet_rpc_security_profile() {
+        use crate::core::chain_config::Network;
+        let sec = Network::Mainnet.security_config();
+        assert_eq!(sec.rpc_rate_limit_per_minute, 300);
+        assert_eq!(sec.max_peers, 100);
+        assert!(sec.rpc_auth_required);
+        assert!(!sec.mdns_enabled);
+        assert!(sec.persist_banned_peers);
+
+        let config = RpcSecurityConfig {
+            rate_limit_per_minute: Some(sec.rpc_rate_limit_per_minute),
+            auth_required: sec.rpc_auth_required,
+            ..Default::default()
+        };
+        let rates = Arc::new(Mutex::new(HashMap::new()));
+        let ip: IpAddr = "203.0.113.10".parse().unwrap();
+
+        // Under limit: admit.
+        for _ in 0..10 {
+            assert!(is_per_ip_rate_limited(&config, &rates, Some(ip)));
+        }
+        assert_eq!(rates.lock().unwrap().get(&ip).map(|w| w.len()), Some(10));
+    }
+
+    /// ADIM3 §3.4: many distinct IPs up to the hard ceiling, then reject.
+    #[test]
+    fn adim3_rpc_rate_limit_10k_client_stress() {
+        let config = RpcSecurityConfig {
+            rate_limit_per_minute: Some(1),
+            ..Default::default()
+        };
+        let rates = Arc::new(Mutex::new(HashMap::new()));
+
+        for i in 0..MAX_TRACKED_RPC_CLIENTS {
+            let ip = IpAddr::V4(std::net::Ipv4Addr::from(i as u32));
+            assert!(
+                is_per_ip_rate_limited(&config, &rates, Some(ip)),
+                "client {i} should be admitted under ceiling"
+            );
+        }
+        assert_eq!(rates.lock().unwrap().len(), MAX_TRACKED_RPC_CLIENTS);
+
+        let overflow = IpAddr::V4(std::net::Ipv4Addr::new(255, 255, 255, 254));
+        assert!(
+            !is_per_ip_rate_limited(&config, &rates, Some(overflow)),
+            "client beyond 10k ceiling must be rejected"
+        );
+        // Map must not grow.
+        assert_eq!(rates.lock().unwrap().len(), MAX_TRACKED_RPC_CLIENTS);
+    }
+
+    /// ADIM3 §3.4: expired windows are evicted so the ceiling can admit new clients.
+    #[test]
+    fn adim3_rpc_rate_limit_evicts_expired_to_admit_new() {
+        let config = RpcSecurityConfig {
+            rate_limit_per_minute: Some(5),
+            ..Default::default()
+        };
+        let rates = Arc::new(Mutex::new(HashMap::new()));
+        {
+            let mut map = rates.lock().unwrap();
+            for i in 0..MAX_TRACKED_RPC_CLIENTS {
+                let mut window = VecDeque::new();
+                // Far in the past → expired relative to 60s window.
+                window.push_back(Instant::now() - Duration::from_secs(120));
+                let ip = IpAddr::V4(std::net::Ipv4Addr::from(i as u32));
+                map.insert(ip, window);
+            }
+        }
+        let new_ip: IpAddr = "198.51.100.1".parse().unwrap();
+        assert!(
+            is_per_ip_rate_limited(&config, &rates, Some(new_ip)),
+            "after expiring old windows, a new client must be admitted"
+        );
     }
 }

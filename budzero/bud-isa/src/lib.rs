@@ -36,9 +36,12 @@ pub enum Opcode {
 
 impl Opcode {
     /// Opcodes that must not run under the Production ISA profile.
-    /// Tur 13: VerifyMerkle stays experimental until Z-B Commit 3.5
-    /// (`proves_verify_merkle_valid_64_depth` green). Partial path fixes landed
-    /// (pre-round currents, single-round hash, original-only root check).
+    /// VerifyMerkle stays experimental until Z-B Commit 3.5
+    /// (`proves_verify_merkle_valid_64_depth` green). ARENA3 Q2 briefly opened
+    /// the production gate before the positive STARK test was green; ARENA2
+    /// re-closed it (fail-closed). Partial path fixes landed (pre-round
+    /// currents, single-round hash, original-only root check, wrapping_add→u128,
+    /// leaf-bind gate on original-only).
     pub fn is_experimental(&self) -> bool {
         matches!(self, Opcode::VerifyMerkle)
     }
@@ -185,6 +188,8 @@ mod tests {
 
     #[test]
     fn tur119_verify_merkle_disabled_in_production() {
+        // Fail-closed: Production must reject VerifyMerkle until
+        // proves_verify_merkle_valid_64_depth is green (ARENA2 ADIM4).
         let raw = Instruction {
             opcode: Opcode::VerifyMerkle,
             rd: 1,
@@ -194,18 +199,16 @@ mod tests {
         }
         .encode();
         let err = Instruction::decode_for_profile(raw, IsaProfile::Production)
-            .expect_err("VerifyMerkle must be disabled in Production");
-        match err {
-            DecodeError::ExperimentalOpcodeDisabled(
-                Opcode::VerifyMerkle,
-                IsaProfile::Production,
-            ) => {}
-            other => panic!("unexpected error: {other:?}"),
-        }
-        // decode_any still parses the opcode for experimental/test tooling.
-        let inst = Instruction::decode_any(raw).unwrap();
-        assert_eq!(inst.opcode, Opcode::VerifyMerkle);
-        assert!(inst.opcode.is_experimental());
+            .expect_err("VerifyMerkle must be disabled in Production until STARK gate is green");
+        assert!(matches!(
+            err,
+            DecodeError::ExperimentalOpcodeDisabled(Opcode::VerifyMerkle, IsaProfile::Production)
+        ));
+        assert!(Opcode::VerifyMerkle.is_experimental());
+
+        // decode_any still parses the opcode for experimental/testing profiles
+        let inst_any = Instruction::decode_any(raw).unwrap();
+        assert_eq!(inst_any.opcode, Opcode::VerifyMerkle);
     }
 
     #[test]

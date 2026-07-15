@@ -109,6 +109,11 @@ pub enum ChainCommand {
         u64,
         oneshot::Sender<Result<(), String>>,
     ),
+    BondStorageOperator(
+        crate::core::address::Address,
+        u64,
+        oneshot::Sender<Result<(), String>>,
+    ),
     SubmitZkProof(
         crate::prover::ZkProofSubmission,
         oneshot::Sender<Result<crate::prover::ProofAcceptance, String>>,
@@ -150,6 +155,7 @@ pub enum ChainCommand {
         expected_block_hash: Option<crate::domain::Hash32>,
         event: crate::cross_domain::DomainEvent,
         proof: crate::cross_domain::MerkleProof,
+        relayer: Address,
         response: oneshot::Sender<Result<(), String>>,
     },
     BurnBridgeTransfer {
@@ -181,6 +187,22 @@ pub enum ChainCommand {
     },
     SealGlobalHeader(oneshot::Sender<Result<crate::settlement::GlobalBlockHeader, String>>),
     FlushStorage(oneshot::Sender<Result<usize, String>>),
+    /// B.U.D. Faz 5 (ARENA1): Open a storage deal with proper escrow locking.
+    OpenStorageDeal {
+        domain_id: u32,
+        manifest: crate::storage::ContentManifest,
+        shard_id: crate::storage::ContentId,
+        operator: crate::core::address::Address,
+        payer: crate::core::address::Address,
+        replica_index: u8,
+        start_epoch: u64,
+        end_epoch: u64,
+        economics: crate::domain::storage_deal::StorageEconomicsParams,
+        domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
+        response: oneshot::Sender<Result<u64, String>>,
+    },
     /// B.U.D. Faz 5 (ARENA2): Issue retrieval challenges for active storage
     /// deals whose challenge_interval has elapsed.
     IssueStorageChallenges(u64, oneshot::Sender<Result<u32, String>>),
@@ -191,6 +213,12 @@ pub enum ChainCommand {
     SubmitStorageProof(crate::domain::Hash32, oneshot::Sender<Result<(), String>>),
     /// B.U.D. Faz 5 (ARENA2): Query all active storage deals.
     GetStorageDeals(oneshot::Sender<Vec<crate::domain::storage_deal::StorageDeal>>),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics event log.
+    GetStorageEconomicsEvents(
+        oneshot::Sender<Vec<crate::chain::blockchain::StorageEconomicsEvent>>,
+    ),
+    /// B.U.D. Faz 5 (ARENA3): Query storage economics accounting summary.
+    GetStorageEconomicsSummary(oneshot::Sender<serde_json::Value>),
     /// B.U.D. Faz 5 (ARENA2): Query all storage challenges.
     GetStorageChallenges(oneshot::Sender<Vec<crate::domain::storage_deal::RetrievalChallenge>>),
     SignPrevote {
@@ -514,6 +542,45 @@ impl ChainHandle {
         rx.await.unwrap_or_default()
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub async fn open_storage_deal(
+        &self,
+        domain_id: u32,
+        manifest: crate::storage::ContentManifest,
+        shard_id: crate::storage::ContentId,
+        operator: crate::core::address::Address,
+        payer: crate::core::address::Address,
+        replica_index: u8,
+        start_epoch: u64,
+        end_epoch: u64,
+        economics: crate::domain::storage_deal::StorageEconomicsParams,
+        domain_params: crate::domain::storage_params::StorageDomainParams,
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<crate::domain::Hash32>,
+    ) -> Result<u64, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::OpenStorageDeal {
+                domain_id,
+                manifest,
+                shard_id,
+                operator,
+                payer,
+                replica_index,
+                start_epoch,
+                end_epoch,
+                economics,
+                domain_params,
+                merkle_proof,
+                storage_root,
+                response: tx,
+            })
+            .await;
+        rx.await
+            .unwrap_or_else(|_| Err("Actor dropped".to_string()))
+    }
+
     pub async fn get_locator(&self) -> Vec<String> {
         let (tx, rx) = oneshot::channel();
         let _ = self.tx.send(ChainCommand::GetLocator(tx)).await;
@@ -747,6 +814,21 @@ impl ChainHandle {
             .unwrap_or_else(|_| Err("Actor dropped".to_string()))
     }
 
+    /// ADIM3 §0.3: bond stake for STORAGE_OPERATOR (permissionless).
+    pub async fn bond_storage_operator(
+        &self,
+        address: crate::core::address::Address,
+        amount: u64,
+    ) -> Result<(), String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::BondStorageOperator(address, amount, tx))
+            .await;
+        rx.await
+            .unwrap_or_else(|_| Err("Actor dropped".to_string()))
+    }
+
     /// Submit a ZK proof (permissionless; L1 ↔ BudZKVM bridge).
     pub async fn submit_zk_proof(
         &self,
@@ -826,6 +908,7 @@ impl ChainHandle {
         expected_block_hash: Option<crate::domain::Hash32>,
         event: crate::cross_domain::DomainEvent,
         proof: crate::cross_domain::MerkleProof,
+        relayer: Address,
     ) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         let _ = self
@@ -837,6 +920,7 @@ impl ChainHandle {
                 expected_block_hash,
                 event,
                 proof,
+                relayer,
                 response: tx,
             })
             .await;
@@ -1002,6 +1086,28 @@ impl ChainHandle {
         let _ = self.tx.send(ChainCommand::GetStorageChallenges(tx)).await;
         rx.await.map_err(|_| "Actor dropped".to_string())
     }
+
+    /// Query storage economics events for reporting/gossip adapters.
+    pub async fn get_storage_economics_events(
+        &self,
+    ) -> Result<Vec<crate::chain::blockchain::StorageEconomicsEvent>, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsEvents(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
+
+    /// Query aggregate storage economics accounting.
+    pub async fn get_storage_economics_summary(&self) -> Result<serde_json::Value, String> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::GetStorageEconomicsSummary(tx))
+            .await;
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
 }
 
 pub struct ChainActor {
@@ -1013,6 +1119,50 @@ impl ChainActor {
     pub fn new(blockchain: Blockchain) -> (Self, ChainHandle) {
         let (tx, rx) = mpsc::channel(1000);
         (Self { blockchain, rx }, ChainHandle { tx })
+    }
+
+    fn run_storage_maintenance(&mut self, block_height: u64) {
+        let current_epoch = block_height / crate::core::chain_config::EPOCH_LEN;
+        let (rewarded, reward_total) = self
+            .blockchain
+            .accrue_storage_operator_rewards(current_epoch);
+        if rewarded > 0 {
+            tracing::info!(
+                "B.U.D. storage maintenance accrued rewards for {} deals at epoch {} (amount={})",
+                rewarded,
+                current_epoch,
+                reward_total
+            );
+        }
+
+        match self.blockchain.issue_storage_challenges(current_epoch) {
+            Ok(issued) if issued > 0 => tracing::info!(
+                "B.U.D. storage maintenance issued {} retrieval challenges at epoch {}",
+                issued,
+                current_epoch
+            ),
+            Ok(_) => {}
+            Err(error) => tracing::warn!(
+                "B.U.D. storage challenge issuance failed at epoch {}: {}",
+                current_epoch,
+                error
+            ),
+        }
+
+        match self.blockchain.finalize_missed_storage_challenges(current_epoch) {
+            Ok((finalized, slashed)) if finalized > 0 => tracing::info!(
+                "B.U.D. storage maintenance finalized {} missed challenges at epoch {} (slashed_bond={})",
+                finalized,
+                current_epoch,
+                slashed
+            ),
+            Ok(_) => {}
+            Err(error) => tracing::warn!(
+                "B.U.D. missed-challenge finalization failed at height {}: {}",
+                block_height,
+                error
+            ),
+        }
     }
 
     pub async fn run(mut self) {
@@ -1053,6 +1203,7 @@ impl ChainActor {
                 ChainCommand::ProduceBlock(producer, tx) => {
                     let block = self.blockchain.produce_block(producer);
                     if let Some(ref b) = block {
+                        self.run_storage_maintenance(b.index);
                         if crate::chain::finality::is_checkpoint_height(b.index) {
                             self.blockchain.start_prevote_phase(b.index, b.hash.clone());
                         }
@@ -1060,11 +1211,15 @@ impl ChainActor {
                     let _ = tx.send(block);
                 }
                 ChainCommand::ValidateAndAddBlock(block, res_tx) => {
-                    let _ = res_tx.send(
-                        self.blockchain
-                            .validate_and_add_block(block)
-                            .map_err(|e| e.to_string()),
-                    );
+                    let height = block.index;
+                    let res = self
+                        .blockchain
+                        .validate_and_add_block(block)
+                        .map_err(|e| e.to_string());
+                    if res.is_ok() {
+                        self.run_storage_maintenance(height);
+                    }
+                    let _ = res_tx.send(res);
                 }
                 ChainCommand::GetTransactionByHash(hash, tx) => {
                     let tx_obj = self.blockchain.get_transaction_by_hash(&hash);
@@ -1317,6 +1472,15 @@ impl ChainActor {
                             .map_err(|e| e.to_string()),
                     );
                 }
+                ChainCommand::BondStorageOperator(address, amount, res_tx) => {
+                    let _ = res_tx.send(
+                        self.blockchain
+                            .state
+                            .bond_storage_operator(&address, amount)
+                            .map(|_| ())
+                            .map_err(|e| e.to_string()),
+                    );
+                }
                 ChainCommand::SubmitZkProof(submission, res_tx) => {
                     let _ = res_tx.send(
                         self.blockchain
@@ -1375,6 +1539,7 @@ impl ChainActor {
                     expected_block_hash,
                     event,
                     proof,
+                    relayer,
                     response,
                 } => {
                     let _ =
@@ -1385,6 +1550,7 @@ impl ChainActor {
                             expected_block_hash,
                             event,
                             &proof,
+                            relayer,
                         ));
                 }
                 ChainCommand::BurnBridgeTransfer {
@@ -1452,6 +1618,36 @@ impl ChainActor {
                     let _ = res_tx.send(res);
                 }
                 // ─── B.U.D. Faz 5 (ARENA2): Storage operations ─────
+                ChainCommand::OpenStorageDeal {
+                    domain_id,
+                    manifest,
+                    shard_id,
+                    operator,
+                    payer,
+                    replica_index,
+                    start_epoch,
+                    end_epoch,
+                    economics,
+                    domain_params,
+                    merkle_proof,
+                    storage_root,
+                    response,
+                } => {
+                    let _ = response.send(self.blockchain.open_storage_deal_with_escrow(
+                        domain_id,
+                        &manifest,
+                        shard_id,
+                        operator,
+                        payer,
+                        replica_index,
+                        start_epoch,
+                        end_epoch,
+                        economics,
+                        &domain_params,
+                        merkle_proof,
+                        storage_root,
+                    ));
+                }
                 ChainCommand::IssueStorageChallenges(epoch, res_tx) => {
                     let res = self.blockchain.issue_storage_challenges(epoch);
                     let _ = res_tx.send(res);
@@ -1473,6 +1669,29 @@ impl ChainActor {
                         .cloned()
                         .collect();
                     let _ = res_tx.send(deals);
+                }
+                ChainCommand::GetStorageEconomicsEvents(res_tx) => {
+                    let events = self.blockchain.storage_economics_events().to_vec();
+                    let _ = res_tx.send(events);
+                }
+                ChainCommand::GetStorageEconomicsSummary(res_tx) => {
+                    let operator_rewards: Vec<_> = self
+                        .blockchain
+                        .storage_operator_rewards
+                        .iter()
+                        .map(|(operator, amount)| {
+                            serde_json::json!({
+                                "operator": operator.to_string(),
+                                "amount": amount,
+                            })
+                        })
+                        .collect();
+                    let _ = res_tx.send(serde_json::json!({
+                        "slashedBondTotal": self.blockchain.storage_slashed_bond_total,
+                        "burnedBondTotal": self.blockchain.storage_burned_bond_total,
+                        "operatorRewards": operator_rewards,
+                        "eventCount": self.blockchain.storage_economics_events().len(),
+                    }));
                 }
                 ChainCommand::GetStorageChallenges(res_tx) => {
                     let challenges = self

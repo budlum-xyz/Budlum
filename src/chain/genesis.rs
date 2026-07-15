@@ -119,6 +119,7 @@ impl GenesisConfig {
             vrf_output: Vec::new(),
             vrf_proof: Vec::new(),
             validator_set_hash: self.validator_set_hash(),
+            storage_root: None,
         };
 
         block.tx_root = block.calculate_tx_root();
@@ -186,16 +187,78 @@ fn address(byte: u8) -> Address {
     Address::from([byte; 32])
 }
 
+// === MAINNET GENESIS — ADIM3 §3.1 ===
+
+/// Mainnet genesis configuration.
+///
+/// Key characteristics:
+/// - **Timestamp: TBD** — set to 0, actual launch timestamp configured separately
+/// - **Permissionless validators** — validator set starts empty, registered via §3.5 permissionless.rs
+/// - **Full $BUD tokenomics** — 100M fixed supply, 6 decimals, 2 burn mechanisms
+///
+/// Token distribution (100M total, 6 decimals = 10^14 base units):
+/// - 10M Community (dev + users)
+/// - 10M Liquidity (DEX provisioning)
+/// - 20M Ecosystem (grants, incentives)
+/// - 20M Team (1-year cliff, 4-year linear vesting)
+/// - 40M Burn Reserve (10% annual burn)
+///
+/// Economics:
+/// - Block reward: 50 BUD
+/// - Validator APY: 5%
+/// - Metabolic burn: 1% of tx fees
 pub fn mainnet_genesis() -> GenesisConfig {
+    use crate::core::chain_config::FIXED_POINT_SCALE;
+    use crate::tokenomics::bud;
+
+    // Full tokenomics params — 100M fixed supply
+    let tokenomics = crate::tokenomics::TokenomicsParams {
+        community: bud(10_000_000),    // 10M - community/dev
+        liquidity: bud(10_000_000),    // 10M - liquidity provisioning
+        ecosystem: bud(20_000_000),    // 20M - ecosystem growth
+        team: bud(20_000_000),         // 20M - team (vesting)
+        burn_reserve: bud(40_000_000), // 40M - burn reserve
+
+        // 10% annual burn of reserve (~10 years to burn 40M)
+        epochs_per_year: 52560, // 1 year in epochs (10s slot, 32 slots/epoch)
+        annual_burn_ratio_fixed: FIXED_POINT_SCALE / 10,
+
+        // Team vesting: 1-year cliff + 4-year linear
+        team_cliff_epochs: 52560,    // 1 year cliff
+        team_vesting_epochs: 210240, // 4 years linear
+
+        // 1% metabolic burn (symbolic, tunable)
+        tx_fee_burn_ratio_fixed: FIXED_POINT_SCALE / 100,
+
+        // Block emission: 50 BUD per block
+        block_reward: 50,
+
+        // Stake yield: 5% APY
+        validator_annual_yield_ratio_fixed: (FIXED_POINT_SCALE * 5) / 100,
+        slot_duration_secs: 10,
+        epoch_length_slots: 32,
+    };
+
     GenesisConfig {
         chain_id: Network::Mainnet.chain_id().value(),
-        allocations: vec![(address(0x10), 500_000_000), (address(0x11), 500_000_000)],
-        validators: vec![address(0x20), address(0x21), address(0x22), address(0x23)],
-        block_reward: 25,
+
+        // TBD: Actual launch timestamp configured at deployment time
+        // Set to 0 until launch date is determined
+        timestamp: 0,
+
+        // Permissionless: validator set starts empty
+        // Validators register via §3.5 permissionless.rs onboarding flow
+        validators: vec![],
+
+        // Token allocations handled by tokenomics (bud_tokenomics field)
+        allocations: vec![],
+
+        block_reward: 50,
         base_fee: Network::Mainnet.gas_schedule().base_fee,
         gas_schedule: Network::Mainnet.gas_schedule(),
-        timestamp: 1_735_689_600_000,
-        bud_tokenomics: None,
+
+        // Full tokenomics active
+        bud_tokenomics: Some(tokenomics),
     }
 }
 
@@ -258,9 +321,17 @@ mod tests {
         let devnet = GenesisConfig::for_network(Network::Devnet);
 
         assert_ne!(mainnet.chain_id, testnet.chain_id);
-        assert_ne!(mainnet.block_reward, devnet.block_reward);
-        assert_ne!(mainnet.validators, testnet.validators);
+        assert_ne!(mainnet.chain_id, devnet.chain_id);
+        // Mainnet uses full tokenomics; testnet/devnet do not.
+        assert!(mainnet.bud_tokenomics.is_some());
+        assert!(testnet.bud_tokenomics.is_none());
+        assert!(devnet.bud_tokenomics.is_none());
+        // Mainnet is permissionless (empty validators); testnet/devnet seed validators.
+        assert!(mainnet.validators.is_empty());
+        assert!(!testnet.validators.is_empty());
+        assert!(!devnet.validators.is_empty());
         assert_ne!(mainnet.gas_schedule, testnet.gas_schedule);
+        assert_ne!(mainnet.gas_schedule, devnet.gas_schedule);
     }
 
     #[test]
@@ -301,5 +372,218 @@ mod tests {
         assert_ne!(block.state_root, "0".repeat(64));
         assert_ne!(block.validator_set_hash, "0".repeat(64));
         assert_eq!(block.hash, block.calculate_hash());
+    }
+
+    #[test]
+    fn test_mainnet_genesis_deterministic() {
+        // ADIM3 §3.1: mainnet genesis must be deterministic — same config → same hash
+        let cfg = GenesisConfig::for_network(Network::Mainnet);
+        let g1 = cfg.build_genesis_block();
+        let g2 = cfg.build_genesis_block();
+        assert_eq!(g1.hash, g2.hash);
+        assert_eq!(g1.chain_id, Network::Mainnet.chain_id().value());
+        assert_eq!(g1.hash, g1.calculate_hash());
+    }
+
+    #[test]
+    fn test_mainnet_genesis_hash_distinct_from_testnet_devnet() {
+        // ADIM3 §3.1: distinct networks must produce distinct genesis hashes
+        let mainnet = GenesisConfig::for_network(Network::Mainnet).build_genesis_block();
+        let testnet = GenesisConfig::for_network(Network::Testnet).build_genesis_block();
+        let devnet = GenesisConfig::for_network(Network::Devnet).build_genesis_block();
+        assert_ne!(mainnet.hash, testnet.hash);
+        assert_ne!(mainnet.hash, devnet.hash);
+        assert_ne!(testnet.hash, devnet.hash);
+    }
+
+    /// Load a checked-in network genesis JSON (ADIM3 §3.1).
+    fn load_genesis_json(relative: &str) -> GenesisConfig {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative);
+        let data = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+        serde_json::from_str(&data)
+            .unwrap_or_else(|e| panic!("failed to parse {}: {e}", path.display()))
+    }
+
+    #[test]
+    fn test_mainnet_genesis_params() {
+        // ARENA1 e20397c design: permissionless validators + full $BUD tokenomics.
+        let config = mainnet_genesis();
+        assert_eq!(config.chain_id, 1);
+        assert_eq!(config.block_reward, 50);
+        assert_eq!(config.base_fee, Network::Mainnet.gas_schedule().base_fee);
+        assert_eq!(config.gas_schedule, Network::Mainnet.gas_schedule());
+        assert!(config.allocations.is_empty());
+        assert!(config.validators.is_empty());
+        assert!(config.bud_tokenomics.is_some());
+        assert!(config.bud_tokenomics.unwrap().is_balanced());
+        assert_eq!(config.timestamp, 0);
+    }
+
+    #[test]
+    fn test_mainnet_genesis_json_matches_code() {
+        // Critical: config/mainnet-genesis.json must equal mainnet_genesis() hash.
+        let from_code = mainnet_genesis();
+        let from_json = load_genesis_json("config/mainnet-genesis.json");
+
+        assert_eq!(from_json.chain_id, from_code.chain_id);
+        assert_eq!(from_json.allocations, from_code.allocations);
+        assert_eq!(from_json.validators, from_code.validators);
+        assert_eq!(from_json.block_reward, from_code.block_reward);
+        assert_eq!(from_json.base_fee, from_code.base_fee);
+        assert_eq!(from_json.gas_schedule, from_code.gas_schedule);
+        assert_eq!(from_json.timestamp, from_code.timestamp);
+        assert_eq!(from_json.bud_tokenomics, from_code.bud_tokenomics);
+
+        let code_block = from_code.build_genesis_block();
+        let json_block = from_json.build_genesis_block();
+        assert_eq!(
+            code_block.hash, json_block.hash,
+            "config/mainnet-genesis.json must produce the same genesis hash as mainnet_genesis()"
+        );
+        assert_eq!(code_block.state_root, json_block.state_root);
+        assert_eq!(code_block.validator_set_hash, json_block.validator_set_hash);
+    }
+
+    #[test]
+    fn test_testnet_and_devnet_genesis_json_match_code() {
+        for (network, path) in [
+            (Network::Testnet, "config/testnet-genesis.json"),
+            (Network::Devnet, "config/devnet-genesis.json"),
+        ] {
+            let from_code = GenesisConfig::for_network(network);
+            let from_json = load_genesis_json(path);
+            assert_eq!(from_json.chain_id, from_code.chain_id, "{path}");
+            assert_eq!(from_json.allocations, from_code.allocations, "{path}");
+            assert_eq!(from_json.validators, from_code.validators, "{path}");
+            assert_eq!(from_json.block_reward, from_code.block_reward, "{path}");
+            assert_eq!(from_json.gas_schedule, from_code.gas_schedule, "{path}");
+            assert_eq!(from_json.timestamp, from_code.timestamp, "{path}");
+            assert_eq!(
+                from_code.build_genesis_block().hash,
+                from_json.build_genesis_block().hash,
+                "{path} genesis hash mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn test_mainnet_genesis_json_roundtrip() {
+        let original = mainnet_genesis();
+        let encoded = serde_json::to_string_pretty(&original).expect("serialize");
+        let decoded: GenesisConfig = serde_json::from_str(&encoded).expect("deserialize");
+        assert_eq!(original.chain_id, decoded.chain_id);
+        assert_eq!(original.allocations, decoded.allocations);
+        assert_eq!(original.validators, decoded.validators);
+        assert_eq!(
+            original.build_genesis_block().hash,
+            decoded.build_genesis_block().hash
+        );
+    }
+}
+
+// === MAINNET GENESIS TESTS — ADIM3 §3.1 ===
+
+#[cfg(test)]
+mod mainnet_genesis_tests {
+    use super::*;
+
+    #[test]
+    fn test_mainnet_genesis_tokenomics_balanced() {
+        // Mainnet must have tokenomics and it must sum to 100M
+        let config = mainnet_genesis();
+        assert!(
+            config.bud_tokenomics.is_some(),
+            "Mainnet must have tokenomics"
+        );
+        let params = config.bud_tokenomics.unwrap();
+        assert!(params.is_balanced(), "Tokenomics must sum to 100M BUD");
+    }
+
+    #[test]
+    fn test_mainnet_genesis_permissionless_validators() {
+        // Mainnet starts with empty validator set (permissionless)
+        let config = mainnet_genesis();
+        assert!(
+            config.validators.is_empty(),
+            "Mainnet starts with permissionless validators"
+        );
+    }
+
+    #[test]
+    fn test_mainnet_genesis_deterministic() {
+        // Genesis block hash must be deterministic
+        let config = mainnet_genesis();
+        let genesis1 = config.build_genesis_block();
+        let genesis2 = config.build_genesis_block();
+
+        assert_eq!(
+            genesis1.hash, genesis2.hash,
+            "Genesis hash must be deterministic"
+        );
+        assert_eq!(
+            genesis1.state_root, genesis2.state_root,
+            "State root must be deterministic"
+        );
+    }
+
+    #[test]
+    fn test_mainnet_genesis_token_distribution() {
+        use crate::tokenomics::{Allocation, BUD_TOTAL_SUPPLY};
+
+        let config = mainnet_genesis();
+        let params = config.bud_tokenomics.unwrap();
+
+        // Verify distribution sums to 100M
+        assert_eq!(
+            params.total(),
+            BUD_TOTAL_SUPPLY,
+            "Tokenomics must total 100M (100_000_000 * 10^6)"
+        );
+
+        // Verify individual allocations
+        assert_eq!(
+            params.amount_of(Allocation::Community),
+            crate::tokenomics::bud(10_000_000)
+        );
+        assert_eq!(
+            params.amount_of(Allocation::Liquidity),
+            crate::tokenomics::bud(10_000_000)
+        );
+        assert_eq!(
+            params.amount_of(Allocation::Ecosystem),
+            crate::tokenomics::bud(20_000_000)
+        );
+        assert_eq!(
+            params.amount_of(Allocation::Team),
+            crate::tokenomics::bud(20_000_000)
+        );
+        assert_eq!(
+            params.amount_of(Allocation::BurnReserve),
+            crate::tokenomics::bud(40_000_000)
+        );
+    }
+
+    #[test]
+    fn test_mainnet_genesis_economics_params() {
+        use crate::core::chain_config::FIXED_POINT_SCALE;
+
+        let config = mainnet_genesis();
+        let params = config.bud_tokenomics.unwrap();
+
+        // Block reward: 50 BUD
+        assert_eq!(params.block_reward, 50);
+
+        // Annual burn: 10%
+        assert_eq!(params.annual_burn_ratio_fixed, FIXED_POINT_SCALE / 10);
+
+        // Validator APY: 5%
+        assert_eq!(
+            params.validator_annual_yield_ratio_fixed,
+            (FIXED_POINT_SCALE * 5) / 100
+        );
+
+        // Metabolic burn: 1%
+        assert_eq!(params.tx_fee_burn_ratio_fixed, FIXED_POINT_SCALE / 100);
     }
 }

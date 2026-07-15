@@ -66,7 +66,12 @@ pub mod roles {
     /// permissionless (the deal's `operator_bond` is the only gate, see
     /// `domain::storage_deal::StorageRegistry::open_deal`). Registering as
     /// `STORAGE_OPERATOR` is only required to be eligible for the
-    /// per-deal reward stream and `bud_storageActiveOperators` listing.
+    /// per-deal reward stream.
+    ///
+    /// **Note (ADIM3 §0.3, fixed by ARENA3 2026-07-15):** `bud_storageActiveOperators`
+    /// RPC is now implemented (`src/rpc/api.rs` + `server.rs`) — queries active
+    /// `PermissionlessRegistry` members for `RoleId(5)`. Previously it was ghost
+    /// docs only.
     ///
     /// Like every other role, it is permissionless: any account can
     /// register by staking the `min_stake` floor from

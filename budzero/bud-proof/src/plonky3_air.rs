@@ -670,23 +670,23 @@ impl<AB: PermutationAirBuilder> Air<AB> for BudAir {
             .when(on_original.clone())
             .assert_zero(rd_val_new.clone() - eq);
 
-        // Tur 10.6 Commit 3, leaf binding: the first expansion
-        // row (round 0) must have merkle_current = the original
-        // step's leaf (rs2_val). This is the missing link that
-        // lets the Poseidon single-round transition propagate
-        // the leaf up through 64 rounds. We bind it as a
-        // transition constraint on the original step (where
-        // is_verify_merkle = 1) → next row (the first expansion
-        // row, where nxt_is_expand = 1 and nxt_merkle_round = 0).
+        // Tur 10.6 Commit 3 + ARENA2 ADIM4 fix: leaf binding and first-round
+        // index must fire ONLY on the *original* VerifyMerkle step.
+        // Expansion rows reuse Opcode::VerifyMerkle so is_verify_merkle=1 on
+        // them too; without (1 - is_expand) the constraint wrongly forces
+        // every expand→expand transition to set nxt_merkle_current = rs2_val
+        // (0 on expansion steps) and nxt_round = 0 — which breaks valid proofs.
+        //
+        // Leaf binding: original → first expansion: nxt.merkle_current = leaf.
         builder
             .when_transition()
-            .when(is_verify_merkle.clone())
+            .when(on_original.clone())
             .when(nxt_is_expand.clone())
             .assert_zero(nxt_merkle_current.clone() - rs2_val.clone());
         // First expansion row round index must be 0.
         builder
             .when_transition()
-            .when(is_verify_merkle.clone())
+            .when(on_original.clone())
             .when(nxt_is_expand.clone())
             .assert_zero(nxt[COL_VM_MERKLE_ROUND].into());
 

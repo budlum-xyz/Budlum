@@ -562,6 +562,16 @@ impl Vm {
                 // re-derives it independently in Commit 2.
                 // Tur 13 / Z-B 3.5: expansion rows carry the *pre-round*
                 // accumulator so AIR can check nxt = poseidon(cur, sibling).
+                // ARENA2 ADIM4: expansion rows share the original PC and must
+                // keep next_pc == pc until the final expansion, which hands
+                // off to the real next instruction (pc+1). The AIR enforces
+                // `nxt_pc == next_pc` on every cpu row; setting next_pc=pc+1
+                // on intermediate expansions makes nxt_pc (still pc) fail.
+                // Also patch the original step's next_pc to stay on this pc
+                // so original → first expansion satisfies the same rule.
+                if let Some(last) = self.trace.last_mut() {
+                    last.next_pc = cur_pc;
+                }
                 let mut current = src2_val; // leaf input to round 0
                 for i in 0..64u8 {
                     let sibling_addr = path_addr + 8 + (i as usize) * 8;
@@ -575,9 +585,10 @@ impl Vm {
                     } else {
                         merkle_poseidon_round(sibling, input)
                     };
+                    let expand_next_pc = if i == 63 { cur_pc + 1 } else { cur_pc };
                     self.trace.push(Step {
                         pc: cur_pc,
-                        next_pc: cur_pc + 1, // expansion rows don't move pc
+                        next_pc: expand_next_pc,
                         instruction: Instruction {
                             opcode: Opcode::VerifyMerkle, // reused; merkle_is_expand marks it
                             rd: 0,

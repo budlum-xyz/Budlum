@@ -44,6 +44,7 @@ pub mod liveness_consensus;
 #[cfg(test)]
 pub mod permissionless;
 #[cfg(test)]
+#[cfg(test)]
 pub mod persistence;
 #[cfg(test)]
 pub mod pow_light_client;
@@ -57,3 +58,5 @@ pub mod settlement_prod;
 pub mod tokenomics;
 #[cfg(test)]
 pub mod zkvm;
+#[cfg(test)]
+pub mod disaster_recovery;

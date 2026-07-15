@@ -38,6 +38,12 @@ use serde::{Deserialize, Serialize};
 /// `opener` as the resolved `Address` and `opener_bond` already debited
 /// from the caller's stake) from the request (which is the raw caller
 /// intent).
+///
+/// **Security (ADIM3 §0.2):** `opener_signature` is mandatory on Mainnet.
+/// The RPC layer verifies that the `opener` address has signed the
+/// challenge intent; without this, any caller could self-report any
+/// address as the opener, making the `opener_bond` anti-spam gate
+/// economically meaningless.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RetrievalChallengeRequest {
     pub deal_id: u64,
@@ -48,6 +54,11 @@ pub struct RetrievalChallengeRequest {
     pub opener_bond: u64,
     #[serde(default)]
     pub opener: Option<crate::core::address::Address>,
+    /// Ed25519 signature over `hash_fields_bytes(["BUD_OPEN_CHALLENGE_V1",
+    /// deal_id, byte_start, byte_end, challenge_epoch, deadline_epoch,
+    /// opener_bond, opener])`. 64 bytes.
+    #[serde(default)]
+    pub opener_signature: Option<Vec<u8>>,
 }
 
 /// Lifecycle status of a `StorageDeal`. Reuses the same enum-tag
@@ -80,8 +91,28 @@ pub struct StorageEconomicsParams {
 /// A storage deal binding an operator to host a specific shard of a
 /// specific manifest. One shard may have multiple deals (replication =
 /// different `replica_index`).
+fn default_merkle_depth() -> u8 {
+    64
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StorageDeal {
+    // === B.U.D. Faz 3: Merkle Proof (ADIM4) ===
+
+    // 64-depth Merkle proof serialized as [leaf || siblings || path_bits].
+    // Present when `verify_merkle = Some(...)`.
+    // None = interim challenge mode (Faz 2 compatibility).
+    #[serde(default)]
+    pub merkle_proof: Option<Vec<u8>>,
+
+    // The global storage root this proof was verified against.
+    // Must match `GlobalBlockHeader.storage_root`.
+    #[serde(default)]
+    pub storage_root: Option<Hash32>,
+
+    // Proof depth: 64 for full verification.
+    #[serde(default = "default_merkle_depth")]
+    pub merkle_depth: u8,
     pub deal_id: u64,
     pub domain_id: u32,
     pub manifest_id: ContentId,
@@ -138,12 +169,22 @@ pub struct RetrievalChallenge {
 /// equal `ContentId::of_subrange(shard, byte_start, byte_end)`. The
 /// chain does not hold the shard bytes; verification is done by
 /// whoever inspects the response off-chain.
+///
+/// **Security (ADIM3 §0.2):** `responder_signature` is mandatory on Mainnet.
+/// The RPC layer verifies that the `responder` (the deal's operator)
+/// has signed the response intent; without this, any caller could
+/// self-report the operator address and answer a challenge on their
+/// behalf, bypassing the `NotTheOperator` registry check.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RetrievalResponse {
     pub challenge_id: u64,
     pub _range_hash: ContentId,
     pub responder: Address,
     pub response_epoch: u64,
+    /// Ed25519 signature over `hash_fields_bytes(["BUD_ANSWER_CHALLENGE_V1",
+    /// challenge_id, range_hash, responder, response_epoch])`. 64 bytes.
+    #[serde(default)]
+    pub responder_signature: Option<Vec<u8>>,
 }
 
 /// The outcome of a finalized challenge. `Missed` is the only path that
@@ -335,7 +376,13 @@ impl StorageRegistry {
         end_epoch: u64,
         economics: StorageEconomicsParams,
         domain_params: &StorageDomainParams,
+        // === B.U.D. Faz 3: Merkle Proof (ADIM4) ===
+        // Optional in Faz 2 (interim); required in Faz 3 once VerifyMerkle gate opens.
+        merkle_proof: Option<Vec<u8>>,
+        storage_root: Option<Hash32>,
     ) -> Result<u64, StorageError> {
+        // NOTE: merkle_proof and storage_root are optional in Faz 2 (interim).
+        // In Faz 3 (ADIM4), they will be required.
         if start_epoch >= end_epoch {
             return Err(StorageError::InvalidEpochRange {
                 start: start_epoch,
@@ -365,6 +412,9 @@ impl StorageRegistry {
             deal_start_epoch: start_epoch,
             deal_end_epoch: end_epoch,
             status: DealStatus::Active,
+            merkle_proof,
+            storage_root,
+            merkle_depth: 64,
         };
 
         self.deals.insert(deal_id, deal);
@@ -661,6 +711,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         (id, shard_id)
@@ -682,6 +734,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap_err();
         assert!(matches!(err, StorageError::UnknownShard { .. }));
@@ -703,6 +757,8 @@ mod tests {
                 100,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap_err();
         assert!(matches!(err, StorageError::InvalidEpochRange { .. }));
@@ -716,7 +772,19 @@ mod tests {
         let mut econ = good_econ();
         econ.operator_bond = 1; // way below min_operator_bond
         let err = reg
-            .open_deal(42, &m, shard_id, operator(), 0, 100, 200, econ, &params())
+            .open_deal(
+                42,
+                &m,
+                shard_id,
+                operator(),
+                0,
+                100,
+                200,
+                econ,
+                &params(),
+                None,
+                None,
+            )
             .unwrap_err();
         assert!(matches!(err, StorageError::InsufficientBond { .. }));
     }
@@ -737,6 +805,8 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         let id2 = reg
@@ -750,11 +820,38 @@ mod tests {
                 200,
                 good_econ(),
                 &params(),
+                None,
+                None,
             )
             .unwrap();
         assert_ne!(id1, id2);
-        assert_eq!(reg.deals_for_shard(&m.manifest_id, &shard_id).len(), 2);
-        assert_eq!(reg.deals_for_manifest(&m.manifest_id).len(), 2);
+
+        // Test with merkle proof (Faz 3 mode)
+        let shard_id = m.shards[0].shard_id;
+        let id3 = reg
+            .open_deal(
+                42,
+                &m,
+                shard_id,
+                operator(),
+                2,
+                100,
+                200,
+                good_econ(),
+                &params(),
+                Some(vec![0u8; 100]), // merkle_proof: Faz 3 proof
+                Some([0x42u8; 32]),   // storage_root
+            )
+            .unwrap();
+        assert_ne!(id2, id3);
+
+        // Verify merkle proof is stored
+        let deal3 = reg.get_deal(id3).unwrap();
+        assert!(deal3.merkle_proof.is_some());
+        assert!(deal3.storage_root.is_some());
+        assert_eq!(deal3.merkle_depth, 64);
+        assert_eq!(reg.deals_for_shard(&m.manifest_id, &shard_id).len(), 3);
+        assert_eq!(reg.deals_for_manifest(&m.manifest_id).len(), 3);
     }
 
     #[test]

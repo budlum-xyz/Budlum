@@ -434,7 +434,7 @@ mod rpc_tests {
 
     #[tokio::test]
     async fn test_storage_rpc_full_lifecycle_register_deal_challenge_answer() {
-        let (server, _) = setup().await;
+        let (server, bc) = setup().await;
         let manifest = crate::storage::ContentManifest::from_bytes_sliced(
             b"hello storage rpc lifecycle test",
             16,
@@ -454,13 +454,21 @@ mod rpc_tests {
             .unwrap();
         assert_eq!(get_man["found"], true);
 
-        let op = Address::from([7u8; 32]);
+        let op_keypair = crate::crypto::primitives::KeyPair::generate().unwrap();
+        let op = Address::from(op_keypair.public_key_bytes());
+        let payer = Address::from([8u8; 32]);
+
+        // Give payer and operator enough balance for deal fees and bond
+        bc.add_balance(&payer, 100_000_000).await;
+        bc.add_balance(&op, 100_000_000).await;
+
         let deal_res = server
             .storage_open_deal(
                 1,
                 manifest.clone(),
                 format!("0x{}", hex::encode(s_id.0)),
                 format!("0x{}", op.to_hex()),
+                format!("0x{}", payer.to_hex()),
                 0,
                 10,
                 100,
@@ -469,10 +477,26 @@ mod rpc_tests {
                     fee_per_epoch: 10,
                 },
                 crate::domain::storage_params::StorageDomainParams::default(),
+                None,
+                None,
             )
             .await
             .unwrap();
         let deal_id = deal_res["dealId"].as_u64().unwrap();
+
+        let watcher_keypair = crate::crypto::primitives::KeyPair::generate().unwrap();
+        let watcher = Address::from(watcher_keypair.public_key_bytes());
+        let open_msg = crate::core::hash::hash_fields_bytes(&[
+            b"BUD_OPEN_CHALLENGE_V1",
+            &deal_id.to_le_bytes(),
+            &0u64.to_le_bytes(),
+            &15u64.to_le_bytes(),
+            &15u64.to_le_bytes(),
+            &25u64.to_le_bytes(),
+            &50u64.to_le_bytes(),
+            watcher.as_bytes(),
+        ]);
+        let open_sig = watcher_keypair.sign(&open_msg).to_vec();
 
         let chal_res = server
             .storage_open_challenge(crate::domain::storage_deal::RetrievalChallengeRequest {
@@ -482,11 +506,21 @@ mod rpc_tests {
                 challenge_epoch: 15,
                 deadline_epoch: 25,
                 opener_bond: 50,
-                opener: Some(Address::from([8u8; 32])),
+                opener: Some(watcher),
+                opener_signature: Some(open_sig),
             })
             .await
             .unwrap();
         let challenge_id = chal_res["challengeId"].as_u64().unwrap();
+
+        let answer_msg = crate::core::hash::hash_fields_bytes(&[
+            b"BUD_ANSWER_CHALLENGE_V1",
+            &challenge_id.to_le_bytes(),
+            &[0u8; 32],
+            op.as_bytes(),
+            &18u64.to_le_bytes(),
+        ]);
+        let answer_sig = op_keypair.sign(&answer_msg).to_vec();
 
         let ans_res = server
             .storage_answer_challenge(crate::domain::storage_deal::RetrievalResponse {
@@ -494,9 +528,64 @@ mod rpc_tests {
                 _range_hash: crate::storage::content_id::ContentId([0u8; 32]),
                 responder: op,
                 response_epoch: 18,
+                responder_signature: Some(answer_sig),
             })
             .await
             .unwrap();
         assert_eq!(ans_res["outcome"], "Answered");
+    }
+
+    #[tokio::test]
+    async fn test_storage_economics_rpc_reports_chain_actor_state() {
+        let (server, _) = setup().await;
+
+        let summary = server.storage_get_economics_summary().await.unwrap();
+        assert_eq!(summary["slashedBondTotal"], serde_json::json!(0));
+        assert_eq!(summary["burnedBondTotal"], serde_json::json!(0));
+        assert_eq!(summary["eventCount"], serde_json::json!(0));
+
+        let events = server.storage_get_economics_events().await.unwrap();
+        assert_eq!(events["count"], serde_json::json!(0));
+        assert!(events["events"].as_array().unwrap().is_empty());
+    }
+
+    /// ADIM3 §0.3: empty registry → count 0, empty operators list.
+    #[tokio::test]
+    async fn adim3_storage_active_operators_empty() {
+        let (server, _) = setup().await;
+        let res = server.storage_active_operators().await.unwrap();
+        assert_eq!(res["roleId"], serde_json::json!(5));
+        assert_eq!(res["role"], "storage_operator");
+        assert_eq!(res["count"], serde_json::json!(0));
+        assert!(res["operators"].as_array().unwrap().is_empty());
+    }
+
+    /// ADIM3 §0.3: registered STORAGE_OPERATOR appears in RPC listing.
+    #[tokio::test]
+    async fn adim3_storage_active_operators_lists_registered() {
+        let (server, chain) = setup().await;
+
+        let operator = Address::from_hex(&"0a".repeat(32)).unwrap();
+        let min_stake = 1_000u64; // PermissionlessRegistry default floor
+        chain.add_balance(&operator, min_stake * 2).await;
+        chain
+            .bond_storage_operator(operator, min_stake)
+            .await
+            .expect("bond_storage_operator must succeed with sufficient balance");
+
+        let res = server.storage_active_operators().await.unwrap();
+        assert_eq!(res["roleId"], serde_json::json!(5));
+        assert_eq!(res["role"], "storage_operator");
+        assert_eq!(res["count"], serde_json::json!(1));
+        let ops = res["operators"].as_array().unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0]["role"], "storage_operator");
+        assert_eq!(ops[0]["stake"], serde_json::json!(min_stake));
+        let listed = ops[0]["address"].as_str().unwrap().to_lowercase();
+        assert!(
+            listed.contains(&operator.to_hex().to_lowercase())
+                || listed.contains(&format!("0x{}", operator.to_hex()).to_lowercase()),
+            "listed address {listed} must match operator"
+        );
     }
 }

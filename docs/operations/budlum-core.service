@@ -1,0 +1,55 @@
+# Budlum Core systemd unit file
+# Installation: sudo cp budlum-core.service /etc/systemd/system/
+# Configuration: edit /etc/budlum/config.toml
+# Start: sudo systemctl enable --now budlum-core
+# Status: sudo systemctl status budlum-core
+# Logs: journalctl -u budlum-core -f
+
+[Unit]
+Description=Budlum Core Node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=budlum
+Group=budlum
+WorkingDirectory=/var/lib/budlum
+
+# Environment variables
+Environment=RUST_LOG=info
+Environment=BUDLUM_HOME=/var/lib/budlum
+Environment=BUDLUM_CONFIG=/etc/budlum/config.toml
+
+# Binary path
+ExecStart=/usr/local/bin/budlum-core \
+    --config /etc/budlum/config.toml \
+    --data-dir /var/lib/budlum/data
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+LimitNOFILE=65536
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/var/lib/budlum/data
+ReadWritePaths=/etc/budlum
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=budlum-core
+
+# Health check
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/bin/systemctl kill --signal=SIGTERM --kill-of=%n
+
+# Graceful shutdown
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

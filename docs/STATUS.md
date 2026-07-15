@@ -1,7 +1,7 @@
 # STATUS — ADIM 2 Güncel Denetim Notu (2026-07-15)
 
 **Aktif çalışma dalı:** `arena/019f630c-budlum`  
-**Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy gate,
+**Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy/tooling,
 §1.3 Finality live-path, §1.4 ConsensusStateV2 migration iskeleti, §1.5
 External audit checklist, §1.6 README roadmap kapanış tablosu, §1.7 Fuzzing +
 dependency audit + SBOM.
@@ -10,9 +10,9 @@ dependency audit + SBOM.
 
 | Görev | Durum | Kanıt |
 |------|-------|-------|
-| §1.1 BLS/PQ HSM policy gate | ✅ PR kapsamına alındı | `ConsensusSigner` BLS/PQ capability metotları, mainnet fail-closed gate, `docs/operations/HSM_BLS_PQ_POLICY.md` |
+| §1.1 BLS/PQ HSM policy/tooling | ✅ PR kapsamına alındı | `src/crypto/hsm_mock.rs` main entegrasyonu, mainnet disk-key fail-closed policy, `docs/operations/HSM_BLS_PQ_POLICY.md` |
 | §1.3 Finality live-path son taraması | ✅ PR kapsamına alındı | `src/tests/finality_live_path.rs`, `docs/operations/FINALITY_LIVE_PATH.md` |
-| §1.4 ConsensusStateV2 migration iskeleti | ✅ PR kapsamına alındı | `StateSnapshotV2::migration_report()`, schema window constants, `--migrate-v2` backup gate, `docs/operations/MIGRATION_V2.md` |
+| §1.4 ConsensusStateV2 migration iskeleti | ✅ PR kapsamına alındı | `StateSnapshotV2::from_bytes()` schema window, `--migrate-v2` backup gate, `docs/operations/MIGRATION_V2.md` |
 | §1.5 External audit checklist | ✅ Güncellendi | `docs/AUDIT_CHECKLIST.md` — audit yapılmadı iddiası korunuyor |
 | §1.6 README roadmap kapanış tablosu | ✅ Güncellendi | `README.md` Research Roadmap Status tablosu ADIM 2 §1.3-§1.7 durumlarını yansıtıyor |
 | §1.7 Fuzzing + dependency audit + SBOM | ✅ Tooling/prosedür hazır | `fuzz/`, `scripts/audit-deps.sh`, `scripts/generate-sbom.sh`, `docs/operations/DEPENDENCY_AUDIT.md`, `docs/operations/SBOM.md` |
@@ -22,6 +22,18 @@ dependency audit + SBOM.
 PR üzerindeki GitHub Actions CI ve PR denetimi zorunlu kanıt kabul edilir.
 
 ---
+
+## B.U.D. Faz 5 economics accounting devamı (2026-07-15)
+
+PR #10 üzerine eklenen sonraki görev: storage economics gerçek muhasebe yüzeyi.
+
+| Alan | Durum | Kanıt |
+|------|-------|-------|
+| Operator reward accrual | ✅ | `Blockchain::accrue_storage_operator_rewards` operatör bakiyesini ve per-operator ledger'ı günceller |
+| Slashed bond accounting | ✅ | `finalize_missed_storage_challenges` slashed bond toplamını ve actual burned amount'u kaydeder |
+| Event report / gossip adapter yüzeyi | ✅ | `StorageEconomicsEvent` + `ChainHandle::get_storage_economics_events/summary` |
+| ChainActor otomatik bakım | ✅ | Blok üretim/doğrulama sonrası reward accrual + challenge issuance + missed finalization çalışır |
+
 
 # Durum Raporu — Statik denetim kayıtları (AI birliği şeması)
 
@@ -191,3 +203,99 @@ gh pr checks 6
 PR #4 (§1.3 Finality live-path test genişletmesi) → §1.4 ConsensusStateV2 → §1.1 BLS/PQ HSM. **B.U.D. Faz 1-2 (pr-7) zaten tamamlandı (`ffb66e9` + `39e30c7`); Tur 15 §1.2 "mainnet launch'a dahil mi" sorusu Tur 15 kapanışında değerlendirilecek.**
 
 Handoff: `docs/STATUS_ONLINE.md` üzerinden diğer AI ile anlık konuşma.
+
+
+---
+
+# STATUS — ADIM 3 Güncel Denetim Notu (2026-07-15, ARENA2)
+
+**HEAD:** `44fe0f0`  
+**CI:** ✅ success (Budlum Core + BudZero, run 29390549071)  
+**Aktif aşama:** **ADIM 3** — Mainnet v1 lansman hazırlığı + B.U.D. güvenlik/escrow kapanışları  
+**Plan dosyası:** `docs/ADIM3_PLAN_VE_GOREV_DAGILIMI.md` (force-push sonrası yeniden derlendi)
+
+## ADIM3 kapanış matrisi
+
+| Görev | Durum | Kanıt |
+|------|-------|-------|
+| §0.1 cert.verify() StorageAttestation | ✅ | `49b6b46` / `65d0446` |
+| §0.2 challenge signature enforcement | ✅ | `aa8feab` |
+| §0.3 bud_storageActiveOperators RPC | 🟡 docs only | `f7b359e` — implementasyon açık |
+| §0.4 Mock HSM kaldırıldı | ✅ | `433ab58` |
+| §3.6 BUD_INTERIM.md | ✅ | `5321c28` |
+| Faz 5 escrow + RPC registry sync | ✅ | `f2b8075` + `44fe0f0` |
+| §3.1–3.5 mainnet launch paketi | 🟡/❌ açık | MAINNET_READINESS |
+| Faz 3 VerifyMerkle | 🔒 ADIM4 | production gate |
+| Faz 6 BNS/.bud | 🔒 ADIM5+ | — |
+
+## Org roadmap dürüst özet
+
+Budlumdevnet / Budlumdevnet2 / B.U.D. / BudZero yol haritasının **kodlanabilir** ana gövdesi monorepo `budlum-xyz/budlum` içinde karşılanıyor.
+**Bitmedi** sayılanlar: harici audit, TLA+, Privacy layer, AI execution layer, VerifyMerkle production, BNS/.bud.
+
+## Kurallar (tekrar)
+
+1. Force-push yasak  
+2. Workflow push yasak  
+3. Kanıtsız commit SHA yazma  
+4. Aşama 1 konuş → Aşama 2 commit kontrol → Aşama 3 CI yeşil
+
+
+---
+
+## ADIM3 §3.1 kapanış (2026-07-15)
+
+| Alan | Değer |
+|------|-------|
+| Çekirdek fix | ARENA3 `e012803` — genesis JSON dosyaları + 2 test |
+| Tamamlayıcı | ARENA2 — JSON↔kod hash testleri, runbook §8, print_genesis_hash |
+| Mainnet genesis hash | `16a60f4883768590b79e4f2f4abbf10ff24d4d4815069f4d98909740152f668e` |
+| Bilinçli borç | Ceremony keys + bootnodes boş |
+
+
+---
+
+## ADIM3 §3.4 kapanış (2026-07-15, ARENA2)
+
+| Alan | Değer |
+|------|-------|
+| P2P | `peer_rate_limit_per_minute` → PeerManager token bucket (önceden bağlı değildi) |
+| RPC | 10k tracked-client ceiling stress + expiry eviction tests |
+| Ceremony | `docs/operations/MAINNET_GENESIS_CEREMONY.md` |
+| Test filtresi | `cargo test --lib adim3_` (7 test) |
+
+
+---
+
+# Dürüst ADIM3 closeout (ARENA2, 2026-07-15 15:57 UTC+3)
+
+**HEAD:** `b81c829` · **Detay:** `docs/ADIM3_HONEST_CLOSEOUT.md`
+
+| Görev | Hüküm |
+|------|-------|
+| §0.1 cert.verify | ✅ |
+| §0.2 challenge sig | ✅ |
+| §0.3 ActiveOperators RPC | 🟡 kod var, dedicated test yok |
+| §0.4 mock HSM yok | ✅ |
+| §3.1 genesis+tokenomics | ✅ (`9bf07f9f9bda9bf1fba9f12e859e4184dd468c0138cd6327710284629c30df4f`) |
+| §3.2 docker/systemd | 🟡 artifact var, smoke yok |
+| §3.3 runbook/seeds | 🟡 hash var, seeds boş |
+| §3.4 network | 🟡 unit tests+wiring (ARENA2); ARENA1 docs-only |
+| §3.5 validator E2E | 📄 docs-only |
+| §3.6 BUD_INTERIM | ✅ |
+| VerifyMerkle / BNS | 🔒 ADIM4/5 |
+
+**Sonuç:** ADIM3 %100 kapalı değil. Mainnet "audited ready" değil.
+
+
+---
+
+## Kuyruk drain (ARENA2, 2026-07-15 16:15 UTC+3)
+
+| Madde | Hüküm |
+|------|-------|
+| §3.5 E2E | ✅ |
+| §0.3 RPC tests | ✅ |
+| §3.2 smoke script | 🟡 (manuel script) |
+| Ceremony seeds | 🟡 template only |
+| VerifyMerkle | 🔒 InvalidProof |

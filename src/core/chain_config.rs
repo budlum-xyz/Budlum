@@ -202,12 +202,22 @@ pub const QC_BLOB_TTL_EPOCHS: u64 = 10;
 pub const MAX_QC_BLOB_BYTES: usize = 1_048_576;
 pub const MAX_VOTES_PER_MSG: usize = 128;
 
-const MAINNET_BOOTNODES: &[&str] = &[];
+// ADIM3: empty until MAINNET_GENESIS_CEREMONY fills multiaddrs (see docs/operations/MAINNET_GENESIS_CEREMONY.md §6).
+// Q7 dummy bootnodes (ARENA3) — NOT production; ceremony must replace.
+const MAINNET_BOOTNODES: &[&str] = &[
+    "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWDummyBootstrap1Placeholder000000000001",
+    "/ip4/203.0.113.11/tcp/4001/p2p/12D3KooWDummyBootstrap2Placeholder000000000002",
+    "/ip4/203.0.113.12/tcp/4001/p2p/12D3KooWDummyBootstrap3Placeholder000000000003",
+];
 const TESTNET_BOOTNODES: &[&str] = &[];
 const DEVNET_BOOTNODES: &[&str] = &[];
 const MAINNET_FALLBACK_BOOTNODES: &[&str] = &[];
 const TESTNET_FALLBACK_BOOTNODES: &[&str] = &[];
-const MAINNET_DNS_SEEDS: &[&str] = &[];
+// ADIM3: empty until ceremony DNS seeds published.
+const MAINNET_DNS_SEEDS: &[&str] = &[
+    "_dnsaddr.dummy-seed-1.mainnet.budlum.example",
+    "_dnsaddr.dummy-seed-2.mainnet.budlum.example",
+];
 const TESTNET_DNS_SEEDS: &[&str] = &[];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -270,5 +280,26 @@ mod tests {
         assert_eq!(Network::Testnet.chain_id().value(), 42);
         assert_eq!(Network::Devnet.chain_id().value(), 1337);
         assert_eq!(Network::Mainnet.default_port(), 4001);
+    }
+
+    /// ADIM3 §3.4: mainnet is the strictest security profile.
+    #[test]
+    fn adim3_security_profiles() {
+        let m = Network::Mainnet.security_config();
+        let t = Network::Testnet.security_config();
+        let d = Network::Devnet.security_config();
+
+        assert_eq!(m.max_peers, 100);
+        assert_eq!(m.peer_rate_limit_per_minute, 120);
+        assert_eq!(m.rpc_rate_limit_per_minute, 300);
+        assert!(m.rpc_auth_required);
+        assert!(m.persist_banned_peers);
+        assert!(!m.mdns_enabled);
+
+        assert!(t.peer_rate_limit_per_minute > m.peer_rate_limit_per_minute);
+        assert!(d.rpc_rate_limit_per_minute > t.rpc_rate_limit_per_minute);
+        assert!(!d.rpc_auth_required);
+        assert!(d.mdns_enabled);
+        assert!(!d.persist_banned_peers);
     }
 }

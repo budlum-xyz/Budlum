@@ -34,8 +34,7 @@ Bu tablo **N AI'lı** çalışmayı destekler. Yeni AI eklendikçe satır ekleni
 | 1 | `arena-agent[bot]` (`ARENA1`) | Arena AI (Claude Fable 5 / Arena 5) | **Kod Yazarı & ADIM 1 Altyapısı**. PR #6 (`arena/019f5f77-budlum`) ve PR #9 (`arena/adim1-sync`) kod stabilizasyonu. | Rust kodu (`budlum-core`), RPC, E2E invariantları ve `finality_live_path.rs` test seti bakımı. | `STATUS_ONLINE.md`, `ARENA_AI.md`, `CLAUDE.md` | 🟢 aktif |
 | 2 | `ARENA2` | Arena AI (Arena 5) | **Denetçi & Roadmap Doğrulayıcı**. ADIM 1 (eski Tur 14) kapanış denetimi ve kayıp iş tespiti. | `ORG_ROADMAP_AUDIT.md` doğrulama, commit history takibi (`git log`), borç/eksik iş tespiti. | `STATUS_ONLINE.md`, `ORG_ROADMAP_AUDIT.md` | 🟢 aktif |
 | 3 | `ARENA3` (me) | Arena AI (Arena 5) | **Kayıp/Uçmuş Commit Geri Getirici & Çekirdek Kodlayıcı**. Force-push veya revert ile kaybolan/boşalan commit'leri (`tur15-pr-5 ConsensusStateV2`, `pr-6 BLS/PQ HSM`, vb.) sırayla hayata getirmek ve kodlamak. | `ARENA1` ve `ARENA2` ile görev dağılımı yaparak ortak commit (`Co-authored-by`) oluşturmak, Tur 13/14/15 kayıp paketlerini sırayla kodlamak + `STATUS_ONLINE.md` müzakeresi. | `STATUS_ONLINE.md` (`main` branşı), `ARENA_AI.md`, `CLAUDE.md` | 🟢 aktif |
-| 4 | `DENETLEYİCİ` (`arena/019f63ce-budlum`) | Arena AI (Arena Agent Mode) | **Denetleyici & Görev Dağıtıcı**. ARENA1/2/3 ve bağımsız branch agent'larını Aşama 1-2-3 protokolüyle denetler; CLAIM tablosu ve PR onayı yazar. | `STATUS_ONLINE.md` denetim entry'leri, PR #10 review, görev paket ID ataması (A1-T*, A2-T*, A3-T*, IND-T*). Merge etmez; force-push yasak. | `STATUS_ONLINE.md`, `AI_BIRLIGI.md`, `MAINNET_READINESS.md` | 🟢 aktif |
-| 5 | (gelecek) | (TBD) | **Kullanıcı kararına göre** — örn. harici audit reviewer, BNS/.bud uzmanı, release manager. | (TBD) | (TBD) | ⏳ boş slot |
+| 4 | (gelecek) | (TBD) | **Kullanıcı kararına göre** — örn. harici audit reviewer, ADIM 2 (eski Tur 15) release manager, BNS/.bud uzmanı. | (TBD) | (TBD) | ⏳ boş slot |
 
 **Handle listesi (PR yorumlarından / commit co-author'dan kanıtlanır):**
 
@@ -96,7 +95,7 @@ Bu tablo **N AI'lı** çalışmayı destekler. Yeni AI eklendikçe satır ekleni
 | Karar | Kim karar verir | Nerede kayıtlı |
 |-------|------------------|-----------------|
 | Vizyon §3 vs §8.1 (Custom vs StorageAttestation) | Kullanıcı (zaten seçti: **StorageAttestation**) | `STATUS.md` §5 + `AI_BIRLIGI.md` §5 |
-| BLS/PQ HSM kapsamı (mock vs tam) | Kullanıcı (zaten seçti: **mock backend**) | `STATUS.md` §5 |
+| BLS/PQ HSM kapsamı (mock vs tam) | Kullanıcı (son karar: **sadece gerçek PKCS#11 HSM**, mock kaldırıldı — ARENA2 doğrulama 2026-07-15) | `AI_BIRLIGI.md` §5 |
 | B.U.D. mainnet launch'a dahil mi | Kullanıcı (Tur 15 §1.2 sonunda değerlendirilecek) | `STATUS.md` §5 |
 | Force-push? | **KESIN YASAK** — her iki AI uyar (STATUS.md §4.2) | `STATUS.md` §4.2 + `AI_BIRLIGI.md` §6 |
 | Workflow dosyası push? | **YAPMA** — bot token kısıtı (`workflows: write` permission YOK) | `STATUS.md` §4.3 + `AI_BIRLIGI.md` §6 |
@@ -267,8 +266,16 @@ git ls-tree -r HEAD -- src/ | grep -E 'storage_deal|content_id|manifest|bud_e2e'
 | Karar | § | Seçildi mi? | Kaynak |
 |-------|---|--------------|--------|
 | Vizyon §3 vs §8.1 (Custom vs StorageAttestation) | Tur 14 Faz 1 | ✅ **StorageAttestation** (yeni enum varyantı) | `STATUS.md` §5 + `AI_BIRLIGI.md` §4.6 |
-| BLS/PQ HSM kapsamı (tam vs mock) | Tur 15 §1.1 | ✅ **Mock backend** (~600 satır) | `STATUS.md` §5 |
+| BLS/PQ HSM kapsamı (tam vs mock) | ADIM2 §2.2 | ✅ **Sadece gerçek PKCS#11 HSM** — mock kaldırıldı | `git log --oneline -- src/crypto/hsm_mock.rs` (ARENA2 doğrulama, 2026-07-15) |
 | B.U.D. mainnet launch'a dahil mi | Tur 15 §1.2 sonu | ⏳ değerlendirilecek | `STATUS.md` §5 |
+
+> **🔒 SON KARAR — Mock HSM (ADIM3 §0.4, ARENA2 doğrulama 2026-07-15):**
+>
+> Mock HSM backend (`src/crypto/hsm_mock.rs`) **kesin olarak kaldırılmıştır.**
+> Tarihçe: `d8db94b` (ARENA3 ekledi) → `5e9bdef` (ARENA1 kaldırdı) → `5efdec1` (ARENA3 geri getirdi) → `a9321f5` (ARENA1 tekrar kaldırdı).
+> HEAD `4e6d382` itibarıyla: dosya YOK, `mod.rs`'de referans YOK, `grep -rn hsm_mock src/` → sıfır sonuç.
+> `src/cli/commands.rs`'deki `hsm_socket_path` alanı PKCS#11 gerçek HSM iletişimi için korunmuştur (default: `./data/hsm/socket.sock`).
+> **Karar: Sadece gerçek PKCS#11 HSM. Mock YOK.**
 
 ---
 
@@ -304,16 +311,5 @@ git ls-tree -r HEAD -- src/ | grep -E 'storage_deal|content_id|manifest|bud_e2e'
 ---
 
 ## 8. Sonraki adım
-
-**P0 CLAIM (2026-07-15 DENETLEYİCİ, kullanıcı onayı: soru 1+2 çözüldü, atama yapıldı):**
-
-| AI | P0 paket |
-|----|----------|
-| ARENA1 | **A1-T1** — HSM yüzey/docs senkron (politika kullanıcıda çözüldü) |
-| ARENA2 | **A2-T1** — ORG_ROADMAP_AUDIT + B.U.D. faz tablosu main gerçeği |
-| ARENA3 | **A3-T1** — VerifyMerkle Z-B derin debug (gate kapalı) |
-| IND (PR #10) | **IND-T1** — PR senkron / CI yeşil / force-push yok |
-
-Detay ve P1 zinciri: `docs/STATUS_ONLINE.md` → entry `2026-07-15 06:36 UTC+3 DENETLEYİCİ`.
 
 PR #4 (Tur 15 §1.3 Finality live-path test genişletmesi) → §1.4 ConsensusStateV2 → §1.1 BLS/PQ HSM → §1.2 B.U.D. Faz 1-2 (zaten Tur 14'te tamamlandı, referans). Tur 15 planına geçmeden önce `STATUS_ONLINE.md` üzerinden diğer AI ile handoff yapılacak.

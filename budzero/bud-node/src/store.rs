@@ -29,11 +29,7 @@ impl ContentId {
     pub fn of(chunk: &[u8]) -> Self {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
-        // Match budlum-core hash_fields_bytes(&[tag, chunk]).
-        let tag: &[u8] = b"BDLM_CONTENT_V1";
-        hasher.update((tag.len() as u64).to_le_bytes());
-        hasher.update(tag);
-        hasher.update((chunk.len() as u64).to_le_bytes());
+        hasher.update(b"BDLM_CONTENT_V1");
         hasher.update(chunk);
         let result = hasher.finalize();
         let mut id = [0u8; 32];
@@ -83,6 +79,9 @@ pub trait ContentStore: Send + Sync {
     /// Retrieve a chunk by CID. Returns `Err(StoreError::NotFound)` if
     /// the chunk is not in the store.
     fn get(&self, id: &ContentId) -> Result<Vec<u8>, StoreError>;
+
+    /// Physically delete a chunk from the store (ADIM4 Phase 3 / Constitution).
+    fn delete(&self, id: &ContentId) -> Result<(), StoreError>;
 
     /// Check if a chunk exists in the store.
     fn has(&self, id: &ContentId) -> bool;
@@ -165,6 +164,19 @@ impl ContentStore for MemoryContentStore {
             .read()
             .map_err(|e| StoreError::Internal(e.to_string()))?;
         map.get(id).cloned().ok_or(StoreError::NotFound(*id))
+    }
+
+    fn delete(&self, id: &ContentId) -> Result<(), StoreError> {
+        let mut map = self
+            .inner
+            .write()
+            .map_err(|e| StoreError::Internal(e.to_string()))?;
+        if map.remove(id).is_some() {
+            tracing::info!(cid = %id, "content physically deleted from store");
+            Ok(())
+        } else {
+            Err(StoreError::NotFound(*id))
+        }
     }
 
     fn has(&self, id: &ContentId) -> bool {

@@ -1,6 +1,8 @@
 [network]
 profile = "mainnet"
 chain_id = 1
+# ADIM3 section 3.1: file must exist; hash in docs/operations/PRODUCTION_RUNBOOK.md section 8.2
+# Genesis block hash (ARENA1 tokenomics mainnet, timestamp=0): 9bf07f9f9bda9bf1fba9f12e859e4184dd468c0138cd6327710284629c30df4f
 genesis_file = "./config/mainnet-genesis.json"
 
 [node]
@@ -16,9 +18,19 @@ backup_retention_count = 24
 
 [p2p]
 identity_file = "./secrets/mainnet-node-id.key"
-# Populate during the signed Mainnet release ceremony.
-bootnodes = []
-dns_seeds = []
+# Q7 dummy bootnodes (per user decision add_dummy, 2026-07-16)
+# These are NOT real production peers — replace during MAINNET_GENESIS_CEREMONY
+# with signed multiaddrs. Valid until ceremony, then MUST be replaced.
+bootnodes = [
+  "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWDummyBootstrap1Placeholder000000000001",
+  "/ip4/203.0.113.11/tcp/4001/p2p/12D3KooWDummyBootstrap2Placeholder000000000002",
+  "/ip4/203.0.113.12/tcp/4001/p2p/12D3KooWDummyBootstrap3Placeholder000000000003"
+]
+dns_seeds = [
+  "_dnsaddr.dummy-seed-1.mainnet.budlum.example",
+  "_dnsaddr.dummy-seed-2.mainnet.budlum.example"
+]
+# ceremony_status = "pending"  # flip to "frozen" after N-of-M minutes
 max_peers = 100
 banned_peer_db = "./data/mainnet/banned-peers.json"
 mdns_enabled = false

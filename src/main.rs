@@ -672,13 +672,33 @@ async fn main() {
         config.p2p_identity_file.as_deref(),
     );
 
-    let mut node = Node::with_key(chain.clone(), identity_key, true)
-        .unwrap()
-        .with_identity(config.p2p_identity_file.clone())
-        .with_dns_seeds(config.dns_seeds.clone())
-        .with_banned_peer_db(config.banned_peer_db.clone())
-        .with_bootstrap_peers(bootstraps.clone())
-        .with_metrics(metrics.clone());
+    // B.U.D. Storage Node Initialization (Monolithic Architecture)
+    let (storage_node, sharding_config) = if config.storage_enabled {
+        let store = Arc::new(bud_node::MemoryContentStore::with_default_capacity());
+        let bitswap = Arc::new(bud_node::BudBitswap::new(store));
+        let s_config = bud_node::ShardingConfig {
+            replication_factor: config.storage_replication_factor,
+            max_xor_distance: u128::MAX / 1000,
+            mandatory: config.storage_mandatory_sharding,
+        };
+        (Some(bitswap), Some(s_config))
+    } else {
+        (None, None)
+    };
+
+    let mut node = Node::with_key(
+        chain.clone(),
+        identity_key,
+        config.mdns_enabled.unwrap_or(true),
+        storage_node,
+        sharding_config,
+    )
+    .unwrap()
+    .with_identity(config.p2p_identity_file.clone())
+    .with_dns_seeds(config.dns_seeds.clone())
+    .with_banned_peer_db(config.banned_peer_db.clone())
+    .with_bootstrap_peers(bootstraps.clone())
+    .with_metrics(metrics.clone());
     node.apply_network_security(network);
 
     for addr in &bootstraps {
@@ -864,6 +884,15 @@ async fn main() {
             }
         }
     });
+
+    // Start Relayer Worker if configured (ADIM 5 §5.1)
+    if config.role == "relayer" || config.role == "validator" {
+        let relayer_addr = cli_producer_address.unwrap_or(Address::zero());
+        let relayer = budlum_core::relayer::RelayerWorker::new(chain.clone(), relayer_addr);
+        tokio::spawn(async move {
+            relayer.run().await;
+        });
+    }
 
     tokio::select! {
         _ = node.run() => {},

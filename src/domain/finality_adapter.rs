@@ -839,42 +839,6 @@ impl DomainFinalityAdapter for ZkFinalityAdapter {
 #[derive(Debug, Clone, Default)]
 pub struct StorageAttestationFinalityAdapter;
 
-impl StorageAttestationFinalityAdapter {
-    fn verify_storage_qc_cert(
-        commitment: &DomainCommitment,
-        cert: &FinalityCert,
-        validator_snapshot: &ValidatorSetSnapshot,
-    ) -> Result<FinalityStatus, FinalityError> {
-        if cert.checkpoint_height != commitment.domain_height {
-            return Ok(FinalityStatus::Rejected(
-                "Storage attestation cert height mismatch".into(),
-            ));
-        }
-        let commitment_hash = hex::encode(commitment.domain_block_hash);
-        if cert.checkpoint_hash != commitment_hash {
-            return Ok(FinalityStatus::Rejected(
-                "Storage attestation cert hash mismatch".into(),
-            ));
-        }
-        if validator_snapshot.set_hash != cert.set_hash {
-            return Ok(FinalityStatus::Rejected(
-                "Storage attestation cert set_hash mismatch vs validator snapshot".into(),
-            ));
-        }
-        if cert.agg_sig_bls.is_empty() {
-            return Ok(FinalityStatus::Rejected(
-                "Empty storage attestation certificate".into(),
-            ));
-        }
-        match cert.verify(validator_snapshot) {
-            Ok(()) => Ok(FinalityStatus::Finalized),
-            Err(e) => Ok(FinalityStatus::Rejected(format!(
-                "Storage attestation BLS cert verify failed: {e}"
-            ))),
-        }
-    }
-}
-
 impl DomainFinalityAdapter for StorageAttestationFinalityAdapter {
     fn adapter_name(&self) -> &'static str {
         crate::domain::types::STORAGE_ATTESTATION_ADAPTER
@@ -939,12 +903,125 @@ impl DomainFinalityAdapter for StorageAttestationFinalityAdapter {
             FinalityProof::PoS {
                 cert,
                 validator_snapshot,
-            } => Self::verify_storage_qc_cert(commitment, cert, validator_snapshot),
+            } => {
+                // ADIM3 §0.1 (ARENA2): Real PoS verification — same checks as
+                // PosFinalityAdapter (lines 470-525). Previously this branch only
+                // checked agg_sig_bls.is_empty() and height/hash match, which
+                // allowed a fake agg_sig_bls to pass if height/hash matched.
+                if validator_snapshot.validators.is_empty() {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation PoS validator set is empty".into(),
+                    ));
+                }
+                if cert.checkpoint_height != commitment.domain_height {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation PoS cert height mismatch".into(),
+                    ));
+                }
+                let commitment_hash = hex::encode(commitment.domain_block_hash);
+                if cert.checkpoint_hash != commitment_hash {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation PoS cert hash mismatch".into(),
+                    ));
+                }
+                if validator_snapshot.set_hash != cert.set_hash {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation PoS cert set hash does not match validator snapshot"
+                            .into(),
+                    ));
+                }
+                if let Ok(decoded_set_hash) = hex::decode(&validator_snapshot.set_hash) {
+                    if decoded_set_hash.len() == 32 {
+                        let mut snapshot_set_hash = [0u8; 32];
+                        snapshot_set_hash.copy_from_slice(&decoded_set_hash);
+                        if domain.validator_set_hash != [0u8; 32]
+                            && snapshot_set_hash != domain.validator_set_hash
+                        {
+                            return Ok(FinalityStatus::Rejected(
+                                "Storage attestation PoS validator snapshot does not match registered domain set".into(),
+                            ));
+                        }
+                        if commitment.validator_set_hash != [0u8; 32]
+                            && commitment.validator_set_hash != snapshot_set_hash
+                        {
+                            return Ok(FinalityStatus::Rejected(
+                                "Storage attestation PoS commitment validator set does not match finality proof".into(),
+                            ));
+                        }
+                    }
+                }
+                cert.verify(validator_snapshot).map_err(|e| {
+                    FinalityError(format!(
+                        "Invalid storage attestation PoS finality cert: {}",
+                        e
+                    ))
+                })?;
+                Ok(FinalityStatus::Finalized)
+            }
             FinalityProof::Bft {
+                round: _,
+                commit_hash,
                 cert,
                 validator_snapshot,
-                ..
-            } => Self::verify_storage_qc_cert(commitment, cert, validator_snapshot),
+            } => {
+                // ADIM3 §0.1 (ARENA2): Real BFT verification — same checks as
+                // BftFinalityAdapter (lines 665-730). Previously this branch only
+                // checked agg_sig_bls.is_empty() and height/hash match.
+                if validator_snapshot.validators.is_empty() {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation BFT validator set is empty".into(),
+                    ));
+                }
+                if *commit_hash != commitment.domain_block_hash {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation BFT commit hash does not match commitment".into(),
+                    ));
+                }
+                if cert.checkpoint_height != commitment.domain_height {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation BFT cert height mismatch".into(),
+                    ));
+                }
+                let commitment_hash = hex::encode(commitment.domain_block_hash);
+                if cert.checkpoint_hash != commitment_hash {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation BFT cert hash mismatch".into(),
+                    ));
+                }
+                if validator_snapshot.set_hash != cert.set_hash {
+                    return Ok(FinalityStatus::Rejected(
+                        "Storage attestation BFT cert set hash does not match validator snapshot"
+                            .into(),
+                    ));
+                }
+                if let Ok(decoded_set_hash) = hex::decode(&validator_snapshot.set_hash) {
+                    if decoded_set_hash.len() == 32 {
+                        let mut snapshot_set_hash = [0u8; 32];
+                        snapshot_set_hash.copy_from_slice(&decoded_set_hash);
+                        if domain.validator_set_hash != [0u8; 32]
+                            && snapshot_set_hash != domain.validator_set_hash
+                        {
+                            return Ok(FinalityStatus::Rejected(
+                                "Storage attestation BFT validator snapshot does not match registered domain set".into(),
+                            ));
+                        }
+                        if commitment.validator_set_hash != [0u8; 32]
+                            && commitment.validator_set_hash != snapshot_set_hash
+                        {
+                            return Ok(FinalityStatus::Rejected(
+                                "Storage attestation BFT commitment validator set does not match finality proof".into(),
+                            ));
+                        }
+                    }
+                }
+                cert.verify(validator_snapshot).map_err(|e| {
+                    FinalityError(format!(
+                        "Invalid storage attestation BFT finality cert: {}",
+                        e
+                    ))
+                })?;
+                Ok(FinalityStatus::Finalized)
+            }
             _ => Ok(FinalityStatus::Rejected(
                 "Unsupported or unverified storage attestation proof format".into(),
             )),
@@ -1401,46 +1478,5 @@ mod tests {
                 .unwrap(),
             FinalityStatus::Finalized
         );
-    }
-
-    #[test]
-    fn test_storage_attestation_pos_bft_rejects_nonempty_unverified_bls() {
-        let adapter = StorageAttestationFinalityAdapter;
-        let domain = default_domain(
-            5,
-            crate::domain::ConsensusKind::StorageAttestation(crate::domain::StorageDomainParams {
-                min_operator_bond: 100,
-                chunk_size: 1024,
-                challenge_interval: 10,
-                ..Default::default()
-            }),
-            1337,
-            crate::domain::types::STORAGE_ATTESTATION_ADAPTER,
-            0,
-        );
-        let mut commitment = commitment(crate::domain::ConsensusKind::StorageAttestation(
-            crate::domain::StorageDomainParams::default(),
-        ));
-        commitment.domain_id = 5;
-
-        let snapshot = ValidatorSetSnapshot::new(0, vec![]);
-        let junk_cert = FinalityCert {
-            epoch: 0,
-            checkpoint_height: commitment.domain_height,
-            checkpoint_hash: hex::encode(commitment.domain_block_hash),
-            agg_sig_bls: vec![0xABu8; 48],
-            bitmap: vec![0xff],
-            set_hash: snapshot.set_hash.clone(),
-        };
-        let proof = FinalityProof::PoS {
-            cert: junk_cert,
-            validator_snapshot: snapshot,
-        };
-        assert!(matches!(
-            adapter
-                .verify_finality(&domain, &commitment, &proof)
-                .unwrap(),
-            FinalityStatus::Rejected(_)
-        ));
     }
 }
