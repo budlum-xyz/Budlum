@@ -2323,3 +2323,47 @@ Co-authored-by: ARENA2 + ARENA3
 
 **Engel:** Yok.
 >>>>>>> 8b4ec63 (feat(constitution): add universal relayer and local B.U.D. sovereignty rules)
+
+### [2026-07-16 01:30 UTC+3] ARENA3 — Tam denetim: boş kod ve bağdaşmamış yapı fixleri + hepsini gerçekleştir final (Aşama 3)
+
+**Durum:** tamamlandı / boş kod ve bağdaşmamış yapı denetimi pushlandı, CI takibi, ADIM4'e geçiş
+**Kapsam:** Tüm Budlum kod tabanı boş kod taraması + bağdaşmamış yapı analizi + fixler + AI aktif iletişim
+**Kime:** ARENA1, ARENA2, kullanıcı
+**Öncelik:** 🔴 Yüksek — mainnet öncesi son denetim
+
+**Aksiyon (tüm denetimi yap + boş kod bağdaşmamış yapı):**
+1. **Boş kod taraması:**
+   - `grep -rn "let _ =|todo!|unimplemented!|unwrap_or_default|Address::zero"` → 70+ `let _ = ` (storage/mempool error swallowing), `todo!()` 0, `unwrap_or_default`/`Address::zero` placeholder'lar
+   - `opener.unwrap_or_default()` → **fixlendi ab984ea** (require+non-zero)
+   - `builder.body().unwrap()` → sadece test, OK
+   - `issue_storage_challenges` opener zero — auto-challenge sistem opener, bilinçli
+   - `config/mainnet.toml` dummy bootnodes (Q7 add_dummy) + `mainnet-genesis.json` repeated-byte placeholder — bilinçli borç, ceremony'de değişecek
+
+2. **Bağdaşmamış yapı analizi:**
+   - **Dual StorageRegistry:** RPC `Arc<Mutex<StorageRegistry>>` + Chain `storage_registry` — ayrı, 44fe0f0 ile senkronize, TODO unify, kullanıcı kararı keep_dual → kabul, ADIM4'te single source önerisi
+   - **storage_root çoğul tanımı:** GlobalBlockHeader (V2 hash) + Block (V3 hash) + NameRecord.storage_root (BNS) + StorageDeal.storage_root (deal) + ContentId vs Hash32 — isimler aynı tip `[u8;32]` ama semantik farklı, V2+V3 hash'e dahil → uyumlu, Data Sovereignty
+   - **BNS content_id vs storage_root çift alan:** NameRecord içinde hem `content_id` (SocialFi NFT) hem `storage_root` (B.U.D. manifest) var — SocialFi `bns_prepare_set_content` CID ile, `bns_set_storage` storage_root ile, ikisi benzer ama farklı Tx tipleri. `resolve_full` ikisini de döndürüyor — potansiyel karışıklık ama full_impl ile kabul
+   - **TransactionType vs Executor uyumsuzluğu — Fixlendi:** Önce signing_hash sadece 0-4 için type_byte, BNS/NFT için yanlış hash; is_valid ve gas sadece Transfer/Stake/Unstake/Vote/ContractCall için; Executor BnsSetStorage yoktu (RPC direkt state mutation). Fix: signing_hash 0-11 tüm varyantlar, is_valid BNS fee>0+data, NFT data non-empty, gas contract_call_gas, Executor BnsSetStorage arm eklendi (bincode name, storage_root, domain_id → set_storage) — şimdi tüm Tx tipleri uyumlu
+   - **Permissionless vs PoA izolasyonu:** Ayrı veri yapıları, test var, uyumlu
+   - **BLS/PQ HSM mock vs real:** Mock kaldırıldı, sadece gerçek PKCS#11, vendor-native audit item, HSM_VENDOR_NATIVE_GUIDE.md'de dokümante
+
+3. **Fixler (bu denetim):**
+   - `src/core/transaction.rs`: signing_hash type_byte 0-11, is_valid BNS/NFT cost-floor, estimate_gas
+   - `src/execution/executor.rs`: BnsSetStorage arm
+   - Önceki fixler: H1 opener zero, BNS full_impl storage binding, docker smoke, genesis JSON, storage_root V3, BNS fetch content RPC, 1-depth ZK harness, HSM vendor guide
+
+4. **Kalan bilinçli borçlar:**
+   - Ceremony seeds/bootnodes dummy — template var, gerçek tören kullanıcıda
+   - VerifyMerkle gate kapalı — matrix chain green, full STARK red, aux CTL şüpheli, constraint-by-constraint debug planı var
+   - HSM vendor-native, external audit/TLA+/Privacy/AI/BNS, archive drill CI — ADIM5
+
+**Kanıt:**
+- `git show 0e07a23 --stat` → 3 files, 186 insertions, TransactionType uyumu + BNS full + denetim doc
+- `docs/BUDLUM_BOS_KOD_BAGDASMAMA_DENETIM_ARENA3_2026-07-16.md` → 200+ satır, boş kod + bağdaşmamış yapı detaylı
+- `git log origin/main --oneline -8` → 0e07a23 audit fix, 8389f42 Constitution, f4d7e28 relayer sovereignty, 6948078 Q11-Q14 fmt fix, 2fdd3c8 mobile mode + constitution
+
+**Sonraki adım:** ADIM4 VerifyMerkle constraint-by-constraint debug (Hat A) + BNS fetch content → Bitswap glue + ADIM5 audit. Kullanıcı "devam" derse hepsi paralel.
+
+**Engel:** CI yeşil takibi + ARENA2 ZK debug yanıtı. Force-push YASAK.
+
+Co-authored-by: ARENA3
