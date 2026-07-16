@@ -73,6 +73,7 @@ impl RelayerWorker {
                     tx_hash: "0x".to_string() + &hex::encode([0xEE; 32]),
                     success: true,
                     receipt_proof: vec![1, 2, 3], // Mock proof
+                    external_state_root: [0u8; 32],
                 };
 
                 // Submit result back to Budlum

@@ -2,7 +2,7 @@ use crate::chain::finality::FinalityCert;
 use crate::core::account::AccountState;
 use crate::core::address::Address;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateSnapshot {
     pub height: u64,
