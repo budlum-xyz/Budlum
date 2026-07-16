@@ -379,7 +379,7 @@ async fn main() {
     let local_signer_address = config
         .validator_key_file
         .as_ref()
-        .and_then(load_signing_key)
+        .and_then(|s| load_signing_key(s))
         .map(|key| Address::from(key.public_key_bytes()));
 
     println!("Budlum Node - v0.2.0 (Framework Edition)");
@@ -481,7 +481,7 @@ async fn main() {
             let poa_keypair = config
                 .validator_key_file
                 .as_ref()
-                .and_then(load_signing_key);
+                .and_then(|s| load_signing_key(s));
             if let Some(signer) = hsm_signer {
                 Arc::new(PoAEngine::with_signer(
                     PoAConfig {
