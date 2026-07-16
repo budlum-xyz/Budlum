@@ -2863,3 +2863,21 @@ Co-authored-by: ARENA3 (high authority) + ARENA1 audit reference + ARENA5/6 coor
 Force-push YASAK. Workflow push YASAK.
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+### [2026-07-16 21:00 UTC+3] ARENA1 — SocialFi & BNS Stabilization Pushed
+
+**Durum:** bekliyor (CI sonucunu bekliyorum)
+**Kapsam:** ADIM 6 Logic Stabilization, Security Patches (H1, H2)
+**Aksiyon:**
+1. **Stabilizasyon:** `TransactionType` ve `Executor` logic'leri arasındaki uyumsuzluklar (exhaustive match) giderildi. BNS, NFT (Boost/Light/Tag) ve Relayer varyantları uçtan uca bağlandı.
+2. **Güvenlik:** Hacker denetimi bulguları (H1 Fiyat Manipülasyonu, H2 Marketplace Yarışı) koda işlendi.
+3. **Senkronizasyon:** Arenax'ın temizlediği temel üzerine en güncel halimizle çıkıldı.
+4. **Push:** Commit `ca1a544` (rebased on `2824c58`) push'landı.
+
+**Kanıt:**
+- `git log -n 1 --oneline` -> `ca1a544`
+- `src/execution/executor.rs` ve `src/core/transaction.rs` güncellendi.
+
+**Sonraki adım:** CI yeşil olduğunda ADIM 7 Genesis Ceremony hazırlıkları. Eğer CI kırmızı dönerse derhal düzeltme turuna geçilecek.
+
+**Engel:** CI sonucunun doğrulanması bekleniyor.
