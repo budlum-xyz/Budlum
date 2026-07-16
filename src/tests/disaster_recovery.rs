@@ -7,7 +7,6 @@ mod tests {
     use crate::storage::db::Storage;
     use std::sync::Arc;
     use tempfile::tempdir;
-    use tracing::info;
 
     #[tokio::test]
     async fn test_chaos_v2_disaster_recovery_full_state() {
@@ -31,16 +30,12 @@ mod tests {
             let bns_data = bincode::serialize(&("ayaz.bud".to_string(), 100u64)).unwrap();
             let mut bns_tx = Transaction::new(alice, Address::zero(), 10000, bns_data);
             bns_tx.tx_type = TransactionType::BnsRegister;
-            bns_tx.fee = 1;
-            bns_tx.hash = bns_tx.calculate_hash();
             bc.add_transaction(bns_tx).unwrap();
 
             // Mint an NFT (SocialFi)
             let nft_data = bincode::serialize(&(cid, Some("ayaz.bud".to_string()))).unwrap();
             let mut nft_tx = Transaction::new(alice, Address::zero(), 0, nft_data);
             nft_tx.tx_type = TransactionType::NftMint;
-            nft_tx.fee = 1;
-            nft_tx.hash = nft_tx.calculate_hash();
             bc.add_transaction(nft_tx).unwrap();
 
             // Produce a block to persist state
@@ -105,8 +100,6 @@ mod tests {
             let nft_data = bincode::serialize(&(cid, None::<String>)).unwrap();
             let mut nft_tx = Transaction::new(alice, Address::zero(), 0, nft_data);
             nft_tx.tx_type = TransactionType::NftMint;
-            nft_tx.fee = 1;
-            nft_tx.hash = nft_tx.calculate_hash();
             bc.add_transaction(nft_tx).unwrap();
             bc.produce_block(Address::zero());
         }
@@ -120,8 +113,6 @@ mod tests {
             let burn_data = bincode::serialize(&0u64).unwrap(); // nft_id 0
             let mut burn_tx = Transaction::new(alice, Address::zero(), 0, burn_data);
             burn_tx.tx_type = TransactionType::NftBurn;
-            burn_tx.fee = 1;
-            burn_tx.hash = burn_tx.calculate_hash();
 
             // The executor emits a tracing signal here
             bc.add_transaction(burn_tx).unwrap();
@@ -149,13 +140,6 @@ mod tests {
     }
 }
 
-use crate::chain::blockchain::Blockchain;
-use crate::consensus::pow::PoWEngine;
-use crate::core::address::Address;
-use crate::core::transaction::{Transaction, TransactionType};
-use crate::storage::db::Storage;
-use std::sync::Arc;
-use tempfile::tempdir;
 use tracing::info;
 
 #[tokio::test]
@@ -175,7 +159,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         for _ in 0..10 {
             bc.produce_block(producer_a);
         }
-        assert_eq!((bc.chain.len() as u64).saturating_sub(1), 10);
+        assert_eq!(bc.get_height(), 10);
     }
 
     // 2. Partition B grows longer with different data
@@ -185,7 +169,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         for _ in 0..15 {
             bc.produce_block(producer_b);
         }
-        assert_eq!((bc.chain.len() as u64).saturating_sub(1), 15);
+        assert_eq!(bc.get_height(), 15);
     }
 
     // 3. Rejoin and Recovery: Node A sees Node B's chain and must reorg
@@ -200,7 +184,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
             .try_reorg(bc_b.chain.clone())
             .expect("Heavy reorg failed");
         assert!(reorg_result, "Reorg must happen");
-        assert_eq!((bc_a.chain.len() as u64).saturating_sub(1), 15);
+        assert_eq!(bc_a.get_height(), 15);
         assert_eq!(bc_a.last_block().hash, bc_b.last_block().hash);
     }
 }
@@ -220,7 +204,6 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
         let storage = Storage::new(db_path_str).unwrap();
         let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
         bc.state.add_balance(&alice, 1_000_000);
-        bc.state.add_balance(&relayer, 1_000_000);
 
         // Relayer Result for an external tx
         let res = crate::core::transaction::RelayerExternalResult {
@@ -252,7 +235,6 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
             let mut tx = Transaction::new(alice, bob, 1, vec![]);
             tx.nonce = bc.state.get_nonce(&alice);
             tx.fee = 1;
-            tx.hash = tx.calculate_hash();
             let _ = bc.add_transaction(tx);
         }
         // Block production interrupted! (Simulation: Process Exit)
@@ -276,7 +258,7 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
 
         let _ = bc.try_reorg(longer_chain);
         assert_eq!(
-            (bc.chain.len() as u64).saturating_sub(1),
+            bc.get_height(),
             19,
             "Must recover and follow the longest valid chain"
         );
