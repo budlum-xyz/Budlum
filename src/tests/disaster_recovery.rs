@@ -31,6 +31,7 @@ mod tests {
             let bns_data = bincode::serialize(&("ayaz.bud".to_string(), 100u64)).unwrap();
             let mut bns_tx = Transaction::new(alice, Address::zero(), 10000, bns_data);
             bns_tx.fee = 1;
+            bns_tx.hash = bns_tx.calculate_hash();
             bns_tx.tx_type = TransactionType::BnsRegister;
             bc.add_transaction(bns_tx).unwrap();
 
@@ -38,6 +39,7 @@ mod tests {
             let nft_data = bincode::serialize(&(cid, Some("ayaz.bud".to_string()))).unwrap();
             let mut nft_tx = Transaction::new(alice, Address::zero(), 0, nft_data);
             nft_tx.fee = 1;
+            nft_tx.hash = nft_tx.calculate_hash();
             nft_tx.tx_type = TransactionType::NftMint;
             bc.add_transaction(nft_tx).unwrap();
 
@@ -103,6 +105,7 @@ mod tests {
             let nft_data = bincode::serialize(&(cid, None::<String>)).unwrap();
             let mut nft_tx = Transaction::new(alice, Address::zero(), 0, nft_data);
             nft_tx.fee = 1;
+            nft_tx.hash = nft_tx.calculate_hash();
             nft_tx.tx_type = TransactionType::NftMint;
             bc.add_transaction(nft_tx).unwrap();
             bc.produce_block(Address::zero());
@@ -117,6 +120,7 @@ mod tests {
             let burn_data = bincode::serialize(&0u64).unwrap(); // nft_id 0
             let mut burn_tx = Transaction::new(alice, Address::zero(), 0, burn_data);
             burn_tx.fee = 1;
+            burn_tx.hash = burn_tx.calculate_hash();
             burn_tx.tx_type = TransactionType::NftBurn;
 
             // The executor emits a tracing signal here
@@ -247,6 +251,7 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
             let mut tx = Transaction::new(alice, bob, 1, vec![]);
             tx.nonce = bc.state.get_nonce(&alice);
             tx.fee = 1;
+            tx.hash = tx.calculate_hash();
             let _ = bc.add_transaction(tx);
         }
         // Block production interrupted! (Simulation: Process Exit)
