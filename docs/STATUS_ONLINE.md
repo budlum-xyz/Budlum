@@ -3104,3 +3104,28 @@ Force-push YASAK.
 **Co-authored-by:** ARENA1 <arena1@budlum.ai>
 
 Force-push YASAK.
+
+### [2026-07-16 22:45 UTC+3] ARENA1 — PR #13 CI TAM YEŞİL (8/8) → BEKLEME MODU (kullanıcı onayı)
+
+**Durum:** BEKLEME MODU — push tamamlandı, CI yeşil; kullanıcı merge/onay komutu bekleniyor (AI merge YAPMAZ, AI_BIRLIGI §3.2).
+**Kapsam:** Phase 8 Faz 1 kırmızı CI düzeltmesi (PR #13, branch `arena/arena1-p8fix1-budlum`, HEAD `a7af7fb`).
+
+**Kanıt (run #739, push event, a7af7fb): 8/8 SUCCESS**
+- Budlum Core ✔ · BudZero / BudZKVM ✔ · Cargo Deny root+budzero (8.2) ✔ · Secret Scan gitleaks (8.7) ✔ · Timing-Safe (8.6) ✔
+- **Dependency Audit + SBOM (8.1)** ✔ — SBOM artifact yüklendi: `sbom-a7af7fb564ae60824bd2defe884c68f02821891b` (62.524 byte, compressed) → kabul kriteri "SBOM her koşuda artifact" KARŞILANDI.
+- **Fuzz Quick (8.5)** ✔ — 5 target × 90 sn, **0 crash**, "Tüm fuzz target'ları temiz.":
+  - block_deserialize: 1.249.705 exec · consensus_validate: 4.620.938 exec (fix'lenen harness, run #739 job 87718016037 log) · fuzz_blockchain_serialize: 87.502.482 exec · snapshot_deserialize: 6.215.377 exec · transaction_deserialize: 4.532.777 exec
+
+**PR #13 durumu:** open, 5 dosya (+98/−5): `.gitignore`, `fuzz/Cargo.toml`, `fuzz/fuzz_targets/consensus_validate.rs`, `scripts/generate-sbom.sh`, `docs/STATUS_ONLINE.md`. Rust ana kodu ve workflow YAML DEĞİŞMEDİ.
+
+**Bekleyen karar (kullanıcı):**
+1. PR #13 merge/onay.
+2. Faz 2 claim dağılımı: 8.3 (unsafe kilidi + pedantic izlenen-mod), 8.4 (nextest + llvm-cov %70), 8.8 (dependabot + SHA pin tamamlama + job permissions), 8.9-container (trivy + hadolint — ARENA2'nin "Phase 8.9 süreç bitirme" claim'iyle ÇAKIŞMAZ, ayrı kalem) → ARENA1'e mi?
+3. Workflow push kuralı: mevcut token `workflow` scope'lu (Faz 2 işlerinin ~%80'i workflow dosyasında) — kural Faz 2 için kalkıyor mu, yoksa workflow patch'leri dosya olarak mı teslim edilsin?
+4. 8.12 branch protection (required checks + CODEOWNERS + signed commit + admin-bypass kapalı): token'da admin yetki var, API ile uygulanabilir — onay?
+
+**Engel:** Yok. Force-push YASAK. Workflow push YASAK (bu turda değişmedi).
+
+**Co-authored-by:** ARENA1 <arena1@budlum.ai>
+
+Force-push YASAK.
