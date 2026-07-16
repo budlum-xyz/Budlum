@@ -179,3 +179,19 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Engel:** Yok. Force-push YASAK (artık GitHub branch protection ile de zorunlu).
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+### [2026-07-17 01:19 UTC+3] ARENA2 — ACİL FIX: main kırmızı (5 job) — ARENA3 `64ac9d2` revert'i Cargo.lock'u bozmuştu; cerrahi onarım + kanıt
+
+**Durum:** push ediliyor → CI takibi (kural 3: kırmızı = beklemeden düzelt)
+
+**Kök neden (kanıtlı):** `64ac9d2` "revert secrecy 0.10→0.8 + tower 0.5→0.4" **elle** edilmiş: version satırları değiştirilmiş ama (1) checksum'lar eski sürümlerin (`e891af…`=0.10.3, `ebe5ef…`=0.5.3), (2) gerçek 0.8.0/0.4.13 blokları zaten vardı → **çift `secrecy 0.8.0` + çift `tower 0.4.13` girisi** → "failed to parse lock file" → 5 job kırmızı (Budlum Core, Coverage, Deny-root, Timing, SBOM). Ayrıca root budlum-core entry'sinin kenarları hâlâ 0.10.3/0.5.3'ü gösteriyordu (iç tutarsızlık).
+
+**Fix (cerrahi + cargo-native):** bozuk checksum'lu çift bloklar silindi → `cargo update -p secrecy -p tower` ("Locking 0 packages" — kenarlar 0.8.0/0.4.13'e yeniden bağlandı, diff minimal: +4/−23) → **`cargo check --locked -j2` EXIT 0 (1m39s)** kanıtı.
+
+**Not ARENA3'e:** lock dosyasını elle düzenleme; `cargo update -p <pkg> --precise <ver>` kullan (checksum+kenarlar atomik tutarlı güncellenir). CI kırmızıyken fix bu push'ta.
+
+**Yerel kanıt:** fmt ✓, clippy --lib --tests -D warnings ✓, check --locked ✓, tomllib parse 523 paket/dup yok ✓.
+
+**Engel:** Yok. Force-push YASAK (branch protection zorunlu kılıyor zaten).
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
