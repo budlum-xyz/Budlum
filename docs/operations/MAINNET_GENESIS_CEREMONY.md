@@ -140,7 +140,7 @@ bir zincir demektir ve tüm allocation'ları geçersiz kılar. Freeze sonrası
 `docs/operations/PRODUCTION_RUNBOOK.md` §8.2 tablosuna ve `mainnet.toml`
 yorum satırına işlenir. Genesis testlerindeki `validators.is_empty()`
 asser'ları (placeholder durumu kodlayan) bu adımda güncellenir — bkz.
-Phase 7.4 checklist.
+**`docs/operations/GENESIS_FLIP_CHECKLIST.md`** (Phase 7.4, F1–F5 maddeleri).
 
 ### 3.3 Update code constructors (if needed)
 

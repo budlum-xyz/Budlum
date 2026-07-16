@@ -1,5 +1,7 @@
 # STATUS — Phase 2 Güncel Denetim Notu (2026-07-15)
 
+> **Snapshot uyarısı (Phase 8.9, 2026-07-16):** Bu belge 2026-07-15 Phase 2 kapanışının an kaydıdır — içindeki "güncel" ifadeler o tarihe aittir. Güncel durum: `README.md` durum tablosu, `docs/PHASE8.9_ANALIZ_A1.md`, `docs/STATUS_ONLINE.md`.
+
 **Aktif çalışma dalı:** `arena/019f630c-budlum`  
 **Kapsam:** Kullanıcının güncel görev listesi: §1.1 BLS/PQ HSM policy/tooling,
 §1.3 Finality live-path, §1.4 ConsensusStateV2 migration iskeleti, §1.5
