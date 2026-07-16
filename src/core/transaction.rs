@@ -110,13 +110,8 @@ pub enum TransactionType {
     },
     UniversalRelay(ExternalTransaction),
     RelayerResult(RelayerExternalResult),
-    AiOfferData {
-        cid: crate::storage::content_id::ContentId,
-        price: u64,
-    },
-    AiPurchaseData {
-        offer_id: u64,
-    },
+    AiOfferData { cid: crate::storage::content_id::ContentId, price: u64 },
+    AiPurchaseData { offer_id: u64 },
     HubRegisterApp {
         name: String,
         category: crate::hub::types::AppCategory,
@@ -284,7 +279,7 @@ impl Transaction {
     }
     pub fn signing_hash(&self) -> [u8; 32] {
         let mut hasher = Sha3_256::new();
-        hasher.update(b"BDLM_TX_V3"); // Upgraded to V3 for more variants
+        hasher.update(b"BDLM_TX_V3"); 
         hasher.update(self.from.as_bytes());
         hasher.update(self.to.as_bytes());
         hasher.update(self.amount.to_le_bytes());
@@ -308,11 +303,13 @@ impl Transaction {
             TransactionType::NftTransfer => 10,
             TransactionType::NftBurn => 11,
             TransactionType::NftBoost { .. } => 12,
-            TransactionType::UniversalRelay(_) => 13,
-            TransactionType::RelayerResult(_) => 14,
-            TransactionType::AiOfferData { .. } => 15,
-            TransactionType::AiPurchaseData { .. } => 16,
-            TransactionType::HubRegisterApp { .. } => 17,
+            TransactionType::NftUpdateLight { .. } => 13,
+            TransactionType::NftTag { .. } => 14,
+            TransactionType::UniversalRelay(_) => 15,
+            TransactionType::RelayerResult(_) => 16,
+            TransactionType::AiOfferData { .. } => 17,
+            TransactionType::AiPurchaseData { .. } => 18,
+            TransactionType::HubRegisterApp { .. } => 19,
         };
         hasher.update([type_byte]);
 
@@ -408,12 +405,12 @@ impl Transaction {
                     println!("Contract call TX amount must be 0");
                     return false;
                 }
-                if self.data.is_empty() || !self.data.len().is_multiple_of(8) {
+                if self.data.is_empty() {
                     println!("Contract call TX data must be non-empty BudZKVM bytecode");
                     return false;
                 }
             }
-            _ => {} // Other types handled in executor
+            _ => {} 
         }
         true
     }
@@ -430,7 +427,21 @@ impl Transaction {
             TransactionType::Stake | TransactionType::Unstake => schedule.stake_gas,
             TransactionType::Vote => schedule.vote_gas,
             TransactionType::ContractCall => schedule.contract_call_gas,
-            _ => schedule.transfer_gas, // Default
+            TransactionType::BnsRegister
+            | TransactionType::BnsSetContent
+            | TransactionType::BnsRegisterSubdomain
+            | TransactionType::BnsSetStorage => schedule.contract_call_gas,
+            TransactionType::NftMint
+            | TransactionType::NftTransfer
+            | TransactionType::NftBurn
+            | TransactionType::NftBoost { .. }
+            | TransactionType::NftUpdateLight { .. }
+            | TransactionType::NftTag { .. } => schedule.transfer_gas * 2,
+            TransactionType::UniversalRelay(_)
+            | TransactionType::RelayerResult(_) => schedule.contract_call_gas * 3,
+            TransactionType::AiOfferData { .. }
+            | TransactionType::AiPurchaseData { .. } => schedule.transfer_gas * 5,
+            TransactionType::HubRegisterApp { .. } => schedule.contract_call_gas * 2,
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature
