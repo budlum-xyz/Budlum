@@ -30,8 +30,10 @@ Based on the strategic decisions made by the owner (Ayaz), the following rules a
 -   **Advertising & Highlighting Model:**
     -   When an NFT is "Highlighted" (Boosted/Ads):
         -   4% to B.U.D. (Storage Operators/Providers).
-        -   16% to the Content Creator/Context (if ad appears inside a profile/content).
+        -   16% to the Content Creator/Context Origin (The profile or app where the ad appeared).
         -   80% to Budlum Protocol (Treasury/Burn).
+-   **Social Ranking (Luminance):** Content ranking is driven by the "Light Score" (Işık Şiddeti) algorithm. Every NFT starts with 1 cd (candela) and gains/loses light based on organic interaction (time spent, "sparkling", or "darkening").
+-   **Content Mobility (Digital Bud):** NFTs are "Digital Buds" (Dijital Tomurcuk). Transferring an NFT transfers the content visibility, authority, and all future earnings to the new owner's profile.
 -   **Interoperability:** Universal Bridge Hub (Master Key for all Web3).
 -   **Zero-Fee Inbound Bridge:** Inbound transfers to Budlum have no upfront $BUD cost. If a fee is required by the source chain or relayer, it is deducted automatically from the arriving asset, ensuring a frictionless entry for new users without $BUD holdings.
 -   **Universal Consensus Layer:** Budlum is the "Universal Consensus Layer"—the next layer of the internet focused on data sovereignty and societal flourishing. It is not just a chain; it is a paradigm shift towards a decentralized, human-centric digital world.

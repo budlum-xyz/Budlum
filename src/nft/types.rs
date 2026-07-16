@@ -9,11 +9,15 @@ use serde::{Deserialize, Serialize};
 pub struct Nft {
     pub id: u64,
     pub owner: Address,
-    /// Link to the actual content in B.U.D. (image, video, post text).
+    /// Link to the actual content in B.U.D.
     pub content_id: ContentId,
     pub minted_at_epoch: u64,
-    /// Optional BNS name linked to this NFT at mint time (e.g. "ayaz.bud").
+    /// Optional BNS name linked to this NFT at mint time.
     pub author_name: Option<String>,
+    /// B04: Luminance (Light Score) in millicandelas (1000 = 1 cd)
+    pub luminance: u64,
+    /// Tags for categorizing content (e.g. "#education")
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, thiserror::Error)]

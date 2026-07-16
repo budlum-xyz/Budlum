@@ -34,11 +34,31 @@ impl NftRegistry {
             content_id: cid,
             minted_at_epoch: epoch,
             author_name: name,
+            luminance: 1000, // B04: Starts with 1 cd
+            tags: Vec::new(),
         };
         self.nfts.insert(id, nft);
         self.ownership.entry(owner).or_default().push(id);
         self.next_id += 1;
         id
+    }
+
+    pub fn add_tag(&mut self, id: u64, tag: String) -> Result<(), NftError> {
+        let nft = self.nfts.get_mut(&id).ok_or(NftError::NotFound)?;
+        if !nft.tags.contains(&tag) {
+            nft.tags.push(tag);
+        }
+        Ok(())
+    }
+
+    pub fn update_luminance(&mut self, id: u64, delta_mcd: i64) -> Result<(), NftError> {
+        let nft = self.nfts.get_mut(&id).ok_or(NftError::NotFound)?;
+        let mut new_val = nft.luminance as i128 + delta_mcd as i128;
+        if new_val < 0 {
+            new_val = 0;
+        }
+        nft.luminance = new_val as u64;
+        Ok(())
     }
 
     pub fn transfer(&mut self, id: u64, from: &Address, to: Address) -> Result<(), NftError> {

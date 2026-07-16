@@ -20,12 +20,22 @@ Budlum is the **Universal Consensus Layer**—the next layer of the internet foc
 ## 2. Technical Architecture
 
 ### 2.1 NFT-Storage Linkage
--   **Transaction Type:** `NftMint`, `NftTransfer`, `NftBurn`.
--   **Kill Switch:** `NftBurn` triggers physical deletion (`Hard Prune`) from B.U.D. nodes.
+-   **Transaction Type:** `NftMint`, `NftTransfer`, `NftBurn`, `NftTag`, `NftUpdateLight`.
+-   **Digital Bud (B05):** NFTs represent social posts. Transferring the NFT moves the content and its revenue stream (L02) to the new owner's profile.
+-   **Luminance Algorithm (B04):**
+    -   Initial state: 1.0 cd.
+    -   Positive: +0.0006 cd (>30s view), +0.005 cd (5/5 spark).
+    -   Negative: -0.0006 cd (<1s view), -0.003 cd (darken), 10% annual decay.
+    -   Threshold: UI reflects changes only at 0.1 cd intervals.
 
 ### 2.2 BNS-to-Site Mapping
 -   **Social/Web Binding:** `.bud` names point to B.U.D. `ManifestId`s.
--   **Subdomains:** Parent-controlled subdomains (e.g., `blog.ayaz.bud`) for modular D-Web organization.
+-   **D-Web Gateway:** Users can render personal websites directly from B.U.D. data linked to their BNS name.
+-   **Subdomains:** Parent-controlled subdomains.
+
+### 2.4 LUM & DeArt (Vision)
+-   **LUM DeFi (L00):** A hub for dApp incubation and investment.
+-   **DeArt:** Decentralized art lifecycle management using DeSci-style peer review.
 -   **NFT-Driven Feed:** The SocialFi application renders a user's feed based on the NFTs they currently hold. Transferring an NFT effectively "transfers" the social content, making posts tradable or movable across different wallets while maintaining the B.U.D. storage link.
 
 ### 2.3 Universal Ecosystem Interface (Budlum Hub)
