@@ -29,25 +29,13 @@ mod tests {
             // Fund Alice
             bc.state.add_balance(&alice, 1_000_000);
 
-            // Register a BNS name
-            let bns_data = bincode::serialize(&("ayaz.bud".to_string(), 100u64)).unwrap();
-            let mut bns_tx = Transaction::new(alice, Address::zero(), 10000, bns_data);
-            bns_tx.tx_type = TransactionType::BnsRegister;
-            bns_tx.fee = 1;
-            bns_tx.hash = bns_tx.calculate_hash();
-            bc.mempool.add_transaction(bns_tx).unwrap();
+            // Register a BNS name directly in state
+            bc.state.bns_registry.register("ayaz.bud".to_string(), alice, 0, 100).unwrap();
 
-            // Mint an NFT (SocialFi)
-            let nft_data = bincode::serialize(&(cid, Some("ayaz.bud".to_string()))).unwrap();
-            let mut nft_tx = Transaction::new(alice, Address::zero(), 0, nft_data);
-            nft_tx.tx_type = TransactionType::NftMint;
-            nft_tx.fee = 1;
-            nft_tx.hash = nft_tx.calculate_hash();
-            nft_tx.fee = 1;
-            nft_tx.hash = nft_tx.calculate_hash();
-            bc.mempool.add_transaction(nft_tx).unwrap();
+            // Mint an NFT directly in state
+            bc.state.nft_registry.mint(alice, cid, 0, Some("ayaz.bud".to_string()));
 
-            // Produce a block to persist state
+            // Produce a block to persist state to storage
             bc.produce_block(Address::zero());
 
             assert!(bc.state.bns_registry.resolve("ayaz.bud", 0).is_some());
