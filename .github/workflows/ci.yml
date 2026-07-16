@@ -73,9 +73,9 @@ jobs:
           toolchain: "1.94.0"
       - uses: Swatinem/rust-cache@v2
       - name: cargo audit (CVE = fail)
-        run: ./scripts/audit-deps.sh
+        run: bash ./scripts/audit-deps.sh
       - name: SBOM üret (CycloneDX)
-        run: ./scripts/generate-sbom.sh
+        run: bash ./scripts/generate-sbom.sh
       - name: SBOM artifact yükle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -207,7 +207,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Statik tarama + kanarya
         run: |
-          ./scripts/check-timing-safe.sh
-          ./scripts/check-timing-safe.sh --self-test
+          bash ./scripts/check-timing-safe.sh
+          bash ./scripts/check-timing-safe.sh --self-test
       - name: Dudect-tarzı istatistiksel zamanlama testi
         run: cargo bench --bench timing_safe
