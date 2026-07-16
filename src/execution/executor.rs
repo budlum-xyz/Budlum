@@ -19,7 +19,7 @@ impl Executor {
             return Ok(());
         }
 
-        match tx.tx_type {
+        match &tx.tx_type {
             TransactionType::Unstake => {
                 if tx.amount == 0 {
                     return Err(BudlumError::validation(
@@ -43,7 +43,7 @@ impl Executor {
             _ => {}
         }
 
-        let liquid_cost = match tx.tx_type {
+        let liquid_cost = match &tx.tx_type {
             TransactionType::Unstake | TransactionType::Vote => tx.fee,
             _ => tx.total_cost(),
         };

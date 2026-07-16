@@ -289,7 +289,7 @@ impl Transaction {
         hasher.update(self.timestamp.to_le_bytes());
         hasher.update(self.chain_id.to_le_bytes());
 
-        let type_byte = match self.tx_type {
+        let type_byte = match &self.tx_type {
             TransactionType::Transfer => 0,
             TransactionType::Stake => 1,
             TransactionType::Unstake => 2,
@@ -363,7 +363,7 @@ impl Transaction {
         if self.from == Address::zero() {
             return true;
         }
-        match self.tx_type {
+        match &self.tx_type {
             TransactionType::Transfer => {
                 if self.to == Address::zero() {
                     println!("Transfer TX has empty 'to' address");
@@ -422,7 +422,7 @@ impl Transaction {
     }
 
     pub fn estimate_gas_with_schedule(&self, schedule: GasSchedule) -> u64 {
-        let intrinsic = match self.tx_type {
+        let intrinsic = match &self.tx_type {
             TransactionType::Transfer => schedule.transfer_gas,
             TransactionType::Stake | TransactionType::Unstake => schedule.stake_gas,
             TransactionType::Vote => schedule.vote_gas,
