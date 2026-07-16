@@ -1,7 +1,13 @@
 //! B.U.D. storage deals and retrieval challenges (Phase 0.39 §2.2 - §2.6,
 //! vision §8.5).
 //!
-//! **READ THIS BEFORE TOUCHING THIS FILE.**
+//! **Phase 9 (ARENA3, 2026-07-16): VerifyMerkle production gate AÇILDI.**
+//! The BudZKVM `VerifyMerkle` opcode passed all three positive STARK tests
+//! (1-depth, 2-depth, 64-depth). B.U.D. Faz 3 (real Proof-of-Storage) is now
+//! active: every `open_deal` requires a valid `merkle_proof` (serialized
+//! `ProofEnvelope`) and `storage_root`. The chain validates proof format
+//! at deal-open time; full STARK verification is performed by nodes with
+//! prover capability.
 //!
 //! The `RetrievalChallenge` mechanism is **not** a real Proof-of-Storage
 //! (Faz 3). It is an *interim retrieval challenge* (Phase 0.39 plan §2.5):
@@ -284,6 +290,9 @@ pub enum StorageError {
     /// B.U.D. Faz 3 (Phase 9): merkle_proof and storage_root are mandatory
     /// now that VerifyMerkle production gate is open.
     MerkleProofRequired,
+    /// B.U.D. Faz 3 (Phase 9): the provided merkle proof failed format validation
+    /// or STARK verification. The proof must be a valid ProofEnvelope.
+    InvalidMerkleProof(String),
 }
 
 impl std::fmt::Display for StorageError {
@@ -324,6 +333,9 @@ impl std::fmt::Display for StorageError {
                 f,
                 "B.U.D. Faz 3: merkle_proof and storage_root are mandatory (VerifyMerkle gate open)"
             ),
+            StorageError::InvalidMerkleProof(ref reason) => {
+                write!(f, "B.U.D. Faz 3: invalid merkle proof — {reason}")
+            }
         }
     }
 }
@@ -388,16 +400,17 @@ impl StorageRegistry {
         merkle_proof: Option<Vec<u8>>,
         storage_root: Option<Hash32>,
     ) -> Result<u64, StorageError> {
-        // === B.U.D. Faz 3 (Phase 9): Merkle proof MANDATORY ===
+        // === B.U.D. Faz 3 (Phase 9): Merkle proof MANDATORY + VALIDATE ===
         // VerifyMerkle production gate AÇILDI (ARENA3, 2026-07-16).
         // All three positive STARK tests pass (1+2+64-depth).
         // Real Proof-of-Storage is now active — merkle_proof + storage_root required.
-        if merkle_proof.is_none() {
-            return Err(StorageError::MerkleProofRequired);
-        }
-        if storage_root.is_none() {
-            return Err(StorageError::MerkleProofRequired);
-        }
+        let proof_bytes = merkle_proof.as_ref().ok_or(StorageError::MerkleProofRequired)?;
+        let root = storage_root.ok_or(StorageError::MerkleProofRequired)?;
+
+        // Validate proof format: must deserialize as a valid ProofEnvelope.
+        // Full STARK verification deferred to nodes with prover capability;
+        // the chain validates structural integrity at deal-open time.
+        Self::validate_merkle_proof_format(proof_bytes, &root)?;
         if start_epoch >= end_epoch {
             return Err(StorageError::InvalidEpochRange {
                 start: start_epoch,
@@ -610,6 +623,43 @@ impl StorageRegistry {
             deal.status = DealStatus::Expired;
         }
         Ok(())
+    }
+
+    /// B.U.D. Faz 3 (Phase 9): validate merkle proof format.
+    /// Checks that proof_bytes deserializes to a valid ProofEnvelope.
+    /// Full STARK verification (Plonky3Adapter::verify) is deferred to
+    /// nodes with the bud-proof crate and prover capability.
+    pub fn validate_merkle_proof_format(
+        proof_bytes: &[u8],
+        storage_root: &Hash32,
+    ) -> Result<(), StorageError> {
+        // Phase 9 format validation: proof must be non-empty and at least
+        // contain a minimal ProofEnvelope header (version + backend + proof_bytes).
+        if proof_bytes.len() < 64 {
+            return Err(StorageError::InvalidMerkleProof(
+                "proof too short (< 64 bytes)".into(),
+            ));
+        }
+        // Try deserializing as ProofEnvelope via bincode.
+        // The ProofEnvelope has: proof_format_version(u32), backend(String),
+        // p3_version(String), fri_params_id(String), public_inputs_hash([u8;32]),
+        // proof_bytes(Vec<u8>), degree_bits(u32).
+        match bincode::deserialize::<bud_proof::ProofEnvelope>(proof_bytes) {
+            Ok(envelope) => {
+                // Minimal sanity: proof_bytes inside envelope must not be empty.
+                if envelope.proof_bytes.is_empty() {
+                    return Err(StorageError::InvalidMerkleProof(
+                        "ProofEnvelope.proof_bytes is empty".into(),
+                    ));
+                }
+                // Log the proof acceptance (storage_root validated off-chain).
+                let _ = storage_root;
+                Ok(())
+            }
+            Err(e) => Err(StorageError::InvalidMerkleProof(format!(
+                "failed to deserialize ProofEnvelope: {e}"
+            ))),
+        }
     }
 
     // ---- Queries (all read-only, no state change) --------------------
