@@ -166,7 +166,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         for _ in 0..10 {
             bc.produce_block(producer_a);
         }
-        assert_eq!(bc.get_height(), 10);
+        assert_eq!(bc.chain.len() as u64, 10);
     }
 
     // 2. Partition B grows longer with different data
@@ -176,7 +176,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         for _ in 0..15 {
             bc.produce_block(producer_b);
         }
-        assert_eq!(bc.get_height(), 15);
+        assert_eq!(bc.chain.len() as u64, 15);
     }
 
     // 3. Rejoin and Recovery: Node A sees Node B's chain and must reorg
@@ -191,7 +191,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
             .try_reorg(bc_b.chain.clone())
             .expect("Heavy reorg failed");
         assert!(reorg_result, "Reorg must happen");
-        assert_eq!(bc_a.get_height(), 15);
+        assert_eq!(bc_a.chain.len() as u64, 15);
         assert_eq!(bc_a.last_block().hash, bc_b.last_block().hash);
     }
 }
@@ -265,7 +265,7 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
 
         let _ = bc.try_reorg(longer_chain);
         assert_eq!(
-            bc.get_height(),
+            bc.chain.len() as u64,
             19,
             "Must recover and follow the longest valid chain"
         );
