@@ -379,7 +379,7 @@ async fn main() {
     let local_signer_address = config
         .validator_key_file
         .as_ref()
-        .and_then(|path| load_signing_key(path))
+        .and_then(|s| load_signing_key(s))
         .map(|key| Address::from(key.public_key_bytes()));
 
     println!("Budlum Node - v0.2.0 (Framework Edition)");
@@ -481,7 +481,7 @@ async fn main() {
             let poa_keypair = config
                 .validator_key_file
                 .as_ref()
-                .and_then(|path| load_signing_key(path));
+                .and_then(|s| load_signing_key(s));
             if let Some(signer) = hsm_signer {
                 Arc::new(PoAEngine::with_signer(
                     PoAConfig {
@@ -822,14 +822,14 @@ async fn main() {
         use hyper::{body::Bytes, Request, Response};
         use hyper_util::rt::TokioIo;
 
-        let listener =
-            match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", metrics_port)).await {
-                Ok(l) => l,
-                Err(e) => {
-                    eprintln!("Metrics server bind error: {}", e);
-                    return;
-                }
-            };
+        let listener = match tokio::net::TcpListener::bind(format!("0.0.0.0:{metrics_port}")).await
+        {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Metrics server bind error: {}", e);
+                return;
+            }
+        };
         println!("Prometheus metrics on :{}/metrics", metrics_port);
         loop {
             if let Ok((stream, _)) = listener.accept().await {

@@ -275,6 +275,12 @@ pub enum ChainCommand {
         limit: usize,
         response: oneshot::Sender<Vec<crate::nft::types::Nft>>,
     },
+    MarketGetOffers {
+        response: oneshot::Sender<Vec<crate::marketplace::DataOffer>>,
+    },
+    HubGetApps {
+        response: oneshot::Sender<Vec<crate::hub::types::AppRecord>>,
+    },
 }
 
 #[derive(Clone)]
@@ -1149,7 +1155,10 @@ impl ChainHandle {
 
     pub async fn bns_resolve(&self, name: String) -> Option<Address> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::BnsResolve { name, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsResolve { name, response: tx })
+            .await;
         rx.await.unwrap_or(None)
     }
 
@@ -1162,15 +1171,28 @@ impl ChainHandle {
         rx.await.unwrap_or(None)
     }
 
-    pub async fn bns_resolve_content(&self, name: String) -> Option<crate::storage::content_id::ContentId> {
+    pub async fn bns_resolve_content(
+        &self,
+        name: String,
+    ) -> Option<crate::storage::content_id::ContentId> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::BnsResolveContent { name, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsResolveContent { name, response: tx })
+            .await;
         rx.await.unwrap_or(None)
     }
 
     pub async fn bns_resolve_subdomain(&self, parent: String, label: String) -> Option<Address> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::BnsResolveSubdomain { parent, label, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsResolveSubdomain {
+                parent,
+                label,
+                response: tx,
+            })
+            .await;
         rx.await.unwrap_or(None)
     }
 
@@ -1192,30 +1214,71 @@ impl ChainHandle {
                 response: tx,
             })
             .await;
-        rx.await.unwrap_or_else(|_| Err("Actor dropped".to_string()))
+        rx.await
+            .unwrap_or_else(|_| Err("Actor dropped".to_string()))
     }
 
     pub async fn bns_calculate_cost(&self, name: String, duration: u64) -> u64 {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::BnsCalculateCost { name, duration, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::BnsCalculateCost {
+                name,
+                duration,
+                response: tx,
+            })
+            .await;
         rx.await.unwrap_or(0)
     }
 
     pub async fn nft_get(&self, id: u64) -> Option<crate::nft::types::Nft> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::NftGet { id, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::NftGet { id, response: tx })
+            .await;
         rx.await.unwrap_or(None)
     }
 
     pub async fn nft_get_by_owner(&self, owner: Address) -> Vec<crate::nft::types::Nft> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::NftGetByOwner { owner, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::NftGetByOwner {
+                owner,
+                response: tx,
+            })
+            .await;
         rx.await.unwrap_or_default()
     }
 
     pub async fn nft_get_feed(&self, limit: usize) -> Vec<crate::nft::types::Nft> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::NftGetFeed { limit, response: tx }).await;
+        let _ = self
+            .tx
+            .send(ChainCommand::NftGetFeed {
+                limit,
+                response: tx,
+            })
+            .await;
+        rx.await.unwrap_or_default()
+    }
+
+    pub async fn market_get_offers(&self) -> Vec<crate::marketplace::DataOffer> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::MarketGetOffers { response: tx })
+            .await;
+        rx.await.unwrap_or_default()
+    }
+
+    pub async fn hub_get_apps(&self) -> Vec<crate::hub::types::AppRecord> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self
+            .tx
+            .send(ChainCommand::HubGetApps { response: tx })
+            .await;
         rx.await.unwrap_or_default()
     }
 }
@@ -1607,7 +1670,7 @@ impl ChainActor {
                         .domain_registry
                         .get(domain_id)
                         .map(|d| d.last_committed_height)
-                        .ok_or_else(|| format!("Domain {} not found", domain_id));
+                        .ok_or_else(|| format!("Domain {domain_id} not found"));
                     let _ = res_tx.send(res);
                 }
                 ChainCommand::RegisterBridgeAsset {
@@ -1658,6 +1721,7 @@ impl ChainActor {
                             expected_block_hash,
                             event,
                             &proof,
+                            Address::zero(),
                         ));
                 }
                 ChainCommand::BurnBridgeTransfer {
@@ -1811,16 +1875,39 @@ impl ChainActor {
                     let _ = res_tx.send(challenges);
                 }
                 ChainCommand::BnsResolve { name, response } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.resolve(&name, self.blockchain.state.epoch_index));
+                    let _ = response.send(
+                        self.blockchain
+                            .state
+                            .bns_registry
+                            .resolve(&name, self.blockchain.state.epoch_index),
+                    );
                 }
                 ChainCommand::BnsResolveFull { name, response } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.resolve_full(&name, self.blockchain.state.epoch_index));
+                    let _ = response.send(
+                        self.blockchain
+                            .state
+                            .bns_registry
+                            .resolve_full(&name, self.blockchain.state.epoch_index),
+                    );
                 }
                 ChainCommand::BnsResolveContent { name, response } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.resolve_content(&name, self.blockchain.state.epoch_index));
+                    let _ = response.send(
+                        self.blockchain
+                            .state
+                            .bns_registry
+                            .resolve_content(&name, self.blockchain.state.epoch_index),
+                    );
                 }
-                ChainCommand::BnsResolveSubdomain { parent, label, response } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.resolve_subdomain(&parent, &label, self.blockchain.state.epoch_index));
+                ChainCommand::BnsResolveSubdomain {
+                    parent,
+                    label,
+                    response,
+                } => {
+                    let _ = response.send(self.blockchain.state.bns_registry.resolve_subdomain(
+                        &parent,
+                        &label,
+                        self.blockchain.state.epoch_index,
+                    ));
                 }
                 ChainCommand::BnsSetStorage {
                     name,
@@ -1829,28 +1916,78 @@ impl ChainActor {
                     storage_domain_id,
                     response,
                 } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.set_storage(
-                        &name,
-                        owner,
-                        storage_root,
-                        storage_domain_id,
-                        self.blockchain.state.epoch_index,
-                    ));
+                    let _ = response.send(
+                        self.blockchain
+                            .state
+                            .bns_registry
+                            .set_storage(
+                                &name,
+                                owner,
+                                storage_root,
+                                storage_domain_id,
+                                self.blockchain.state.epoch_index,
+                            )
+                            .map_err(|e| e.to_string()),
+                    );
                 }
-                ChainCommand::BnsCalculateCost { name, duration, response } => {
-                    let _ = response.send(self.blockchain.state.bns_registry.calculate_cost(&name, duration));
+                ChainCommand::BnsCalculateCost {
+                    name,
+                    duration,
+                    response,
+                } => {
+                    let _ = response.send(
+                        self.blockchain
+                            .state
+                            .bns_registry
+                            .calculate_cost(&name, duration),
+                    );
                 }
                 ChainCommand::NftGet { id, response } => {
                     let _ = response.send(self.blockchain.state.nft_registry.get_nft(id).cloned());
                 }
                 ChainCommand::NftGetByOwner { owner, response } => {
-                    let nft_ids = self.blockchain.state.nft_registry.ownership.get(&owner).cloned().unwrap_or_default();
-                    let nfts: Vec<_> = nft_ids.iter().filter_map(|id| self.blockchain.state.nft_registry.get_nft(*id)).cloned().collect();
+                    let nft_ids = self
+                        .blockchain
+                        .state
+                        .nft_registry
+                        .ownership
+                        .get(&owner)
+                        .cloned()
+                        .unwrap_or_default();
+                    let nfts: Vec<_> = nft_ids
+                        .iter()
+                        .filter_map(|id| self.blockchain.state.nft_registry.get_nft(*id))
+                        .cloned()
+                        .collect();
                     let _ = response.send(nfts);
                 }
                 ChainCommand::NftGetFeed { limit, response } => {
-                    let nfts: Vec<_> = self.blockchain.state.nft_registry.nfts.values().rev().take(limit).cloned().collect();
+                    let nfts: Vec<_> = self
+                        .blockchain
+                        .state
+                        .nft_registry
+                        .nfts
+                        .values()
+                        .rev()
+                        .take(limit)
+                        .cloned()
+                        .collect();
                     let _ = response.send(nfts);
+                }
+                ChainCommand::MarketGetOffers { response } => {
+                    let offers: Vec<_> = self
+                        .blockchain
+                        .state
+                        .marketplace
+                        .offers
+                        .values()
+                        .cloned()
+                        .collect();
+                    let _ = response.send(offers);
+                }
+                ChainCommand::HubGetApps { response } => {
+                    let apps: Vec<_> = self.blockchain.state.hub.apps.values().cloned().collect();
+                    let _ = response.send(apps);
                 }
             }
         }

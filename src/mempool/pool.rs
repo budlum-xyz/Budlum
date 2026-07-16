@@ -79,7 +79,7 @@ impl Mempool {
             return Err(MempoolError::PoolFull);
         }
 
-        let sender_count = self.by_sender.get(&tx.from).map(|v| v.len()).unwrap_or(0);
+        let sender_count = self.by_sender.get(&tx.from).map_or(0, |v| v.len());
 
         if let Some(existing_hash) = self.find_tx_by_sender_nonce(&tx.from, tx.nonce) {
             let existing = self.transactions.get(&existing_hash).unwrap();
@@ -247,7 +247,7 @@ mod tests {
         let mut tx = Transaction::new(from, Address::zero(), 100, vec![]);
         tx.nonce = nonce;
         tx.fee = fee;
-        tx.hash = format!("tx_{}_{}", from_hex, nonce);
+        tx.hash = format!("tx_{from_hex}_{nonce}");
         tx
     }
 

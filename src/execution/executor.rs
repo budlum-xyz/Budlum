@@ -158,8 +158,7 @@ impl Executor {
                         id_bytes.copy_from_slice(&tx.data[1..9]);
                         let proposal_id = u64::from_le_bytes(id_bytes);
 
-                        let voter_stake =
-                            state.get_validator(&tx.from).map(|v| v.stake).unwrap_or(0);
+                        let voter_stake = state.get_validator(&tx.from).map_or(0, |v| v.stake);
                         if voter_stake == 0 {
                             return Err(BudlumError::validation(
                                 "governance_voter_not_validator",
@@ -180,11 +179,13 @@ impl Executor {
                         let duration = u64::from_le_bytes(duration_bytes);
                         let p_type: crate::core::governance::ProposalType =
                             serde_json::from_slice(&tx.data[8..]).map_err(|e| {
-                                BudlumError::validation("governance_proposal_invalid", e.to_string())
+                                BudlumError::validation(
+                                    "governance_proposal_invalid",
+                                    e.to_string(),
+                                )
                             })?;
 
-                        let proposer_stake =
-                            state.get_validator(&tx.from).map(|v| v.stake).unwrap_or(0);
+                        let proposer_stake = state.get_validator(&tx.from).map_or(0, |v| v.stake);
                         if proposer_stake == 0 {
                             return Err(BudlumError::validation(
                                 "governance_proposer_not_validator",
@@ -215,11 +216,18 @@ impl Executor {
 
                 let cost = state.bns_registry.calculate_cost(&name, duration);
                 if tx.amount < cost {
-                    return Err(BudlumError::validation("bns_insufficient_payment", format!("Required: {}, provided: {}", cost, tx.amount)));
+                    return Err(BudlumError::validation(
+                        "bns_insufficient_payment",
+                        format!("Required: {}, provided: {}", cost, tx.amount),
+                    ));
                 }
 
-                state.bns_registry.register(name, tx.from, state.epoch_index, duration)
-                    .map_err(|e| BudlumError::validation("bns_registration_failed", e.to_string()))?;
+                state
+                    .bns_registry
+                    .register(name, tx.from, state.epoch_index, duration)
+                    .map_err(|e| {
+                        BudlumError::validation("bns_registration_failed", e.to_string())
+                    })?;
 
                 let sender = state.get_or_create(&tx.from);
                 // SECURITY H1 FIX: Only subtract exact cost
@@ -227,21 +235,29 @@ impl Executor {
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::BnsSetContent => {
-                let (name, cid): (String, crate::storage::content_id::ContentId) = bincode::deserialize(&tx.data)
-                    .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
+                let (name, cid): (String, crate::storage::content_id::ContentId) =
+                    bincode::deserialize(&tx.data)
+                        .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
 
-                state.bns_registry.set_content(&name, &tx.from, cid)
-                    .map_err(|e| BudlumError::validation("bns_set_content_failed", e.to_string()))?;
+                state
+                    .bns_registry
+                    .set_content(&name, &tx.from, cid)
+                    .map_err(|e| {
+                        BudlumError::validation("bns_set_content_failed", e.to_string())
+                    })?;
 
                 let sender = state.get_or_create(&tx.from);
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::BnsRegisterSubdomain => {
-                let (parent, label, sub_owner): (String, String, Address) = bincode::deserialize(&tx.data)
-                    .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
+                let (parent, label, sub_owner): (String, String, Address) =
+                    bincode::deserialize(&tx.data)
+                        .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
 
-                state.bns_registry.register_subdomain(&parent, label, sub_owner, &tx.from)
+                state
+                    .bns_registry
+                    .register_subdomain(&parent, label, sub_owner, &tx.from)
                     .map_err(|e| BudlumError::validation("bns_subdomain_failed", e.to_string()))?;
 
                 let sender = state.get_or_create(&tx.from);
@@ -252,18 +268,25 @@ impl Executor {
                 let (name, root, dom_id): (String, [u8; 32], u32) = bincode::deserialize(&tx.data)
                     .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
 
-                state.bns_registry.set_storage(&name, tx.from, root, dom_id, state.epoch_index)
-                    .map_err(|e| BudlumError::validation("bns_set_storage_failed", e.to_string()))?;
+                state
+                    .bns_registry
+                    .set_storage(&name, tx.from, root, dom_id, state.epoch_index)
+                    .map_err(|e| {
+                        BudlumError::validation("bns_set_storage_failed", e.to_string())
+                    })?;
 
                 let sender = state.get_or_create(&tx.from);
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::NftMint => {
-                let (cid, author): (crate::storage::content_id::ContentId, Option<String>) = bincode::deserialize(&tx.data)
-                    .map_err(|e| BudlumError::validation("nft_invalid_data", e.to_string()))?;
+                let (cid, author): (crate::storage::content_id::ContentId, Option<String>) =
+                    bincode::deserialize(&tx.data)
+                        .map_err(|e| BudlumError::validation("nft_invalid_data", e.to_string()))?;
 
-                state.nft_registry.mint(tx.from, cid, state.epoch_index, author);
+                state
+                    .nft_registry
+                    .mint(tx.from, cid, state.epoch_index, author);
 
                 let sender = state.get_or_create(&tx.from);
                 sender.balance = sender.balance.saturating_sub(tx.fee);
@@ -273,7 +296,9 @@ impl Executor {
                 let (id, to): (u64, Address) = bincode::deserialize(&tx.data)
                     .map_err(|e| BudlumError::validation("nft_invalid_data", e.to_string()))?;
 
-                state.nft_registry.transfer(id, &tx.from, to)
+                state
+                    .nft_registry
+                    .transfer(id, &tx.from, to)
                     .map_err(|e| BudlumError::validation("nft_transfer_failed", e.to_string()))?;
 
                 let sender = state.get_or_create(&tx.from);
@@ -284,7 +309,9 @@ impl Executor {
                 let id: u64 = bincode::deserialize(&tx.data)
                     .map_err(|e| BudlumError::validation("nft_invalid_data", e.to_string()))?;
 
-                let cid = state.nft_registry.burn(id, &tx.from)
+                let cid = state
+                    .nft_registry
+                    .burn(id, &tx.from)
                     .map_err(|e| BudlumError::validation("nft_burn_failed", e.to_string()))?;
 
                 tracing::info!(%cid, "B.U.D. Hard Prune Triggered by NftBurn");
@@ -297,15 +324,27 @@ impl Executor {
                 let amount = *amount;
                 let bud_share = amount.saturating_mul(4) / 100;
                 let creator_share = amount.saturating_mul(16) / 100;
-                let protocol_share = amount.saturating_sub(bud_share).saturating_sub(creator_share);
+                let protocol_share = amount
+                    .saturating_sub(bud_share)
+                    .saturating_sub(creator_share);
 
-                let nft = state.nft_registry.get_nft(*nft_id).cloned().ok_or("NFT not found")?;
-                
+                let nft = state
+                    .nft_registry
+                    .get_nft(*nft_id)
+                    .cloned()
+                    .ok_or(BudlumError::validation("nft_not_found", "NFT not found"))?;
+
                 let booster = state.get_or_create(&tx.from);
                 if booster.balance < amount.saturating_add(tx.fee) {
-                    return Err(BudlumError::validation("insufficient_funds", "Cannot afford boost"));
+                    return Err(BudlumError::validation(
+                        "insufficient_funds",
+                        "Cannot afford boost",
+                    ));
                 }
-                booster.balance = booster.balance.saturating_sub(amount).saturating_sub(tx.fee);
+                booster.balance = booster
+                    .balance
+                    .saturating_sub(amount)
+                    .saturating_sub(tx.fee);
                 booster.nonce = booster.nonce.saturating_add(1);
 
                 let creator = state.get_or_create(&nft.owner);
@@ -332,24 +371,48 @@ impl Executor {
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::AiPurchaseData { offer_id } => {
-                let offer = state.marketplace.get_offer(*offer_id).cloned().ok_or("Offer not found")?;
-                if !offer.active { return Err(BudlumError::validation("marketplace_offer_inactive", "Offer inactive")); }
-                
+                let offer = state.marketplace.get_offer(*offer_id).cloned().ok_or(
+                    BudlumError::validation("offer_not_found", "Offer not found"),
+                )?;
+                if !offer.active {
+                    return Err(BudlumError::validation(
+                        "marketplace_offer_inactive",
+                        "Offer inactive",
+                    ));
+                }
+
                 // SECURITY H2 FIX
-                state.marketplace.close_offer(*offer_id, &offer.seller).map_err(|e| BudlumError::validation("race", e))?;
-                
+                state
+                    .marketplace
+                    .close_offer(*offer_id, &offer.seller)
+                    .map_err(|e| BudlumError::validation("race", e))?;
+
                 let total_cost = offer.price.saturating_add(tx.fee);
-                if state.get_balance(&tx.from) < total_cost { return Err(BudlumError::validation("funds", "Insufficient funds")); }
-                
+                if state.get_balance(&tx.from) < total_cost {
+                    return Err(BudlumError::validation("funds", "Insufficient funds"));
+                }
+
                 let buyer = state.get_or_create(&tx.from);
                 buyer.balance = buyer.balance.saturating_sub(total_cost);
                 buyer.nonce = buyer.nonce.saturating_add(1);
-                
+
                 let seller = state.get_or_create(&offer.seller);
                 seller.balance = seller.balance.saturating_add(offer.price);
             }
-            TransactionType::HubRegisterApp { name, category, website_url, manifest_id } => {
-                state.hub.register_app(name.clone(), tx.from, category.clone(), website_url.clone(), *manifest_id, state.epoch_index);
+            TransactionType::HubRegisterApp {
+                name,
+                category,
+                website_url,
+                manifest_id,
+            } => {
+                state.hub.register_app(
+                    name.clone(),
+                    tx.from,
+                    category.clone(),
+                    website_url.clone(),
+                    *manifest_id,
+                    state.epoch_index,
+                );
                 let sender = state.get_or_create(&tx.from);
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
@@ -371,10 +434,30 @@ impl Executor {
     pub fn apply_block_checked(
         state: &mut AccountState,
         transactions: &[Transaction],
-        _block_producer: Option<&Address>,
+        block_producer: Option<&Address>,
     ) -> BudlumResult<()> {
         for tx in transactions {
             Self::apply_transaction_checked(state, tx)?;
+        }
+        if let Some(producer) = block_producer {
+            // Mint block reward
+            let reward = state.tokenomics.block_reward;
+            if reward > 0 {
+                let supply = state.circulating_supply();
+                let cap = crate::tokenomics::BUD_TOTAL_SUPPLY as u128;
+                let actual = reward.min(cap.saturating_sub(supply) as u64);
+                if actual > 0 {
+                    state.add_balance(producer, actual);
+                }
+            }
+            // Distribute tx fees (minus metabolic burn) to producer
+            for tx in transactions {
+                let burn = state.tokenomics.metabolic_burn(tx.fee);
+                let producer_fee = tx.fee.saturating_sub(burn);
+                if producer_fee > 0 {
+                    state.add_balance(producer, producer_fee);
+                }
+            }
         }
         Ok(())
     }

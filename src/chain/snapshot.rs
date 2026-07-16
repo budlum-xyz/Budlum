@@ -93,7 +93,7 @@ impl StateSnapshot {
         serde_json::to_vec(self).expect("BUG: StateSnapshot must serialize to_bytes")
     }
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        serde_json::from_slice(data).map_err(|e| format!("Failed to parse snapshot: {}", e))
+        serde_json::from_slice(data).map_err(|e| format!("Failed to parse snapshot: {e}"))
     }
     pub fn size(&self) -> usize {
         self.to_bytes().len()
@@ -145,13 +145,13 @@ impl PruningManager {
         use std::path::Path;
         let dir = Path::new(&self.snapshot_dir);
         if !dir.exists() {
-            fs::create_dir_all(dir).map_err(|e| format!("Failed to create snapshot dir: {}", e))?;
+            fs::create_dir_all(dir).map_err(|e| format!("Failed to create snapshot dir: {e}"))?;
         }
         let filename = format!("snapshot_{}.json", snapshot.height);
         let path = dir.join(filename);
         let data = serde_json::to_string_pretty(snapshot)
-            .map_err(|e| format!("Failed to serialize snapshot: {}", e))?;
-        fs::write(&path, data).map_err(|e| format!("Failed to write snapshot: {}", e))?;
+            .map_err(|e| format!("Failed to serialize snapshot: {e}"))?;
+        fs::write(&path, data).map_err(|e| format!("Failed to write snapshot: {e}"))?;
         println!(
             "Snapshot saved: {} ({} accounts)",
             path.display(),
@@ -167,7 +167,7 @@ impl PruningManager {
             return Ok(None);
         }
         let mut snapshots: Vec<_> = fs::read_dir(dir)
-            .map_err(|e| format!("Failed to read snapshot dir: {}", e))?
+            .map_err(|e| format!("Failed to read snapshot dir: {e}"))?
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 entry
@@ -186,14 +186,14 @@ impl PruningManager {
         });
         let latest_path = snapshots[0].path();
         let data = fs::read_to_string(&latest_path)
-            .map_err(|e| format!("Failed to read snapshot: {}", e))?;
+            .map_err(|e| format!("Failed to read snapshot: {e}"))?;
         let snapshot: StateSnapshot = match serde_json::from_str(&data) {
             Ok(s) => s,
             Err(e) => {
                 let mut quarantine_path = latest_path.clone();
                 quarantine_path.set_extension("json.corrupted");
                 let _ = fs::rename(&latest_path, &quarantine_path);
-                return Err(format!("Failed to parse snapshot: {}", e));
+                return Err(format!("Failed to parse snapshot: {e}"));
             }
         };
         if !snapshot.verify() {
@@ -211,13 +211,13 @@ impl PruningManager {
         use std::path::Path;
         let dir = Path::new(&self.snapshot_dir);
         if !dir.exists() {
-            fs::create_dir_all(dir).map_err(|e| format!("Failed to create snapshot dir: {}", e))?;
+            fs::create_dir_all(dir).map_err(|e| format!("Failed to create snapshot dir: {e}"))?;
         }
         let filename = format!("snapshot_{}.json", snapshot.height);
         let path = dir.join(filename);
         let data = serde_json::to_string_pretty(snapshot)
-            .map_err(|e| format!("Failed to serialize snapshot v2: {}", e))?;
-        fs::write(&path, data).map_err(|e| format!("Failed to write snapshot v2: {}", e))?;
+            .map_err(|e| format!("Failed to serialize snapshot v2: {e}"))?;
+        fs::write(&path, data).map_err(|e| format!("Failed to write snapshot v2: {e}"))?;
         println!(
             "Snapshot V2 saved: {} ({} accounts)",
             path.display(),
@@ -234,7 +234,7 @@ impl PruningManager {
             return Ok(None);
         }
         let mut snapshots: Vec<_> = fs::read_dir(dir)
-            .map_err(|e| format!("Failed to read snapshot dir: {}", e))?
+            .map_err(|e| format!("Failed to read snapshot dir: {e}"))?
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 entry
@@ -253,14 +253,14 @@ impl PruningManager {
         });
         let latest_path = snapshots[0].path();
         let data = fs::read_to_string(&latest_path)
-            .map_err(|e| format!("Failed to read snapshot: {}", e))?;
+            .map_err(|e| format!("Failed to read snapshot: {e}"))?;
         let snapshot: StateSnapshotV2 = match serde_json::from_str(&data) {
             Ok(s) => s,
             Err(e) => {
                 let mut quarantine_path = latest_path.clone();
                 quarantine_path.set_extension("json.corrupted");
                 let _ = fs::rename(&latest_path, &quarantine_path);
-                return Err(format!("Failed to parse snapshot V2: {}", e));
+                return Err(format!("Failed to parse snapshot V2: {e}"));
             }
         };
         if !snapshot.verify() {
@@ -324,16 +324,6 @@ pub struct StateSnapshotV2 {
     pub message_root: [u8; 32],
     pub settlement_root: [u8; 32],
     pub global_header_summary: [u8; 32],
-
-    // ADIM 5: Phase 6+ Persistence
-    #[serde(default)]
-    pub bns_registry: Option<crate::bns::BnsRegistry>,
-    #[serde(default)]
-    pub nft_registry: Option<crate::nft::NftRegistry>,
-    #[serde(default)]
-    pub marketplace: Option<crate::marketplace::MarketplaceRegistry>,
-    #[serde(default)]
-    pub hub: Option<crate::hub::HubRegistry>,
 
     // --- schema_version 3 (Tur 9): previously-unpersisted state. All
     // `#[serde(default)]` so schema-2 snapshots still deserialize (the fields
@@ -476,11 +466,6 @@ impl StateSnapshotV2 {
             registry: Some(account_state.registry.clone()),
             liveness: Some(account_state.liveness.clone()),
             invalid_votes: Some(account_state.invalid_votes.clone()),
-            // ADIM6 BNS/NFT/Hub/Marketplace persistence (ARENA3 audit: check_snapshot)
-            bns_registry: Some(account_state.bns_registry.clone()),
-            nft_registry: Some(account_state.nft_registry.clone()),
-            marketplace: Some(account_state.marketplace.clone()),
-            hub: Some(account_state.hub.clone()),
             snapshot_hash: String::new(),
         };
         snapshot.snapshot_hash = snapshot.calculate_hash();
@@ -555,7 +540,7 @@ impl StateSnapshotV2 {
     /// an empty/corrupt snapshot. This is the exact failure class that hid the
     /// Tur-9 registry tuple-key bug.
     pub fn try_to_bytes(&self) -> Result<Vec<u8>, String> {
-        serde_json::to_vec(self).map_err(|e| format!("Failed to serialize snapshot V2: {}", e))
+        serde_json::to_vec(self).map_err(|e| format!("Failed to serialize snapshot V2: {e}"))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -604,7 +589,7 @@ impl StateSnapshotV2 {
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
         let snapshot: StateSnapshotV2 = serde_json::from_slice(data)
-            .map_err(|e| format!("Failed to parse snapshot V2: {}", e))?;
+            .map_err(|e| format!("Failed to parse snapshot V2: {e}"))?;
         snapshot.migration_report()?;
         Ok(snapshot)
     }

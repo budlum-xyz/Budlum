@@ -449,19 +449,19 @@ mod chaos_tests {
 
         let proof = tree.proof(0).unwrap();
         assert!(blockchain
-            .verify_domain_event_proof(pow.id, 77, 0, None, event.clone(), &proof, Address::zero())
+            .verify_domain_event_proof(pow.id, 77, 0, None, event.clone(), &proof)
             .is_ok());
 
         let mut foreign_domain = event.clone();
         foreign_domain.domain_id = 99;
         assert!(blockchain
-            .verify_domain_event_proof(pow.id, 77, 0, None, foreign_domain, &proof, Address::zero())
+            .verify_domain_event_proof(pow.id, 77, 0, None, foreign_domain, &proof)
             .is_err());
 
         let mut payload_tampered = event;
         payload_tampered.payload_hash = hash_fields_bytes(&[b"tampered"]);
         assert!(blockchain
-            .verify_domain_event_proof(pow.id, 77, 0, None, payload_tampered, &proof, Address::zero())
+            .verify_domain_event_proof(pow.id, 77, 0, None, payload_tampered, &proof,)
             .is_err());
     }
 
@@ -571,7 +571,7 @@ mod chaos_tests {
 
         for i in 1..=num_blocks {
             let mut block_pow = Block::new(i, "pow".repeat(32), vec![]);
-            block_pow.state_root = format!("pow_state_{}", i).repeat(32)[0..64].to_string();
+            block_pow.state_root = format!("pow_state_{i}").repeat(32)[0..64].to_string();
             block_pow.tx_root = block_pow.calculate_tx_root();
             block_pow.hash = block_pow.calculate_hash();
             let mut pow_com =
@@ -583,11 +583,11 @@ mod chaos_tests {
                 declared_head_hash: [0u8; 32],
                 declared_cumulative_work: 1000 + (i as u128),
             };
-            pow_com.finality_proof_hash = hash_finality_proof(&pow_proof, Address::zero());
+            pow_com.finality_proof_hash = hash_finality_proof(&pow_proof);
             commitments_to_submit.push((pow_com, pow_proof));
 
             let mut block_pos = Block::new(i, "pos".repeat(32), vec![]);
-            block_pos.state_root = format!("pos_state_{}", i).repeat(32)[0..64].to_string();
+            block_pos.state_root = format!("pos_state_{i}").repeat(32)[0..64].to_string();
             block_pos.tx_root = block_pos.calculate_tx_root();
             block_pos.hash = block_pos.calculate_hash();
             let mut pos_com =
@@ -598,7 +598,7 @@ mod chaos_tests {
                 cert: FinalityCert {
                     epoch: i,
                     checkpoint_height: i,
-                    checkpoint_hash: format!("pos_hash_{}", i),
+                    checkpoint_hash: format!("pos_hash_{i}"),
                     agg_sig_bls: vec![0u8; 48],
                     bitmap: vec![255],
                     set_hash: "snap_hash".to_string(),
@@ -610,11 +610,11 @@ mod chaos_tests {
                     total_stake: 100,
                 },
             };
-            pos_com.finality_proof_hash = hash_finality_proof(&pos_proof, Address::zero());
+            pos_com.finality_proof_hash = hash_finality_proof(&pos_proof);
             commitments_to_submit.push((pos_com, pos_proof));
 
             let mut block_poa = Block::new(i, "poa".repeat(32), vec![]);
-            block_poa.state_root = format!("poa_state_{}", i).repeat(32)[0..64].to_string();
+            block_poa.state_root = format!("poa_state_{i}").repeat(32)[0..64].to_string();
             block_poa.tx_root = block_poa.calculate_tx_root();
             block_poa.hash = block_poa.calculate_hash();
             let mut poa_com =
@@ -624,7 +624,7 @@ mod chaos_tests {
                 authorities: vec![],
                 signatures: vec![],
             };
-            poa_com.finality_proof_hash = hash_finality_proof(&poa_proof, Address::zero());
+            poa_com.finality_proof_hash = hash_finality_proof(&poa_proof);
             commitments_to_submit.push((poa_com, poa_proof));
 
             let msg = CrossDomainMessage::new(CrossDomainMessageParams {

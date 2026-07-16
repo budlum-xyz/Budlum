@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
                                     ));
                                 };
                                 self.expect(Token::Gt)?;
-                                format!("Map<{},{}>", k, v)
+                                format!("Map<{k},{v}>")
                             } else {
                                 ty
                             }
@@ -530,7 +530,7 @@ impl<'a> Parser<'a> {
             Token::Hex(val) => {
                 let s = val.strip_prefix("0x").unwrap_or(&val);
                 let num = u64::from_str_radix(s, 16).map_err(|e| {
-                    CompileError::ParserError(format!("Invalid hex literal {}: {}", val, e))
+                    CompileError::ParserError(format!("Invalid hex literal {val}: {e}"))
                 })?;
                 Ok(Expr::Int(num))
             }
@@ -561,7 +561,7 @@ impl<'a> Parser<'a> {
                     };
                     self.expect(Token::ParenOpen)?;
                     self.expect(Token::ParenClose)?;
-                    Ok(Expr::Call(format!("msg::{}", field), Vec::new()))
+                    Ok(Expr::Call(format!("msg::{field}"), Vec::new()))
                 } else if name == "block" {
                     self.expect(Token::Colon)?;
                     self.expect(Token::Colon)?;
@@ -572,7 +572,7 @@ impl<'a> Parser<'a> {
                     };
                     self.expect(Token::ParenOpen)?;
                     self.expect(Token::ParenClose)?;
-                    Ok(Expr::Call(format!("block::{}", field), Vec::new()))
+                    Ok(Expr::Call(format!("block::{field}"), Vec::new()))
                 } else if name == "verify_merkle_proof" {
                     self.expect(Token::ParenOpen)?;
                     let root = self.parse_expr()?;

@@ -14,6 +14,13 @@ if [[ -z "$BIN" ]]; then
     BIN="$ROOT/target/debug/budlum-core"
   elif [[ -x "$ROOT/target/release/budlum-core" ]]; then
     BIN="$ROOT/target/release/budlum-core"
+  elif docker image inspect budlum-core:smoke-test >/dev/null 2>&1; then
+    echo "[smoke] extracting binary from Docker image..."
+    _SMOKE_DOCKER_ID=$(docker create budlum-core:smoke-test)
+    BIN="/tmp/budlum-smoke-bin"
+    docker cp "$_SMOKE_DOCKER_ID:/usr/local/bin/budlum-core" "$BIN"
+    docker rm "$_SMOKE_DOCKER_ID" >/dev/null 2>&1
+    chmod +x "$BIN"
   elif command -v cargo >/dev/null 2>&1; then
     echo "[smoke] building budlum-core (debug)..."
     cargo build -q --bin budlum-core

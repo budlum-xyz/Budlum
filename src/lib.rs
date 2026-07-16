@@ -1,5 +1,5 @@
+#![allow(warnings)]
 pub mod bns;
-pub mod nft;
 pub mod chain;
 pub mod cli;
 pub mod consensus;
@@ -9,10 +9,15 @@ pub mod crypto;
 pub mod domain;
 pub mod error;
 pub mod execution;
+pub mod gateway;
+pub mod hub;
+pub mod marketplace;
 pub mod mempool;
 pub mod network;
+pub mod nft;
 pub mod prover;
 pub mod registry;
+pub mod relayer;
 pub mod rpc;
 pub mod settlement;
 pub mod storage;

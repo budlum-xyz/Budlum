@@ -480,6 +480,7 @@ dependencies = [
  "sled",
  "subtle",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "toml",
  "tower",

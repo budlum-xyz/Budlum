@@ -150,9 +150,9 @@ pub fn verify_account_proof(root: Hash, id: u64, account_hash: Hash, proof: &[Ha
 impl State {
     pub fn load(path: &str) -> Result<Self, String> {
         let accounts = if std::path::Path::new(path).exists() {
-            let data = fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read state file: {}", e))?;
-            serde_json::from_str(&data).map_err(|e| format!("Failed to parse state JSON: {}", e))?
+            let data =
+                fs::read_to_string(path).map_err(|e| format!("Failed to read state file: {e}"))?;
+            serde_json::from_str(&data).map_err(|e| format!("Failed to parse state JSON: {e}"))?
         } else {
             HashMap::new()
         };
@@ -171,17 +171,17 @@ impl State {
 
     pub fn save_to(&self, path: &str) -> Result<(), String> {
         let data = serde_json::to_string_pretty(&self.accounts)
-            .map_err(|e| format!("Failed to serialize state: {}", e))?;
-        let temp_path = format!("{}.tmp", path);
+            .map_err(|e| format!("Failed to serialize state: {e}"))?;
+        let temp_path = format!("{path}.tmp");
         let mut file = fs::File::create(&temp_path)
-            .map_err(|e| format!("Failed to create temp state file: {}", e))?;
+            .map_err(|e| format!("Failed to create temp state file: {e}"))?;
         file.write_all(data.as_bytes())
-            .map_err(|e| format!("Failed to write to temp state file: {}", e))?;
+            .map_err(|e| format!("Failed to write to temp state file: {e}"))?;
         file.sync_all()
-            .map_err(|e| format!("Failed to sync temp state file: {}", e))?;
+            .map_err(|e| format!("Failed to sync temp state file: {e}"))?;
         drop(file);
         fs::rename(&temp_path, path)
-            .map_err(|e| format!("Failed to rename temp state file to final: {}", e))?;
+            .map_err(|e| format!("Failed to rename temp state file to final: {e}"))?;
         Ok(())
     }
 
@@ -486,7 +486,7 @@ mod tests {
         assert_eq!(state.get_account(1).unwrap().balance, 100);
 
         let _ = fs::remove_file(temp_file);
-        let _ = fs::remove_file(format!("{}.tmp", temp_file));
+        let _ = fs::remove_file(format!("{temp_file}.tmp"));
     }
 
     /// Tur 11.5 / A10: save() returns Result; success path still works.

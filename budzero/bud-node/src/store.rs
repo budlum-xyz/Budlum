@@ -253,7 +253,7 @@ mod tests {
 
         let chunks: Vec<(ContentId, Vec<u8>)> = (0..4)
             .map(|i| {
-                let data = format!("chunk {}", i).into_bytes();
+                let data = format!("chunk {i}").into_bytes();
                 (ContentId::of(&data), data)
             })
             .collect();

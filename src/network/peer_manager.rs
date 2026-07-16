@@ -242,7 +242,7 @@ impl PeerManager {
             .unwrap_or(false)
     }
     pub fn get_score(&self, peer_id: &PeerId) -> i32 {
-        self.peers.get(peer_id).map(|s| s.score).unwrap_or(0)
+        self.peers.get(peer_id).map_or(0, |s| s.score)
     }
     pub fn is_handshaked(&self, peer_id: &PeerId) -> bool {
         self.peers

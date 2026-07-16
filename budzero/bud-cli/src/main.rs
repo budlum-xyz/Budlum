@@ -174,7 +174,7 @@ fn run_pipeline(config: ExecutionConfig) -> Result<ExecutionOutput, Box<dyn std:
         .state_in_file
         .unwrap_or_else(|| "state.json".to_string());
     let mut state =
-        bud_state::State::load(&state_file).map_err(|e| format!("Failed to load state: {}", e))?;
+        bud_state::State::load(&state_file).map_err(|e| format!("Failed to load state: {e}"))?;
     let pre_root = state.root();
 
     let mut vm = Vm::new(1024);
@@ -285,7 +285,7 @@ fn run_pipeline(config: ExecutionConfig) -> Result<ExecutionOutput, Box<dyn std:
         if config.commit_state {
             state
                 .commit()
-                .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+                .map_err(|e| format!("Failed to commit transaction: {e}"))?;
         }
     }
 
@@ -321,7 +321,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             state_out,
         } => {
             let content = fs::read_to_string(program)
-                .map_err(|e| format!("Failed to read program file: {}", e))?;
+                .map_err(|e| format!("Failed to read program file: {e}"))?;
 
             #[cfg(feature = "experimental")]
             let profile = bud_isa::IsaProfile::Experimental;
@@ -329,7 +329,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let profile = bud_isa::IsaProfile::Production;
 
             let bytecode = bud_compiler::compile(&content, profile)
-                .map_err(|e| format!("Compilation failed: {}", e))?;
+                .map_err(|e| format!("Compilation failed: {e}"))?;
 
             let out = run_pipeline(ExecutionConfig {
                 bytecode,
@@ -348,7 +348,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| state_in.clone().unwrap_or_else(|| "state.json".to_string()));
             out.state
                 .save_to(&save_file)
-                .map_err(|e| format!("Failed to save state: {}", e))?;
+                .map_err(|e| format!("Failed to save state: {e}"))?;
 
             if *json {
                 let json_out = serde_json::json!({
@@ -368,16 +368,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(path) = proof_out {
                 let data = serde_json::to_string_pretty(&out.envelope)
-                    .map_err(|e| format!("Failed to serialize envelope: {}", e))?;
-                fs::write(path, data).map_err(|e| format!("Failed to write proof file: {}", e))?;
+                    .map_err(|e| format!("Failed to serialize envelope: {e}"))?;
+                fs::write(path, data).map_err(|e| format!("Failed to write proof file: {e}"))?;
                 println!("Proof envelope written to {}", path);
             }
 
             if let Some(path) = public_inputs_out {
                 let data = serde_json::to_string_pretty(&out.pi)
-                    .map_err(|e| format!("Failed to serialize public inputs: {}", e))?;
+                    .map_err(|e| format!("Failed to serialize public inputs: {e}"))?;
                 fs::write(path, data)
-                    .map_err(|e| format!("Failed to write public inputs file: {}", e))?;
+                    .map_err(|e| format!("Failed to write public inputs file: {e}"))?;
                 println!("Public inputs written to {}", path);
             }
         }
@@ -391,14 +391,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             public_inputs_out,
         } => {
             let content = fs::read_to_string(program)
-                .map_err(|e| format!("Failed to read program file: {}", e))?;
+                .map_err(|e| format!("Failed to read program file: {e}"))?;
             #[cfg(feature = "experimental")]
             let profile = bud_isa::IsaProfile::Experimental;
             #[cfg(not(feature = "experimental"))]
             let profile = bud_isa::IsaProfile::Production;
 
             let bytecode = bud_compiler::compile(&content, profile)
-                .map_err(|e| format!("Compilation failed: {}", e))?;
+                .map_err(|e| format!("Compilation failed: {e}"))?;
 
             let out = run_pipeline(ExecutionConfig {
                 bytecode,
@@ -412,15 +412,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })?;
 
             let data = serde_json::to_string_pretty(&out.envelope)
-                .map_err(|e| format!("Failed to serialize envelope: {}", e))?;
-            fs::write(proof_out, data).map_err(|e| format!("Failed to write proof file: {}", e))?;
+                .map_err(|e| format!("Failed to serialize envelope: {e}"))?;
+            fs::write(proof_out, data).map_err(|e| format!("Failed to write proof file: {e}"))?;
             println!("Proof written to: {}", proof_out);
 
             if let Some(path) = public_inputs_out {
                 let data = serde_json::to_string_pretty(&out.pi)
-                    .map_err(|e| format!("Failed to serialize public inputs: {}", e))?;
+                    .map_err(|e| format!("Failed to serialize public inputs: {e}"))?;
                 fs::write(path, data)
-                    .map_err(|e| format!("Failed to write public inputs file: {}", e))?;
+                    .map_err(|e| format!("Failed to write public inputs file: {e}"))?;
                 println!("Public inputs written to: {}", path);
             }
         }
@@ -434,8 +434,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Processing batch of {} programs...", programs.len());
             let state_file = "state.json".to_string();
             for (index, p) in programs.iter().enumerate() {
-                let content = fs::read_to_string(p)
-                    .map_err(|e| format!("Failed to read file {}: {}", p, e))?;
+                let content =
+                    fs::read_to_string(p).map_err(|e| format!("Failed to read file {p}: {e}"))?;
 
                 #[cfg(feature = "experimental")]
                 let profile = bud_isa::IsaProfile::Experimental;
@@ -443,7 +443,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let profile = bud_isa::IsaProfile::Production;
 
                 let bytecode = bud_compiler::compile(&content, profile)
-                    .map_err(|e| format!("Compilation of {} failed: {}", p, e))?;
+                    .map_err(|e| format!("Compilation of {p} failed: {e}"))?;
 
                 let step_nonce = nonce.map(|n| n + index as u64);
 
@@ -472,24 +472,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Deploy { program, output } => {
             let content =
-                fs::read_to_string(program).map_err(|e| format!("Failed to read file: {}", e))?;
+                fs::read_to_string(program).map_err(|e| format!("Failed to read file: {e}"))?;
             #[cfg(feature = "experimental")]
             let profile = bud_isa::IsaProfile::Experimental;
             #[cfg(not(feature = "experimental"))]
             let profile = bud_isa::IsaProfile::Production;
 
             let bytecode = bud_compiler::compile(&content, profile)
-                .map_err(|e| format!("Compilation failed: {}", e))?;
+                .map_err(|e| format!("Compilation failed: {e}"))?;
 
-            let out_name = output
-                .clone()
-                .unwrap_or_else(|| format!("{}.budc", program));
+            let out_name = output.clone().unwrap_or_else(|| format!("{program}.budc"));
             let bytes: Vec<u8> = bytecode
                 .iter()
                 .flat_map(|&val| val.to_le_bytes().to_vec())
                 .collect();
-            fs::write(&out_name, bytes)
-                .map_err(|e| format!("Failed to write output file: {}", e))?;
+            fs::write(&out_name, bytes).map_err(|e| format!("Failed to write output file: {e}"))?;
             println!("Deployed contract to {}", out_name);
         }
         Commands::Call {
@@ -498,8 +495,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             nonce,
             args,
         } => {
-            let bytes =
-                fs::read(bytecode).map_err(|e| format!("Failed to read bytecode: {}", e))?;
+            let bytes = fs::read(bytecode).map_err(|e| format!("Failed to read bytecode: {e}"))?;
             if bytes.len() % 8 != 0 {
                 return Err("Invalid bytecode: file size must be a multiple of 8 bytes".into());
             }
@@ -523,7 +519,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             out.state
                 .save()
-                .map_err(|e| format!("Failed to save state: {}", e))?;
+                .map_err(|e| format!("Failed to save state: {e}"))?;
             println!(
                 "Call success! Post-state Root: {:?}",
                 hex::encode(out.post_root)
@@ -535,17 +531,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             bytecode_file,
         } => {
             let env_data = fs::read_to_string(proof_file)
-                .map_err(|e| format!("Failed to read proof file: {}", e))?;
+                .map_err(|e| format!("Failed to read proof file: {e}"))?;
             let envelope: ProofEnvelope = serde_json::from_str(&env_data)
-                .map_err(|e| format!("Failed to parse proof envelope: {}", e))?;
+                .map_err(|e| format!("Failed to parse proof envelope: {e}"))?;
 
             let pi_data = fs::read_to_string(public_inputs_file)
-                .map_err(|e| format!("Failed to read public inputs file: {}", e))?;
+                .map_err(|e| format!("Failed to read public inputs file: {e}"))?;
             let expected_inputs: ExecutionPublicInputs = serde_json::from_str(&pi_data)
-                .map_err(|e| format!("Failed to parse public inputs: {}", e))?;
+                .map_err(|e| format!("Failed to parse public inputs: {e}"))?;
 
             let bytes =
-                fs::read(bytecode_file).map_err(|e| format!("Failed to read bytecode: {}", e))?;
+                fs::read(bytecode_file).map_err(|e| format!("Failed to read bytecode: {e}"))?;
             if bytes.len() % 8 != 0 {
                 return Err("Invalid bytecode: file size must be a multiple of 8 bytes".into());
             }

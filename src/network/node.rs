@@ -411,7 +411,7 @@ impl Node {
         }
     }
     pub fn listen(&mut self, port: u16) -> Result<(), Box<dyn Error>> {
-        let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", port).parse()?;
+        let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{port}").parse()?;
         self.swarm.listen_on(addr)?;
         info!("Listening on port {}", port);
         Ok(())
@@ -835,7 +835,7 @@ impl Node {
                                 }
                             }
 
-                            if !self.peer_manager.lock().map(|mut pm| pm.check_rate_limit(&peer_id)).unwrap_or(false) {
+                            if !self.peer_manager.lock().map_or(false, |mut pm| pm.check_rate_limit(&peer_id)) {
                                 warn!("Rate limit exceeded or lock error for peer {}", peer_id);
                                 continue;
                             }
@@ -973,7 +973,7 @@ impl Node {
                                             peer_id, locator.len(), limit);
 
                                         let start_idx_opt = self.chain.find_common_height(locator).await;
-                                        let start_idx = start_idx_opt.map(|i| i + 1).unwrap_or(0) as usize;
+                                        let start_idx = start_idx_opt.map_or(0, |i| i + 1) as usize;
 
                                         let height = self.chain.get_height().await + 1;
                                         let end_idx = (start_idx + limit as usize).min(height as usize);
@@ -1692,7 +1692,7 @@ impl Node {
                                                 match msg {
                                                     NetworkMessage::GetHeaders { locator, limit } => {
                                                         let start_idx_opt = self.chain.find_common_height(locator).await;
-                                                        let start_idx = start_idx_opt.map(|i| i + 1).unwrap_or(0) as usize;
+                                                        let start_idx = start_idx_opt.map_or(0, |i| i + 1) as usize;
                                                         let height = self.chain.get_height().await + 1;
                                                         let end_idx = (start_idx + limit as usize).min(height as usize);
 

@@ -103,6 +103,8 @@ pub struct AccountState {
     pub timed_burn: crate::tokenomics::TimedBurnState,
     pub bns_registry: crate::bns::BnsRegistry,
     pub nft_registry: crate::nft::NftRegistry,
+    pub marketplace: crate::marketplace::MarketplaceRegistry,
+    pub hub: crate::hub::HubRegistry,
     /// On-chain burn-reserve account the timed burn consumes. `None` when $BUD
     /// tokenomics is not enabled for this chain (e.g. plain devnet genesis).
     pub burn_reserve_address: Option<Address>,
@@ -114,10 +116,6 @@ pub struct AccountState {
     pub epoch_index: u64,
     pub last_epoch_time: u64,
     pub governance: GovernanceState,
-    pub bns_registry: crate::bns::BnsRegistry,
-    pub nft_registry: crate::nft::NftRegistry,
-    pub marketplace: crate::marketplace::MarketplaceRegistry,
-    pub hub: crate::hub::HubRegistry,
     pub base_fee: u64,
     dirty_accounts: HashSet<Address>,
     keys_dirty: bool,
@@ -146,8 +144,6 @@ impl AccountState {
             validators: BTreeMap::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
-            bns_registry: crate::bns::BnsRegistry::new(),
-            nft_registry: crate::nft::NftRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -180,8 +176,6 @@ impl AccountState {
             validators: BTreeMap::new(),
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
-            bns_registry: crate::bns::BnsRegistry::new(),
-            nft_registry: crate::nft::NftRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -229,8 +223,6 @@ impl AccountState {
             validators,
             tokenomics: crate::tokenomics::TokenomicsParams::default(),
             timed_burn: crate::tokenomics::TimedBurnState::new(),
-            bns_registry: crate::bns::BnsRegistry::new(),
-            nft_registry: crate::nft::NftRegistry::new(),
             burn_reserve_address: None,
             team_vesting: None,
             unbonding_queue: Vec::new(),
@@ -323,13 +315,6 @@ impl AccountState {
             registry: snapshot.registry.clone().unwrap_or_default(),
             liveness: snapshot.liveness.clone().unwrap_or_default(),
             invalid_votes: snapshot.invalid_votes.clone().unwrap_or_default(),
-            // ADIM6 BNS/NFT/Hub/Marketplace persistence (ARENA3 audit: check_snapshot)
-            // Previously NOT round-tripped, so names were lost on restart from snapshot.
-            // Now persisted with #[serde(default)] for backwards compat.
-            bns_registry: snapshot.bns_registry.clone().unwrap_or_default(),
-            nft_registry: snapshot.nft_registry.clone().unwrap_or_default(),
-            marketplace: snapshot.marketplace.clone().unwrap_or_default(),
-            hub: snapshot.hub.clone().unwrap_or_default(),
         }
     }
 
@@ -352,7 +337,7 @@ impl AccountState {
     /// its `PermissionlessRegistry` membership. Called from `add_validator`
     /// and from the `Stake` / `Unstake` transaction paths.
     pub fn sync_validator_registration(&mut self, address: &Address) {
-        let stake = self.validators.get(address).map(|v| v.stake).unwrap_or(0);
+        let stake = self.validators.get(address).map_or(0, |v| v.stake);
         self.registry.upsert_stake(
             *address,
             crate::registry::role::roles::VALIDATOR,
@@ -511,7 +496,7 @@ impl AccountState {
             .unwrap_or(0)
     }
     pub fn get_nonce(&self, public_key: &Address) -> u64 {
-        self.accounts.get(public_key).map(|a| a.nonce).unwrap_or(0)
+        self.accounts.get(public_key).map_or(0, |a| a.nonce)
     }
     pub fn get_or_create(&mut self, public_key: &Address) -> &mut Account {
         if !self.accounts.contains_key(public_key) {
@@ -598,6 +583,7 @@ impl AccountState {
                     return Err("Contract call data must be non-empty BudZKVM bytecode".into());
                 }
             }
+            _ => {}
         }
 
         Ok(())
@@ -954,12 +940,12 @@ impl AccountState {
         for (pubkey, account) in &self.accounts {
             storage
                 .save_account(pubkey, account)
-                .map_err(|e| format!("Storage error: {}", e))?;
+                .map_err(|e| format!("Storage error: {e}"))?;
         }
         storage
             .db()
             .flush()
-            .map_err(|e| format!("Flush error: {}", e))?;
+            .map_err(|e| format!("Flush error: {e}"))?;
         Ok(())
     }
     fn load_from_storage(&mut self) -> Result<(), String> {
@@ -976,7 +962,7 @@ impl AccountState {
             Err(e) => {
                 if let Ok(Some(data)) = storage.db().get("ACCOUNT_STATE") {
                     let accounts: HashMap<Address, Account> = serde_json::from_slice(&data)
-                        .map_err(|e| format!("Deserialization error: {}", e))?;
+                        .map_err(|e| format!("Deserialization error: {e}"))?;
                     self.accounts = accounts.into_iter().collect();
                     self.keys_dirty = true;
                     tracing::info!("Loaded {} accounts from legacy blob", self.accounts.len());

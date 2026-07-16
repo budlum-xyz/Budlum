@@ -17,7 +17,7 @@ fn main() {
 
     let samples: Vec<(Vec<u8>, [u8; 64])> = (0..sample_count)
         .map(|i| {
-            let msg = format!("Budlum stress message {}", i).into_bytes();
+            let msg = format!("Budlum stress message {i}").into_bytes();
             let sig = kp.sign(&msg);
             (msg, sig)
         })
