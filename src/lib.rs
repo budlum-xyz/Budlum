@@ -1,4 +1,5 @@
 #![allow(clippy::all)]
+#![allow(unused)]
 pub mod bns;
 pub mod chain;
 pub mod cli;
