@@ -27,17 +27,14 @@ fi
 
 # 2. SBOM üret
 SBOM_FILE="$REPO_ROOT/sbom.cdx.json"
-# cargo-cyclonedx writes to a package-specific directory; locate with marker
-MARKER=$(mktemp)
+# cargo-cyclonedx writes bom.json adjacent to Cargo.toml by default
 cargo cyclonedx --format json
-SBOM_TMP=$(find . -name "*.cdx.json" -newer "$MARKER" 2>/dev/null | head -1)
-rm -f "$MARKER"
-if [ -n "$SBOM_TMP" ] && [ -f "$SBOM_TMP" ]; then
-    mv "$SBOM_TMP" "$SBOM_FILE"
+if [ -f bom.json ]; then
+    mv bom.json "$SBOM_FILE"
 else
-    echo "[generate-sbom] HATA: cargo-cyclonedx .cdx.json çıktısı bulunamadı."
-    echo "[generate-sbom] Dizindeki tüm .cdx.json dosyaları:"
-    find . -name "*.cdx.json" 2>/dev/null | head -10
+    # Fallback: search for any new JSON file
+    echo "[generate-sbom] bom.json bulunamadı, dizin taranıyor..."
+    ls -la *.json 2>/dev/null || true
     exit 1
 fi
 
