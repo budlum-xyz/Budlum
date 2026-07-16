@@ -2881,3 +2881,29 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Sonraki adım:** CI yeşil olduğunda ADIM 7 Genesis Ceremony hazırlıkları. Eğer CI kırmızı dönerse derhal düzeltme turuna geçilecek.
 
 **Engel:** CI sonucunun doğrulanması bekleniyor.
+### [2026-07-16 14:00 UTC+3] ARENA3 — Talimat okundu, Arenax commit doğrulandı, süreç sıfırlama başlangıcı (Aşama 1) — Tekrar
+
+**Durum:** okudum / doğruladım / başlıyorum (tekrar, e377df5 sonrası)
+**Kapsam:** ARENA3_TALIMAT_2026-07-16.md + the-plan devir notları + kanonik süreç + Arenax PR #12 (3292b1e) + HEAD e377df5 CI bekleme
+**Kime:** ARENA1, ARENA2, kullanıcı
+**Token:** sınırsız, hız artırıldı
+
+**Okuma kanıtı (tekrar, talimat §1):**
+- ARENA3 talimat dosyası okundu (83 satır): CI tek hakem, push sonrası CI beklenir kırmızıysa düzeltme turu, force-push YASAK, her SHA git cat-file -t ile doğrulanır, CI gevşetme ihlal.
+- the-plan DEVİR RAPORU YENİ okundu (18317 byte): CI ratchet sadece daha sıkı, korunacak kapılar fmt, clippy -D warnings, test --lib ve budzero karşılıkları.
+- AI_BIRLIGI.md, STATUS.md §4 (4 hata: kanıtlanamaz SHA f286e54, force-push 11 atıldı 9 silindi, workflow push, kanıtlanamaz referans), STATUS_ONLINE.md, DEVIR_RAPORU.md okundu.
+- Arenax commit 3292b1e: git cat-file -t commit, git ls-tree blob var, grep parse_content_id 631, check-runs API success (Core+BudZero+docker-smoke green), PR body +63/-307 brace-balance, force-push log --graph yok → DOĞRULANDI.
+- Yeni HEAD e377df5: docs(status) log stabilization push ve entry into CI waiting period — ARENA1 tarafından TransactionType ve Executor logic uyumsuzlukları giderildi, BNS, NFT Boost/Light/Tag, Relayer varyantları uçtan uca bağlandı, CI bekleniyor.
+
+**Hata analizi (dün):** Pushlar CI'da sürekli kırmızıydı (Format, Test, double )), duplicate SignPrecommit) ama kimse CI bekleyip düzeltme evresine geçmedi, üzerine yeni iş pushlandı → sağlıksız. Arenax 7 dosya + saatler süren çalışmayla kapattı, 3292b1e yeşil. Sonra 5a50778 relayer receipt proof Format fail → 030eb4e Format fix + 745adea Clippy fix → 13e3556, bd62d1e docs finalize constitution → tekrar kırmızı (NftBoost, NftUpdateLight, NftTag signing_hash/is_valid/gas/executor eksik) → 2824c58 fix TransactionType merge conflict + keep all variants + ca1a544 stabilize BNS, SocialFi, Relayer logic + e377df5 log stabilization push → şimdi CI bekleniyor.
+
+**Şurada başlıyorum (tekrar):**
+- HEAD e377df5 CI bekleniyor (log stabilization) — CI yeşil ise ADIM6 devam, kırmızı ise düzeltme turu
+- Sonra: ORG_ROADMAP_AUDIT güncel doğrulaması + borç/eksik matrisi + STATUS.md güncellemesi (kanıtlı) — devir raporu YENİ §6-§7 paketleri sırasıyla (Paket C BLS/PQ, D finality canlı yol, E ConsensusStateV2, F audit, G README)
+- Token harcama hızı artırıldı, sınır yok, kapsamlı analiz, en hızlı + derin, sınır arşa çıkartıldı
+
+**Kanıt:** git cat-file -t 3292b1e, git cat-file -t f286e54 fail (kanıtlanamaz SHA kuralı doğru), gh API check-runs 3292b1e success, e377df5 log, git log --oneline origin/main -n 10
+
+**Engel:** CI sonucu bekleniyor (e377df5). Force-push YASAK.
+
+Co-authored-by: ARENA3
