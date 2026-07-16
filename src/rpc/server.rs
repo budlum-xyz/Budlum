@@ -352,7 +352,7 @@ impl RpcServer {
         } else if h.starts_with("0x") {
             h
         } else {
-            format!("0xh")
+            format!("0x{h}")
         }
     }
 
@@ -884,7 +884,7 @@ impl BudlumApiServer for RpcServer {
         let info = self.chain.get_settlement_info().await;
         let registry_root = info["domainRegistryRoot"]
             .as_str()
-            .map(|root| format!("0xroot"))
+            .map(|root| format!("0x{root}"))
             .unwrap_or_else(|| "0x".to_string());
         Ok(serde_json::json!({
             "domainId": domain_id,
@@ -924,7 +924,7 @@ impl BudlumApiServer for RpcServer {
 
         self.node
             .broadcast_verified_domain_commitment_sync(payload_clone);
-        Ok(format!("0xhash"))
+        Ok(format!("0x{hash}"))
     }
 
     async fn submit_cross_domain_message(
@@ -948,7 +948,7 @@ impl BudlumApiServer for RpcServer {
             })?;
 
         self.node.broadcast_cross_domain_message_sync(msg_clone);
-        Ok(format!("0xmsg_id"))
+        Ok(format!("0x{msg_id}"))
     }
 
     async fn register_bridge_asset(

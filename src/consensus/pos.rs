@@ -496,7 +496,7 @@ impl ConsensusEngine for PoSEngine {
             if let Some(evidences) = &block.slashing_evidence {
                 for (i, evidence) in evidences.iter().enumerate() {
                     if !self.verify_evidence(evidence) {
-                        return Err(ConsensusError(format!("Invalid slashing evidence #i")));
+                        return Err(ConsensusError(format!("Invalid slashing evidence #{i}")));
                     }
 
                     if let Some(producer) = &evidence.header1.producer {

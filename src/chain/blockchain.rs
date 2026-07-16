@@ -1115,7 +1115,7 @@ impl Blockchain {
             );
         }
         if !domain.bridge_enabled {
-            return Err(format!("Bridge mint disabled for domain source_domain"));
+            return Err(format!("Bridge mint disabled for domain {source_domain}"));
         }
         // A finalized proof may arrive out of order and be staged in the
         // commitment registry. Do not let bridge verification consume it until
