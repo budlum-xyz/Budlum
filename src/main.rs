@@ -231,6 +231,79 @@ async fn main() {
         return;
     }
 
+    // Phase 8.9 / Görev 7.1 tooling: `budlum-core keygen --type ed25519 --output <path>`
+    // Ceremony dokümanı Phase 1'deki adımın karşılığı (önceden dokümanda olan ama
+    // binary'de OLMAYAN bir komuttu — Phase 8.9 iddia-vs-kanıt matrisi kapanışı).
+    if args.len() >= 2 && args[1] == "keygen" {
+        let mut key_type = "ed25519".to_string();
+        let mut output: Option<String> = None;
+        let mut i = 2;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--type" | "-t" => {
+                    if i + 1 < args.len() {
+                        key_type = args[i + 1].clone();
+                        i += 2;
+                    } else {
+                        eprintln!("Error: Missing value for --type");
+                        std::process::exit(1);
+                    }
+                }
+                "--output" | "-o" => {
+                    if i + 1 < args.len() {
+                        output = Some(args[i + 1].clone());
+                        i += 2;
+                    } else {
+                        eprintln!("Error: Missing value for --output");
+                        std::process::exit(1);
+                    }
+                }
+                other => {
+                    eprintln!("Error: unknown keygen argument '{other}'");
+                    eprintln!(
+                        "Usage: budlum-core keygen --type ed25519 --output <secret-key-path>"
+                    );
+                    std::process::exit(1);
+                }
+            }
+        }
+        let Some(output) = output else {
+            eprintln!("Error: keygen requires --output <secret-key-path>");
+            eprintln!("Usage: budlum-core keygen --type ed25519 --output <secret-key-path>");
+            std::process::exit(1);
+        };
+        // Mainnet anahtar politikası (crypto/primitives.rs
+        // PlaintextDiskKeysForbiddenOnMainnet): BLS/PQ disk'te ÜRETİLMEZ,
+        // yalnızca PKCS#11 HSM içinde (docs/operations/HSM_VENDOR_NATIVE_GUIDE.md).
+        if key_type != "ed25519" {
+            eprintln!(
+                "CRITICAL: '{key_type}' anahtarları disk üzerinde üretilemez — BLS/PQ yalnızca PKCS#11 HSM içinde üretilir (mainnet politikası)."
+            );
+            std::process::exit(1);
+        }
+        let keypair = KeyPair::generate().expect("keypair generation failed");
+        keypair.save(&output).unwrap_or_else(|e| {
+            eprintln!("Error: cannot write secret key to {output}: {e:?}");
+            std::process::exit(1);
+        });
+        let pub_path = format!("{output}.pub");
+        let pub_hex = keypair.public_key_hex();
+        std::fs::write(&pub_path, format!("{pub_hex}\n")).unwrap_or_else(|e| {
+            eprintln!("Error: cannot write public key file {pub_path}: {e}");
+            std::process::exit(1);
+        });
+        // NOT (Phase 0.17 §7 karşı-dengesi): node çalışırken pubkey stdout'a
+        // yazılmaz; burada operatörün açıkça çağırdığı ayrı keygen CLI'si
+        // sanctioned kanaldır — pubkey ve adres ceremony tabloları için
+        // bilinçli yazdırılır. Secret key ve dosya yolu ASLA loglanmaz.
+        let address = Address::from(keypair.public_key_bytes());
+        println!("Ed25519 keypair generated (secret key written with 0600 permissions).");
+        println!("Public key:  {pub_hex}");
+        println!("Address:     {address}");
+        println!("Pubkey file: {pub_path}");
+        return;
+    }
+
     let mut config = NodeConfig::parse();
     config.load_with_file();
     let subscriber = FmtSubscriber::builder()
@@ -661,10 +734,34 @@ async fn main() {
         bootstraps.extend(network.fallback_bootnodes());
     }
 
-    if network == budlum_core::core::chain_config::Network::Mainnet && bootstraps.is_empty() {
-        eprintln!("Refusing to start mainnet without at least one configured bootnode.");
-        eprintln!("Set p2p.bootnodes in config/mainnet.toml or pass --bootstrap.");
-        std::process::exit(1);
+    if network == budlum_core::core::chain_config::Network::Mainnet {
+        if bootstraps.is_empty() {
+            eprintln!("Refusing to start mainnet without at least one configured bootnode.");
+            eprintln!("Set p2p.bootnodes in config/mainnet.toml or pass --bootstrap.");
+            std::process::exit(1);
+        }
+        // Phase 8.9 / Q5: genesis placeholder reddiyle (cli/commands.rs Rule 4)
+        // simetrik fail-closed — dummy/placeholder marker içeren peer mainnet'te
+        // DİAL EDİLMEZ. Phase 7.2 ceremony gerçek multiaddr'ları yazınca geçer.
+        if let Some(bad) = budlum_core::core::chain_config::first_placeholder_peer(&bootstraps) {
+            eprintln!("CRITICAL SECURITY FAILURE: Mainnet placeholder bootnode detected: {bad}");
+            eprintln!(
+                "Dummy peer'lar production'da dial edilemez — Phase 7.2 ceremony ile gerçek multiaddr'lar yazılmalı."
+            );
+            std::process::exit(1);
+        }
+        let effective_dns_seeds: Vec<String> = if config.dns_seeds.is_empty() {
+            network.dns_seeds()
+        } else {
+            config.dns_seeds.clone()
+        };
+        if let Some(bad) =
+            budlum_core::core::chain_config::first_placeholder_peer(&effective_dns_seeds)
+        {
+            eprintln!("CRITICAL SECURITY FAILURE: Mainnet placeholder DNS seed detected: {bad}");
+            eprintln!("Phase 7.2 ceremony ile gerçek _dnsaddr kayıtları yayınlanmalı.");
+            std::process::exit(1);
+        }
     }
 
     // Load or generate persistent P2P identity

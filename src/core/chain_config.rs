@@ -220,6 +220,27 @@ const MAINNET_DNS_SEEDS: &[&str] = &[
 ];
 const TESTNET_DNS_SEEDS: &[&str] = &[];
 
+// Phase 8.9 / Q5 (kullanıcı onayı 2026-07-16): mainnet placeholder peer
+// fail-closed guard'ı. Genesis placeholder reddiyle (cli/commands.rs Rule 4)
+// simetrik: dummy/placeholder marker içeren bootnode veya dns seed
+// mainnet'te DIAL EDİLMEZ — süreç startup'ta CRITICAL exit 1 ile durur.
+// Phase 7.2 ceremony'si bu sabitleri gerçek multiaddr'lara çevirir.
+const PLACEHOLDER_PEER_MARKERS: &[&str] = &["dummy", "placeholder", "203.0.113.", ".example"];
+
+/// Girdi listesindeki placeholder/dummy marker içeren ilk kaydı döner
+/// (küçük-büyük harf duyarsız). Temiz listede `None`.
+pub fn first_placeholder_peer(entries: &[String]) -> Option<String> {
+    entries
+        .iter()
+        .find(|entry| {
+            let lower = entry.to_lowercase();
+            PLACEHOLDER_PEER_MARKERS
+                .iter()
+                .any(|marker| lower.contains(marker))
+        })
+        .cloned()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConsensusParams {
     pub epoch_len: u64,
@@ -280,6 +301,27 @@ mod tests {
         assert_eq!(Network::Testnet.chain_id().value(), 42);
         assert_eq!(Network::Devnet.chain_id().value(), 1337);
         assert_eq!(Network::Mainnet.default_port(), 4001);
+    }
+
+    /// Phase 8.9 / Q5: dummy bootnode/dns-seed sabitleri guard tarafından
+    /// yakalanmalı (fail-closed), gerçek multiaddr'lar serbest kalmalı.
+    #[test]
+    fn test_placeholder_peer_detection_blocks_dummy_mainnet_entries() {
+        // Negatif kontroller: bugünkü derlenmiş sabitler YAKALANMALI.
+        assert!(first_placeholder_peer(&Network::Mainnet.bootnodes()).is_some());
+        assert!(first_placeholder_peer(&Network::Mainnet.dns_seeds()).is_some());
+        // Pozitif kontroller: gerçek görünümlü kayıtlar serbest.
+        let clean = vec![
+            "/ip4/139.59.10.20/tcp/4001/p2p/12D3KooWAbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
+                .to_string(),
+            "/ip6/2606:4700::1/tcp/4001/p2p/12D3KooWAbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
+                .to_string(),
+        ];
+        assert!(first_placeholder_peer(&clean).is_none());
+        let clean_dns = vec!["_dnsaddr.seed-1.mainnet.budlum.xyz".to_string()];
+        assert!(first_placeholder_peer(&clean_dns).is_none());
+        // Boş liste: guard değil, mevcut "boş bootnode" kuralı devrede.
+        assert!(first_placeholder_peer(&[]).is_none());
     }
 
     /// Phase 3 §3.4: mainnet is the strictest security profile.
