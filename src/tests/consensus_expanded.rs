@@ -37,7 +37,7 @@ fn test_blockchain_invalid_previous_hash() {
     let mut block = Block::new(1, "WRONG_HASH".to_string(), vec![]);
     block.chain_id = 1337;
     // Should fail at blockchain level before consensus
-    assert!(bc.validate_and_add_block(block).is_err());
+    assert!(bc.validate_and_add_block(block).map(|_| ()).is_err());
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn test_blockchain_future_timestamp_buffer() {
     // Block far in the future (e.g., 1 hour)
     block.timestamp = bc.chain[0].timestamp + 3600 * 1000 + 1000;
     // Most protocols reject blocks too far in the future
-    let res = bc.validate_and_add_block(block);
+    let res = bc.validate_and_add_block(block).map(|_| ());
     // current impl might accept or reject depending on drift settings
 }
 

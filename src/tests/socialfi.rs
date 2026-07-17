@@ -98,7 +98,7 @@ fn open_weighted_deal(
 fn submit_tx(bc: &mut Blockchain, mut tx: Transaction, kp: &KeyPair) {
     tx.sign(kp);
     bc.mempool.add_transaction(tx).unwrap();
-    bc.produce_block(Address::zero());
+    let _ = let _ = bc.produce_block(Address::zero());
 }
 
 fn mint_nft(bc: &mut Blockchain, kp: &KeyPair, cid: ContentId) {

@@ -20,12 +20,12 @@ mod chaos_tests {
 
         let producer_a = Address::from_hex(&"01".repeat(32)).unwrap();
         for _ in 0..3 {
-            chain_a.produce_block(producer_a);
+            let _ = chain_a.produce_block(producer_a);
         }
 
         let producer_b = Address::from_hex(&"02".repeat(32)).unwrap();
         for _ in 0..5 {
-            chain_b.produce_block(producer_b);
+            let _ = chain_b.produce_block(producer_b);
         }
 
         assert_eq!(chain_a.chain.len(), 4);
@@ -70,7 +70,7 @@ mod chaos_tests {
         assert_eq!(blockchain.mempool.len(), 1000);
 
         let miner = Address::from_hex(&"03".repeat(32)).unwrap();
-        blockchain.produce_block(miner);
+        let _ = blockchain.produce_block(miner);
 
         println!("Mempool size after block: {}", blockchain.mempool.len());
         assert_eq!(
@@ -97,12 +97,12 @@ mod chaos_tests {
 
         let producer_a = Address::from_hex(&"01".repeat(32)).unwrap();
         for _ in 0..(MAX_REORG_DEPTH + 10) {
-            chain_a.produce_block(producer_a);
+            let _ = chain_a.produce_block(producer_a);
         }
 
         let producer_b = Address::from_hex(&"02".repeat(32)).unwrap();
         for _ in 0..(MAX_REORG_DEPTH + 20) {
-            chain_b.produce_block(producer_b);
+            let _ = chain_b.produce_block(producer_b);
         }
 
         let result = chain_a.try_reorg(chain_b.chain.clone());
@@ -823,7 +823,7 @@ mod chaos_tests {
         assert_eq!(blockchain.mempool.len(), 1, "RBF kazanani tek kalmali");
 
         // Blok üret: YALNIZ kazanan (fee=5, data=[2]) zincire girmeli.
-        blockchain.produce_block(Address::from([0x03; 32]));
+        let _ = blockchain.produce_block(Address::from([0x03; 32]));
         let blk = blockchain.chain.last().unwrap();
         assert_eq!(blk.transactions.len(), 1);
         assert_eq!(blk.transactions[0].fee, 5);

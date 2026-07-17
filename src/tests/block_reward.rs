@@ -12,7 +12,7 @@ fn fresh_chain() -> Blockchain {
     let mut bc = Blockchain::new(consensus, None, 1337, None);
     // Initialize empty blockchain correctly: it must have a block so the height advances!
     let producer = addr(0x11);
-    bc.produce_block(producer).unwrap(); // Block 1
+    let _ = bc.produce_block(producer).unwrap(); // Block 1
     bc
 }
 
@@ -26,7 +26,7 @@ fn test_block_reward_from_config() {
     let balance_before = bc.state.get_balance(&producer);
 
     // Produce block
-    bc.produce_block(producer).unwrap();
+    let _ = bc.produce_block(producer).unwrap();
 
     let balance_after = bc.state.get_balance(&producer);
     assert_eq!(balance_after, balance_before + 123);
@@ -61,7 +61,7 @@ fn test_block_reward_hard_supply_cap() {
     // Configure block_reward = 100. Produce a block: producer should be paid
     // only the 50 that fits under the cap (clamped), not 100.
     bc.state.tokenomics.block_reward = 100;
-    bc.produce_block(producer).unwrap();
+    let _ = bc.produce_block(producer).unwrap();
     let supply_after_partial = bc.state.circulating_supply();
     assert_eq!(
         supply_after_partial, max,
@@ -70,7 +70,7 @@ fn test_block_reward_hard_supply_cap() {
 
     // Now produce another block with zero cap room: no more minted.
     let balance_producer_before = bc.state.get_balance(&producer);
-    bc.produce_block(producer).unwrap();
+    let _ = bc.produce_block(producer).unwrap();
     let balance_producer_after = bc.state.get_balance(&producer);
     // Only tx fees (zero here, empty txs) → producer balance unchanged.
     assert_eq!(

@@ -33,7 +33,7 @@ async fn test_state_bit_identical_after_reload() {
             tx.nonce = i;
             tx.sign(&alice_kp);
             bc.mempool.add_transaction(tx).unwrap();
-            bc.produce_block(Address::zero());
+            let _ = bc.produce_block(Address::zero());
         }
 
         root_live = bc.state.calculate_state_root();
@@ -76,7 +76,7 @@ async fn test_sub_registry_recovery() {
         // NFT
         bc.state.nft_registry.mint(alice, cid, 0, None);
 
-        bc.produce_block(Address::zero());
+        let _ = bc.produce_block(Address::zero());
         // Save current state to storage (this would usually happen via block commit)
     }
 

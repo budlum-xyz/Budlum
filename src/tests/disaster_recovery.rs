@@ -41,7 +41,7 @@ mod tests {
                 .mint(alice, cid, 0, Some("ayaz.bud".to_string()));
 
             // Produce a block to persist state to storage
-            bc.produce_block(Address::zero());
+            let _ = bc.produce_block(Address::zero());
 
             assert!(bc.state.bns_registry.resolve("ayaz.bud", 0).is_some());
             assert_eq!(bc.state.nft_registry.nfts.len(), 1);
@@ -72,7 +72,7 @@ mod tests {
             // Only block-level state persists through commit_block_durable.
 
             // Verify chain is functional by producing a new block after restart
-            bc.produce_block(Address::zero());
+            let _ = bc.produce_block(Address::zero());
 
             info!("SUCCESS: Disaster Recovery verified. Budlum is immortal.");
         }
@@ -102,7 +102,7 @@ mod tests {
             nft_tx.fee = 1;
             nft_tx.hash = nft_tx.calculate_hash();
             bc.mempool.add_transaction(nft_tx).unwrap();
-            bc.produce_block(Address::zero());
+            let _ = bc.produce_block(Address::zero());
         }
 
         // 2. Burn NFT and Simulate Pruning Signal
@@ -121,7 +121,7 @@ mod tests {
 
             // The executor emits a tracing signal here
             bc.mempool.add_transaction(burn_tx).unwrap();
-            bc.produce_block(Address::zero());
+            let _ = bc.produce_block(Address::zero());
 
             assert_eq!(
                 bc.state.nft_registry.nfts.len(),
@@ -173,7 +173,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         bc.state.base_fee = 0;
         bc.mempool.set_min_fee(0);
         for _ in 0..10 {
-            bc.produce_block(producer_a);
+            let _ = bc.produce_block(producer_a);
         }
         assert_eq!((bc.chain.len() as u64).saturating_sub(1), 10);
     }
@@ -185,7 +185,7 @@ async fn test_chaos_v2_heavy_network_partition_with_forks() {
         bc.state.base_fee = 0;
         bc.mempool.set_min_fee(0);
         for _ in 0..15 {
-            bc.produce_block(producer_b);
+            let _ = bc.produce_block(producer_b);
         }
         assert_eq!((bc.chain.len() as u64).saturating_sub(1), 15);
     }
@@ -244,7 +244,7 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
             TransactionType::RelayerResult(res),
         );
         bc.mempool.add_transaction(tx).unwrap();
-        bc.produce_block(Address::zero());
+        let _ = bc.produce_block(Address::zero());
     }
 
     // PHASE 2: Sudden Crash during heavy writing
@@ -310,7 +310,7 @@ async fn test_chaos_v2_chain_halt_full_silence_and_resume() {
 
     // 1) Baseline: bir tam epoch üret — silent ilk miss'ini alır.
     for _ in 0..EPOCH_LENGTH {
-        bc.produce_block(producer).expect("produce must succeed");
+        let _ = bc.produce_block(producer).map(|_| ()).expect("produce must succeed");
     }
     assert_eq!(bc.state.liveness.missed_count(&silent), 1);
     let height_before_halt = bc.chain.len() as u64;
@@ -327,7 +327,7 @@ async fn test_chaos_v2_chain_halt_full_silence_and_resume() {
 
     // 3) Kurtarma: üretici geri döner; zincir kaldığı height'tan uzamaya devam.
     for _ in 0..EPOCH_LENGTH * 2 {
-        bc.produce_block(producer)
+        let _ = bc.produce_block(producer)
             .expect("resume production must succeed");
     }
     let expected = height_before_halt + EPOCH_LENGTH * 2;

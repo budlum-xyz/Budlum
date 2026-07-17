@@ -75,7 +75,7 @@ async fn test_p2p_topology_latency_drift_simulation() {
     future_block.hash = future_block.calculate_hash();
     
     // Usually accepted if within drift window (e.g. 15s in Bitcoin/Ethereum)
-    assert!(bc.validate_and_add_block(future_block).is_ok());
+    assert!(bc.validate_and_add_block(future_block).map(|_| ()).is_ok());
     
     // 2. Block from the "Past" (Older than genesis)
     let mut past_block = crate::core::block::Block::new(2, bc.chain.last().unwrap().hash.clone(), vec![]);
@@ -83,5 +83,5 @@ async fn test_p2p_topology_latency_drift_simulation() {
     past_block.hash = past_block.calculate_hash();
     
     // MUST be rejected
-    assert!(bc.validate_and_add_block(past_block).is_err());
+    assert!(bc.validate_and_add_block(past_block).map(|_| ()).is_err());
 }

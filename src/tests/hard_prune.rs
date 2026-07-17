@@ -49,7 +49,7 @@ async fn nft_burn_prunes_matching_storage_manifest_on_produce() {
     mint_tx.tx_type = TransactionType::NftMint;
     mint_tx.sign(&alice_kp);
     bc.mempool.add_transaction(mint_tx).unwrap();
-    bc.produce_block(Address::zero()).unwrap();
+    let _ = bc.produce_block(Address::zero()).unwrap();
     assert_eq!(bc.state.nft_registry.nfts.len(), 1);
 
     // NFT id'si registry'den okunur (id sayacı varsayımı yok).
@@ -68,7 +68,7 @@ async fn nft_burn_prunes_matching_storage_manifest_on_produce() {
     burn_tx.tx_type = TransactionType::NftBurn;
     burn_tx.sign(&alice_kp);
     bc.mempool.add_transaction(burn_tx).unwrap();
-    let (block, pruned_cids) = bc.produce_block(Address::zero()).unwrap();
+    let (block, pruned_cids) = let _ = bc.produce_block(Address::zero()).unwrap();
 
     // NFT yakıldı ve eşleşen manifest hard-prune ile silindi.
     assert_eq!(bc.state.nft_registry.nfts.len(), 0);

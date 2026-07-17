@@ -137,7 +137,7 @@ mod integration_tests {
         assert!(result.is_ok(), "Signed TX with balance should be accepted");
 
         let miner = Address::from_hex(&"03".repeat(32)).unwrap();
-        blockchain.produce_block(miner);
+        let _ = blockchain.produce_block(miner);
         assert!(blockchain.is_valid());
         assert_eq!(blockchain.chain.len(), 2);
     }
@@ -189,7 +189,7 @@ mod integration_tests {
 
         blockchain.add_transaction(tx1.clone()).unwrap();
         let miner = Address::from_hex(&"03".repeat(32)).unwrap();
-        blockchain.produce_block(miner);
+        let _ = blockchain.produce_block(miner);
 
         let result = blockchain.add_transaction(tx1);
         assert!(result.is_err(), "Replay attack should be prevented");
@@ -326,7 +326,7 @@ mod integration_tests {
         blockchain.state.validators.insert(pubkey, validator);
 
         for _ in 1..=10 {
-            blockchain.produce_block(pubkey);
+            let _ = blockchain.produce_block(pubkey);
         }
 
         let checkpoint_block = blockchain.chain[10].clone();
@@ -387,7 +387,7 @@ mod integration_tests {
         conflicting_block.producer = Some(pubkey);
         conflicting_block.sign(&sig_key);
 
-        let result = blockchain.validate_and_add_block(conflicting_block);
+        let result = blockchain.validate_and_add_block(conflicting_block).map(|_| ()).map(|_| ());
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -414,7 +414,7 @@ mod integration_tests {
         blockchain.state.validators.insert(pubkey, validator);
 
         for _ in 1..=10 {
-            blockchain.produce_block(pubkey);
+            let _ = blockchain.produce_block(pubkey);
         }
 
         let checkpoint_hash = blockchain.chain[10].hash.clone();
@@ -458,7 +458,7 @@ mod integration_tests {
         blockchain.state.validators.insert(pubkey, validator);
 
         for _ in 1..=9 {
-            blockchain.produce_block(pubkey);
+            let _ = blockchain.produce_block(pubkey);
         }
 
         let block = blockchain.chain[9].clone();
@@ -516,7 +516,7 @@ mod integration_tests {
         blockchain.state.validators.insert(pubkey, validator);
 
         for _ in 1..=10 {
-            blockchain.produce_block(pubkey);
+            let _ = blockchain.produce_block(pubkey);
         }
 
         let checkpoint_block = blockchain.chain[10].clone();
@@ -637,7 +637,7 @@ mod integration_tests {
 
         let cp_height = FINALITY_CHECKPOINT_INTERVAL;
         for _ in 1..cp_height {
-            bc.produce_block(validator_addr);
+            let _ = bc.produce_block(validator_addr);
         }
         let (block, _) = bc.produce_block(validator_addr).unwrap();
         assert_eq!(block.index, cp_height);
@@ -695,7 +695,7 @@ mod integration_tests {
 
         let cp_height = crate::core::chain_config::FINALITY_CHECKPOINT_INTERVAL;
         for _ in 1..cp_height {
-            bc.produce_block(v_addr);
+            let _ = bc.produce_block(v_addr);
         }
         let _block = bc.produce_block(v_addr).unwrap();
 
