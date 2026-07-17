@@ -41,7 +41,10 @@ fn nft_mint_table_distinct_ids() {
     sorted.dedup();
     assert_eq!(sorted.len(), ids.len(), "mint must never reuse a token id");
     for id in &ids {
-        assert!(r.get_nft(*id).is_some(), "minted token {id} must be retrievable");
+        assert!(
+            r.get_nft(*id).is_some(),
+            "minted token {id} must be retrievable"
+        );
     }
 }
 
