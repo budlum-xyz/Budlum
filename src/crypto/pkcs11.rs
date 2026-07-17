@@ -180,13 +180,13 @@ impl Pkcs11Signer {
         session: &cryptoki::session::Session,
         msg: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let mech_id = self
-            .bls_mechanism
-            .ok_or_else(|| CryptoError::Signing("no BLS vendor mechanism configured".to_string()))?;
+        let mech_id = self.bls_mechanism.ok_or_else(|| {
+            CryptoError::Signing("no BLS vendor mechanism configured".to_string())
+        })?;
         let mechanism = cryptoki::mechanism::Mechanism::Other(mech_id.into());
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PRIVATE_KEY),
-            cryptoki::object::Attribute::Label(BLS_DATA_LABEL.to_string().into()),
+            cryptoki::object::Attribute::Label(BLS_DATA_LABEL.into()),
         ];
         let objects = session.find_objects(template).map_err(|e| {
             CryptoError::Signing(format!("Failed to find BLS key for vendor sign: {e}"))
@@ -349,17 +349,15 @@ impl ConsensusSigner for Pkcs11Signer {
         // Phase 9: try vendor-native HSM signing first
         if self.bls_mechanism.is_some() {
             let guard = self.inner.lock().map_err(|_| {
-                CryptoError::Signing("PKCS#11 inner mutex poisoned during BLS sign".to_string())
+                CryptoError::Signing("PKCS#11 inner mutex poisoned during BLS sign".into())
             })?;
             if let Some(inner) = guard.as_ref() {
                 match self.try_vendor_bls_sign(&inner.session, msg) {
                     Ok(sig) => return Ok(sig),
-                    Err(e) => {
-                        tracing::warn!(
-                            "Vendor BLS sign failed ({}), falling back to software",
-                            e
-                        );
-                    }
+                    Err(e) => tracing::warn!(
+                        "Vendor BLS sign failed ({}), falling back to software",
+                        e
+                    ),
                 }
             }
         }
@@ -370,7 +368,7 @@ impl ConsensusSigner for Pkcs11Signer {
             .map_err(|_| CryptoError::Signing("BLS key mutex poisoned during sign".to_string()))?;
         let bls = guard
             .as_ref()
-            .ok_or_else(|| CryptoError::Signing("No BLS key stored in HSM".to_string()))?;
+            .ok_or_else(|| CryptoError::Signing("No BLS key stored in HSM".into()))?;
         Ok(crate::chain::finality::sign_bls(&bls.secret_key, msg))
     }
 
@@ -378,7 +376,7 @@ impl ConsensusSigner for Pkcs11Signer {
         // Phase 9: try vendor-native HSM signing first
         if self.pq_mechanism.is_some() {
             let guard = self.inner.lock().map_err(|_| {
-                CryptoError::Signing("PKCS#11 inner mutex poisoned during PQ sign".to_string())
+                CryptoError::Signing("PKCS#11 inner mutex poisoned during PQ sign".into())
             })?;
             if let Some(inner) = guard.as_ref() {
                 let mech_id = self.pq_mechanism.unwrap();
@@ -387,18 +385,16 @@ impl ConsensusSigner for Pkcs11Signer {
                     cryptoki::object::Attribute::Class(
                         cryptoki::object::ObjectClass::PRIVATE_KEY,
                     ),
-                    cryptoki::object::Attribute::Label(PQ_DATA_LABEL.to_string().into()),
+                    cryptoki::object::Attribute::Label(PQ_DATA_LABEL.into()),
                 ];
                 if let Ok(objects) = inner.session.find_objects(template) {
                     if !objects.is_empty() {
                         match inner.session.sign(&mechanism, objects[0], msg) {
                             Ok(sig) => return Ok(sig),
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Vendor PQ sign failed ({}), falling back to software",
-                                    e
-                                );
-                            }
+                            Err(e) => tracing::warn!(
+                                "Vendor PQ sign failed ({}), falling back to software",
+                                e
+                            ),
                         }
                     }
                 }
