@@ -2386,6 +2386,26 @@ impl BudlumApiServer for RpcServer {
         })?;
         Ok(hex::encode(data))
     }
+
+    async fn prune_status(&self) -> Result<serde_json::Value, ErrorObjectOwned> {
+        self.chain.get_prune_status().await.map_err(|e| {
+            ErrorObjectOwned::owned(-32000, format!("Failed to get prune status: {e}"), None::<()>)
+        })
+    }
+
+    async fn request_prune(
+        &self,
+        min_blocks_to_keep: Option<u64>,
+    ) -> Result<serde_json::Value, ErrorObjectOwned> {
+        let pruned_count = self.chain.request_prune(min_blocks_to_keep).await.map_err(|e| {
+            ErrorObjectOwned::owned(-32000, format!("Pruning failed: {e}"), None::<()>)
+        })?;
+
+        Ok(serde_json::json!({
+            "status": "completed",
+            "pruned_blocks": pruned_count,
+        }))
+    }
 }
 
 #[cfg(test)]

@@ -793,11 +793,16 @@ async fn main() {
     let (storage_node, sharding_config) = if config.storage_enabled {
         let store = Arc::new(bud_node::MemoryContentStore::with_default_capacity());
         let bitswap = Arc::new(bud_node::BudBitswap::new(store));
-        let s_config = bud_node::ShardingConfig {
-            replication_factor: config.storage_replication_factor,
-            max_xor_distance: u128::MAX / 1000,
-            mandatory: config.storage_mandatory_sharding,
+
+        let mut s_config = if config.mobile_mode {
+            bud_node::ShardingConfig::mobile_default()
+        } else {
+            bud_node::ShardingConfig::default()
         };
+
+        s_config.replication_factor = config.storage_replication_factor;
+        s_config.mandatory = config.storage_mandatory_sharding;
+
         (Some(bitswap), Some(s_config))
     } else {
         (None, None)
@@ -1044,7 +1049,12 @@ async fn main() {
                         }
                         "block" | "mine" => {
                             let producer = cli_producer_address.unwrap_or(Address::zero());
-                            let _ = chain.produce_block(producer).await;
+                            if let Some((block, pruned_cids)) = chain.produce_block(producer).await {
+                                println!("Produced block #{} with {} txs", block.index, block.transactions.len());
+                                for cid in pruned_cids {
+                                    node.storage_prune_sync(cid);
+                                }
+                            }
                         }
                         "chain" => {
                             let info = chain.get_chain_info().await;

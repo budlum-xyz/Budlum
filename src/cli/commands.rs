@@ -146,6 +146,9 @@ pub struct NodeConfig {
     #[arg(long)]
     pub genesis_file: Option<String>,
 
+    #[arg(long, default_value = "false")]
+    pub mobile_mode: bool,
+
     #[arg(long)]
     pub data_dir: Option<String>,
 
@@ -293,6 +296,7 @@ impl Default for NodeConfig {
             check_db: false,
             repair_db: false,
             role: "rpc".to_string(),
+            mobile_mode: false,
             genesis_file: None,
             data_dir: None,
             snapshot_dir: None,
@@ -450,6 +454,9 @@ pub struct FeaturesSection {
     /// true = gate open (MainnetActivation::full()), false = gate closed (default reject)
     /// Default: true (gate opened in Phase 9, 4e2b920)
     pub verify_merkle: Option<bool>,
+    /// ADIM 5 §5.2: Mobile mode (lightweight P2P/sharding)
+    pub mobile_mode: Option<bool>,
+    pub storage: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, Default, Clone)]
@@ -725,6 +732,12 @@ impl NodeConfig {
             if let Some(vm) = features.verify_merkle {
                 self.features_verify_merkle = vm;
             }
+            if let Some(mobile) = features.mobile_mode {
+                self.mobile_mode = mobile;
+            }
+            if let Some(storage) = features.storage {
+                self.storage_enabled = storage;
+            }
         }
 
         if let Some(consensus) = fc.consensus {
@@ -817,6 +830,9 @@ impl NodeConfig {
         }
         if let Ok(key) = std::env::var("BUDLUM_VALIDATOR_KEY") {
             self.validator_key_file = Some(key);
+        }
+        if let Ok(mobile) = std::env::var("BUDLUM_MOBILE_MODE") {
+            self.mobile_mode = mobile.to_lowercase() == "true" || mobile == "1";
         }
     }
 

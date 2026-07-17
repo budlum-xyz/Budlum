@@ -119,7 +119,7 @@ async fn bench_high_tps() {
     let producer_addr = Address::from(validator_keys.sig_key.public_key_bytes());
 
     while total_tx_processed < ingested {
-        if let Some(block) = chain.produce_block(producer_addr).await {
+        if let Some((block, _)) = chain.produce_block(producer_addr).await {
             total_tx_processed += block.transactions.len();
             blocks_count += 1;
 

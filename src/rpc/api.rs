@@ -509,4 +509,14 @@ pub trait BudlumApi {
         target_address: String,
         payload: String,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    // --- Mobile/Snapshot Pruning API (ADIM 5 §5.2 + §5.3) ---
+
+    /// Get current snapshot/pruning status.
+    #[method(name = "bud_pruneStatus")]
+    async fn prune_status(&self) -> Result<serde_json::Value, ErrorObjectOwned>;
+
+    /// Manually trigger a pruning pass.
+    #[method(name = "bud_requestPrune")]
+    async fn request_prune(&self, min_blocks_to_keep: Option<u64>) -> Result<serde_json::Value, ErrorObjectOwned>;
 }

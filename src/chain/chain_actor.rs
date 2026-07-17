@@ -14,8 +14,8 @@ pub enum ChainCommand {
     GetBalance(Address, oneshot::Sender<u64>),
     GetNonce(Address, oneshot::Sender<u64>),
     AddTransaction(Transaction, oneshot::Sender<Result<(), String>>),
-    ProduceBlock(Address, oneshot::Sender<Option<Block>>),
-    ValidateAndAddBlock(Block, oneshot::Sender<Result<(), String>>),
+    ProduceBlock(Address, oneshot::Sender<Option<(Block, Vec<[u8; 32]>)>>),
+    ValidateAndAddBlock(Block, oneshot::Sender<Result<Vec<[u8; 32]>, String>>),
     GetTransactionByHash(String, oneshot::Sender<Option<Transaction>>),
     GetTxReceipt(String, oneshot::Sender<Option<serde_json::Value>>),
     TxPrecheck(Transaction, oneshot::Sender<serde_json::Value>),
@@ -64,6 +64,7 @@ pub enum ChainCommand {
     GetStateRoot(u64, oneshot::Sender<Option<String>>),
     AddBalance(Address, u64, oneshot::Sender<()>),
     InitGenesis(Address, oneshot::Sender<()>),
+    StoragePrune([u8; 32]),
     GetStateSnapshotData(
         u64,
         oneshot::Sender<Option<crate::chain::snapshot::StateSnapshot>>,
@@ -118,6 +119,8 @@ pub enum ChainCommand {
         crate::prover::ZkProofSubmission,
         oneshot::Sender<Result<crate::prover::ProofAcceptance, String>>,
     ),
+    GetPruneStatus(oneshot::Sender<serde_json::Value>),
+    RequestPrune(Option<u64>, oneshot::Sender<Result<u64, String>>),
     BuildGlobalHeader(oneshot::Sender<Result<crate::settlement::GlobalBlockHeader, String>>),
     GetDomainHeight(
         crate::domain::DomainId,
@@ -331,18 +334,24 @@ impl ChainHandle {
             .unwrap_or_else(|_| Err("Actor dropped".to_string()))
     }
 
-    pub async fn produce_block(&self, producer: Address) -> Option<Block> {
+    pub async fn produce_block(&self, producer: Address) -> Option<(Block, Vec<[u8; 32]>)> {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::ProduceBlock(producer, tx)).await;
+        if let Err(e) = self.tx.send(ChainCommand::ProduceBlock(producer, tx)).await {
+            tracing::error!(error = %e, "Failed to send ProduceBlock command to chain actor");
+            return None;
+        }
         rx.await.unwrap_or(None)
     }
 
-    pub async fn validate_and_add_block(&self, block: Block) -> Result<(), String> {
+    pub async fn validate_and_add_block(&self, block: Block) -> Result<Vec<[u8; 32]>, String> {
         let (res_tx, res_rx) = oneshot::channel();
-        let _ = self
+        if let Err(e) = self
             .tx
             .send(ChainCommand::ValidateAndAddBlock(block, res_tx))
-            .await;
+            .await
+        {
+            return Err(format!("Actor dropped: {}", e));
+        }
         res_rx
             .await
             .unwrap_or_else(|_| Err("Actor dropped".to_string()))
@@ -668,17 +677,34 @@ impl ChainHandle {
 
     pub async fn add_balance(&self, address: &Address, amount: u64) {
         let (tx, rx) = oneshot::channel();
-        let _ = self
+        if let Err(e) = self
             .tx
             .send(ChainCommand::AddBalance(*address, amount, tx))
-            .await;
-        let _ = rx.await;
+            .await
+        {
+            tracing::error!(error = %e, "Failed to send AddBalance command to chain actor");
+            return;
+        }
+        if let Err(e) = rx.await {
+            tracing::error!(error = %e, "AddBalance response channel closed prematurely");
+        }
     }
 
     pub async fn init_genesis_account(&self, address: &Address) {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(ChainCommand::InitGenesis(*address, tx)).await;
-        let _ = rx.await;
+        if let Err(e) = self.tx.send(ChainCommand::InitGenesis(*address, tx)).await {
+            tracing::error!(error = %e, "Failed to send InitGenesis command to chain actor");
+            return;
+        }
+        if let Err(e) = rx.await {
+            tracing::error!(error = %e, "InitGenesis response channel closed prematurely");
+        }
+    }
+
+    pub async fn storage_prune(&self, cid: [u8; 32]) {
+        if let Err(e) = self.tx.send(ChainCommand::StoragePrune(cid)).await {
+            tracing::error!(error = %e, "Failed to send StoragePrune command to chain actor");
+        }
     }
 
     pub async fn get_state_snapshot_data(
@@ -887,6 +913,22 @@ impl ChainHandle {
             .await;
         rx.await
             .unwrap_or_else(|_| Err("Actor dropped".to_string()))
+    }
+
+    pub async fn get_prune_status(&self) -> Result<serde_json::Value, String> {
+        let (tx, rx) = oneshot::channel();
+        if let Err(e) = self.tx.send(ChainCommand::GetPruneStatus(tx)).await {
+            return Err(format!("Actor dropped: {}", e));
+        }
+        rx.await.map_err(|_| "Actor dropped".to_string())
+    }
+
+    pub async fn request_prune(&self, min_blocks_to_keep: Option<u64>) -> Result<u64, String> {
+        let (tx, rx) = oneshot::channel();
+        if let Err(e) = self.tx.send(ChainCommand::RequestPrune(min_blocks_to_keep, tx)).await {
+            return Err(format!("Actor dropped: {}", e));
+        }
+        rx.await.unwrap_or_else(|_| Err("Actor dropped".to_string()))
     }
 
     pub async fn register_bridge_asset(
@@ -1373,25 +1415,39 @@ impl ChainActor {
                     );
                 }
                 ChainCommand::ProduceBlock(producer, tx) => {
-                    let block = self.blockchain.produce_block(producer);
-                    if let Some(ref b) = block {
+                    let result = self.blockchain.produce_block(producer);
+                    if let Some((ref b, ref cids)) = result {
                         self.run_storage_maintenance(b.index);
                         if crate::chain::finality::is_checkpoint_height(b.index) {
                             self.blockchain.start_prevote_phase(b.index, b.hash.clone());
                         }
+                        if !cids.is_empty() {
+                            tracing::info!(count = cids.len(), "NftBurn detected during production — notifying node for physical pruning");
+                        }
                     }
-                    let _ = tx.send(block);
+                    let _ = tx.send(result);
                 }
                 ChainCommand::ValidateAndAddBlock(block, res_tx) => {
                     let height = block.index;
-                    let res = self
-                        .blockchain
-                        .validate_and_add_block(block)
-                        .map_err(|e| e.to_string());
-                    if res.is_ok() {
+                    let res = self.blockchain.validate_and_add_block(block);
+                    if let Ok(ref cids) = res {
                         self.run_storage_maintenance(height);
+                        if !cids.is_empty() {
+                            tracing::info!(count = cids.len(), "NftBurn detected — notifying node for physical pruning");
+                        }
                     }
                     let _ = res_tx.send(res);
+                }
+                ChainCommand::StoragePrune(cid) => {
+                    // Manual prune trigger from CLI/RPC
+                    let now_epoch = self.blockchain.state.epoch_index;
+                    let cid_obj = crate::storage::content_id::ContentId(cid);
+                    let pruned_deals = self.blockchain.storage_registry.prune_content(&cid_obj, now_epoch);
+                    tracing::info!(
+                        cid = %hex::encode(cid),
+                        pruned_deals,
+                        "Manual B.U.D. Hard Prune: storage registry entry removed"
+                    );
                 }
                 ChainCommand::GetTransactionByHash(hash, tx) => {
                     let tx_obj = self.blockchain.get_transaction_by_hash(&hash);
@@ -1659,6 +1715,35 @@ impl ChainActor {
                             .submit_zk_proof(submission)
                             .map_err(|e| e.to_string()),
                     );
+                }
+                ChainCommand::GetPruneStatus(res_tx) => {
+                    let height = self.blockchain.chain.len() as u64;
+                    let finalized = self.blockchain.finalized_height;
+                    let mobile_mode = self.blockchain.pruning_manager.as_ref().map(|pm| pm.min_blocks_to_keep < 1000).unwrap_or(false);
+                    let res = serde_json::json!({
+                        "current_height": height,
+                        "finalized_height": finalized,
+                        "mobile_mode": mobile_mode,
+                        "snapshot_dir": self.blockchain.pruning_manager.as_ref().map(|pm| pm.snapshot_dir.clone()),
+                    });
+                    let _ = res_tx.send(res);
+                }
+                ChainCommand::RequestPrune(min_blocks, res_tx) => {
+                    let height = self.blockchain.chain.len() as u64;
+                    let finalized = self.blockchain.finalized_height;
+                    let mut pruned_count = 0;
+                    if let Some(ref pm) = self.blockchain.pruning_manager {
+                        let keep = min_blocks.unwrap_or(pm.min_blocks_to_keep);
+                        let prunable = pm.get_prunable_blocks(height, height.saturating_sub(1), finalized);
+                        if let Some(ref store) = self.blockchain.storage {
+                            for h in &prunable {
+                                if let Ok(_) = store.delete_block(*h) {
+                                    pruned_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    let _ = res_tx.send(Ok(pruned_count));
                 }
                 ChainCommand::BuildGlobalHeader(res_tx) => {
                     let header = self.blockchain.build_global_header(None);

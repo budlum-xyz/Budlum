@@ -542,7 +542,7 @@ fn phase3_validator_onboarding_e2e_multi_validator_parallel() {
     bc.add_transaction(tx2)
         .expect("staker2 stake enters mempool");
 
-    let block = bc.produce_block(staker1).unwrap();
+    let (block, _) = bc.produce_block(staker1).unwrap();
     assert!(block.index >= 1);
     assert!(bc.state.registry.is_active(&staker1, roles::VALIDATOR));
     assert!(bc.state.registry.is_active(&staker2, roles::VALIDATOR));

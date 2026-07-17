@@ -721,7 +721,7 @@ impl Blockchain {
                     .ok_or_else(|| format!("Domain {} not found", commitment.domain_id))?;
                 d_mut.status = DomainStatus::Frozen;
                 if let Some(store) = &self.storage {
-                    let _ = store.save_consensus_domain(d_mut);
+                    if let Err(e) = store.save_consensus_domain(d_mut) { tracing::error!(error = %e, "Failed to persist consensus domain"); }
                 }
                 return Err(format!(
                     "Equivocation or invalid sequence detected for domain {} height {}",
@@ -754,7 +754,7 @@ impl Blockchain {
                     .ok_or_else(|| format!("Domain {} not found", commitment.domain_id))?;
                 d_mut.status = DomainStatus::Frozen;
                 if let Some(store) = &self.storage {
-                    let _ = store.save_consensus_domain(d_mut);
+                    if let Err(e) = store.save_consensus_domain(d_mut) { tracing::error!(error = %e, "Failed to persist consensus domain"); }
                 }
                 return Err(format!(
                     "Equivocation or invalid sequence detected for domain {} height {}",
@@ -1973,8 +1973,8 @@ impl Blockchain {
             let mut height = from_height;
             let upper_bound = self.chain.len().saturating_sub(1) as u64;
             while height <= upper_bound {
-                let _ = store.delete_finality_cert(height);
-                let _ = store.delete_qc_blob(height);
+                if let Err(e) = store.delete_finality_cert(height) { tracing::error!(error = %e, height, "Failed to delete finality cert"); }
+                if let Err(e) = store.delete_qc_blob(height) { tracing::error!(error = %e, height, "Failed to delete QC blob"); }
                 if let Some(next) = height.checked_add(checkpoint_interval) {
                     height = next;
                 } else {
@@ -2009,7 +2009,7 @@ impl Blockchain {
         self.finalized_hash = new_finalized_hash;
 
         if let Some(store) = &self.storage {
-            let _ = store.save_canonical_height(self.finalized_height);
+            if let Err(e) = store.save_canonical_height(self.finalized_height) { tracing::error!(error = %e, height = self.finalized_height, "Failed to save canonical height"); }
         }
     }
 
@@ -2447,7 +2447,7 @@ impl Blockchain {
         released
     }
 
-    pub fn produce_block(&mut self, producer_address: Address) -> Option<Block> {
+    pub fn produce_block(&mut self, producer_address: Address) -> Option<(Block, Vec<[u8; 32]>)> {
         let _consensus_timer = self
             .metrics
             .as_ref()
@@ -2592,7 +2592,7 @@ impl Blockchain {
 
         self.mempool.set_min_fee(self.state.base_fee);
         self.emit_chain_metrics();
-        Some(block)
+        Some((block, nft_burn_cids.iter().map(|(cid, _)| cid.0).collect()))
     }
     pub fn mine_pending_transactions(&mut self, miner_address: Address) {
         self.produce_block(miner_address);
@@ -2617,7 +2617,7 @@ impl Blockchain {
         }
     }
 
-    pub fn validate_and_add_block(&mut self, block: Block) -> Result<(), String> {
+    pub fn validate_and_add_block(&mut self, block: Block) -> Result<Vec<[u8; 32]>, String> {
         let _consensus_timer = self
             .metrics
             .as_ref()
@@ -2844,7 +2844,7 @@ impl Blockchain {
         }
 
         self.emit_chain_metrics();
-        Ok(())
+        Ok(nft_burn_cids.iter().map(|(cid, _)| cid.0).collect())
     }
 
     pub fn is_valid(&self) -> bool {
@@ -3294,7 +3294,7 @@ impl Blockchain {
 
         if let Some(ref store) = self.storage {
             let _ = store.save_finality_cert(self.finalized_height, &cert);
-            let _ = store.save_canonical_height(self.finalized_height);
+            if let Err(e) = store.save_canonical_height(self.finalized_height) { tracing::error!(error = %e, height = self.finalized_height, "Failed to save canonical height"); }
         }
 
         Ok(())
@@ -4043,7 +4043,7 @@ mod tests {
         let mut miner_bytes = [0u8; 32];
         miner_bytes[0] = 1;
         let miner_addr = Address::from(miner_bytes);
-        bc.produce_block(miner_addr);
+        bc.produce_block(miner_addr).unwrap();
         assert_eq!(bc.state.get_balance(&miner_addr), 55);
     }
 
@@ -4094,7 +4094,7 @@ mod tests {
         tx1.sign(&sender);
         bc.add_transaction(tx1).unwrap();
 
-        let block = bc.produce_block(Address::from([9u8; 32])).unwrap();
+        let (block, _) = bc.produce_block(Address::from([9u8; 32])).unwrap();
         assert_eq!(block.transactions.len(), 2);
         assert_eq!(bc.state.get_nonce(&sender_pub), 2);
         assert_eq!(bc.state.get_balance(&recipient), 25);
@@ -4138,7 +4138,7 @@ mod tests {
         block.state_root = String::new();
         block.hash = block.calculate_hash();
 
-        let result = bc.validate_and_add_block(block);
+        let result = bc.validate_and_add_block(block).map(|_| ());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("state_root"));
     }
@@ -4155,7 +4155,7 @@ mod tests {
         bad_block.previous_hash = "wrong".to_string();
         bad_block.hash = bad_block.calculate_hash();
 
-        let result = bc.validate_and_add_block(bad_block);
+        let result = bc.validate_and_add_block(bad_block).map(|_| ());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("conflicts with finalized"));
     }
@@ -4171,7 +4171,7 @@ mod tests {
         block.tx_root = "b".repeat(64);
         block.hash = block.calculate_hash();
 
-        let result = bc.validate_and_add_block(block);
+        let result = bc.validate_and_add_block(block).map(|_| ());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("tx_root"));
     }
@@ -4186,7 +4186,7 @@ mod tests {
         block.state_root = "a".repeat(64);
         block.hash = "c".repeat(64);
 
-        let result = bc.validate_and_add_block(block);
+        let result = bc.validate_and_add_block(block).map(|_| ());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("hash"));
     }

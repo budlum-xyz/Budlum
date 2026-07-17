@@ -500,7 +500,7 @@ fn equivocation_generates_slashing_evidence() {
     for _ in 1..cp {
         bc.produce_block(honest).unwrap();
     }
-    let block = bc.produce_block(honest).unwrap();
+    let (block, _) = bc.produce_block(honest).unwrap();
     assert_eq!(block.index, cp);
 
     bc.start_prevote_phase(block.index, block.hash.clone());
@@ -592,7 +592,7 @@ fn equivocation_slashing_record_survives_snapshot_roundtrip() {
     for _ in 1..cp {
         bc.produce_block(honest).unwrap();
     }
-    let block = bc.produce_block(honest).unwrap();
+    let (block, _) = bc.produce_block(honest).unwrap();
     bc.start_prevote_phase(block.index, block.hash.clone());
     let epoch = bc.finality_aggregator.as_ref().unwrap().epoch;
 
@@ -705,7 +705,7 @@ fn repeated_invalid_signatures_trigger_slash() {
     for _ in 1..cp {
         bc.produce_block(honest).unwrap();
     }
-    let block = bc.produce_block(honest).unwrap();
+    let (block, _) = bc.produce_block(honest).unwrap();
     bc.start_prevote_phase(block.index, block.hash.clone());
     let epoch = bc.finality_aggregator.as_ref().unwrap().epoch;
 
@@ -803,7 +803,7 @@ fn invalid_signatures_below_threshold_do_not_slash() {
     for _ in 1..cp {
         bc.produce_block(honest).unwrap();
     }
-    let block = bc.produce_block(honest).unwrap();
+    let (block, _) = bc.produce_block(honest).unwrap();
     bc.start_prevote_phase(block.index, block.hash.clone());
     let epoch = bc.finality_aggregator.as_ref().unwrap().epoch;
 
@@ -856,7 +856,7 @@ fn blockchain_rejects_invalid_vote_signature_at_ingest() {
     for _ in 1..cp {
         bc.produce_block(honest).unwrap();
     }
-    let block = bc.produce_block(honest).unwrap();
+    let (block, _) = bc.produce_block(honest).unwrap();
     bc.start_prevote_phase(block.index, block.hash.clone());
     let epoch = bc.finality_aggregator.as_ref().unwrap().epoch;
 
