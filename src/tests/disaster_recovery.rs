@@ -230,6 +230,7 @@ async fn test_chaos_v2_ultimate_byzantine_recovery() {
             chain: crate::core::transaction::ExternalChain::Ethereum,
             tx_hash: "0xHASH".to_string(),
             success: true,
+            message: None,
             receipt_proof: vec![1, 2, 3],
             external_state_root: [0u8; 32],
         };

@@ -9,7 +9,8 @@
 //! `CrossDomainMessageRegistry` into a coherent pipeline.
 
 use crate::core::address::Address;
-use crate::cross_domain::bridge::{BridgeError, BridgeState};
+use crate::core::hash::hash_fields_bytes;
+use crate::cross_domain::bridge::{AssetId, BridgeError, BridgeState};
 use crate::cross_domain::event_tree::{DomainEvent, DomainEventTree, MerkleProof};
 use crate::cross_domain::message::{CrossDomainMessage, MessageId, MessageKind};
 use crate::cross_domain::message_registry::CrossDomainMessageRegistry;
@@ -295,28 +296,6 @@ impl BridgeRelayerPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::hash::hash_fields_bytes;
-    use crate::cross_domain::bridge::AssetId;
-
-    fn hash(label: &[u8]) -> Hash32 {
-        hash_fields_bytes(&[label])
-    }
-
-    fn asset(id: u8) -> AssetId {
-        hash(&[id])
-    }
-
-    fn pipeline() -> BridgeRelayerPipeline {
-        BridgeRelayerPipeline::new(RelayerConfig::default())
-    }
-
-    fn owner() -> Address {
-        Address::from([0xAA; 32])
-    }
-
-    fn recipient() -> Address {
-        Address::from([0xBB; 32])
-    }
 
     fn relayer_addr() -> Address {
         Address::from([0xCC; 32])
@@ -471,6 +450,26 @@ mod tests {
         assert!(proof1.verify(tree_root));
         assert_ne!(proof0.leaf, proof1.leaf);
     }
+}
+
+fn hash(label: &[u8]) -> Hash32 {
+    hash_fields_bytes(&[label])
+}
+
+fn asset(id: u8) -> AssetId {
+    hash(&[id])
+}
+
+fn pipeline() -> BridgeRelayerPipeline {
+    BridgeRelayerPipeline::new(RelayerConfig::default())
+}
+
+fn owner() -> Address {
+    Address::from([0xAA; 32])
+}
+
+fn recipient() -> Address {
+    Address::from([0xBB; 32])
 }
 
 #[test]

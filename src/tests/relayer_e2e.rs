@@ -188,9 +188,10 @@ fn full_internal_relay_cycle_lock_mint() {
     // 3. Register relayer
     let relayer = relayer_addr();
     bc.state.add_balance(&relayer, 100_000_000);
+    let epoch = bc.state.epoch_index;
     bc.state
         .registry
-        .bond_relayer(&relayer, 50_000_000)
+        .register_relayer(relayer, 50_000_000, epoch)
         .unwrap();
 
     // 4. Lock on Domain 1
@@ -226,7 +227,7 @@ fn full_internal_relay_cycle_lock_mint() {
     ));
     // - Balances: recipient received 99 (100 - 1% fee), relayer received 1
     assert_eq!(bc.state.get_balance(&recipient()), 99);
-    assert_eq!(bc.state.get_balance(&relayer()), 50_000_001); // 50M (bond) + 1 (fee)
+    assert_eq!(bc.state.get_balance(&relayer), 50_000_001); // 50M (bond) + 1 (fee)
 }
 
 use crate::domain::plugin::default_domain;
@@ -247,9 +248,10 @@ fn full_internal_relay_cycle_burn_unlock() {
     }
     let relayer = relayer_addr();
     bc.state.add_balance(&relayer, 100_000_000);
+    let epoch = bc.state.epoch_index;
     bc.state
         .registry
-        .bond_relayer(&relayer, 50_000_000)
+        .register_relayer(relayer, 50_000_000, epoch)
         .unwrap();
 
     // 2. Setup asset and Minted state

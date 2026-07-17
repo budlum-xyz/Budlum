@@ -223,6 +223,7 @@ pub mod test_adapter {
                 chain: self.chain,
                 tx_hash: hash,
                 success: true,
+                message: None,
                 receipt_proof: bincode::serialize(&proof).unwrap_or_default(),
                 external_state_root: root,
             })
@@ -267,6 +268,8 @@ fn adapter_registry_empty_supported_chains() {
 
 #[test]
 fn adapter_registry_multiple_adapters() {
+    use self::test_adapter::StubAdapter;
+
     let mut registry = AdapterRegistry::new();
     registry.register(Box::new(StubAdapter::new(ExternalChain::Ethereum)));
     registry.register(Box::new(StubAdapter::new(ExternalChain::Solana)));

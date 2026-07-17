@@ -50,7 +50,10 @@ async fn test_state_bit_identical_after_reload() {
         let mut state_reloaded = bc_reloaded.state.clone();
         let root_reloaded = state_reloaded.calculate_state_root();
 
-        assert_eq!(root_live, root_reloaded, "Reloaded state root must match live state root exactly");
+        assert_eq!(
+            root_live, root_reloaded,
+            "Reloaded state root must match live state root exactly"
+        );
         assert_eq!(bc_reloaded.state.get_balance(&alice), 950);
         assert_eq!(bc_reloaded.state.get_balance(&bob), 50);
     }
@@ -59,7 +62,12 @@ async fn test_state_bit_identical_after_reload() {
 #[tokio::test]
 async fn test_sub_registry_recovery() {
     let dir = tempdir().unwrap();
-    let db_str = dir.path().join("registry_audit.db").to_str().unwrap().to_string();
+    let db_str = dir
+        .path()
+        .join("registry_audit.db")
+        .to_str()
+        .unwrap()
+        .to_string();
 
     let alice = Address::from([0x01; 32]);
     let cid = crate::storage::content_id::ContentId([0xCC; 32]);
@@ -72,7 +80,10 @@ async fn test_sub_registry_recovery() {
         let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
 
         // BNS
-        bc.state.bns_registry.register(bns_name.clone(), alice, 0, 1000).unwrap();
+        bc.state
+            .bns_registry
+            .register(bns_name.clone(), alice, 0, 1000)
+            .unwrap();
         // NFT
         bc.state.nft_registry.mint(alice, cid, 0, None);
 
@@ -104,8 +115,8 @@ macro_rules! gen_replay_tests {
 }
 
 gen_replay_tests!(
-    replay_1, 1, replay_2, 2, replay_3, 3, replay_4, 4, replay_5, 5,
-    replay_6, 6, replay_7, 7, replay_8, 8, replay_9, 9, replay_10, 10,
-    replay_11, 11, replay_12, 12, replay_13, 13, replay_14, 14, replay_15, 15,
-    replay_16, 16, replay_17, 17, replay_18, 18, replay_19, 19, replay_20, 20
+    replay_1, 1, replay_2, 2, replay_3, 3, replay_4, 4, replay_5, 5, replay_6, 6, replay_7, 7,
+    replay_8, 8, replay_9, 9, replay_10, 10, replay_11, 11, replay_12, 12, replay_13, 13,
+    replay_14, 14, replay_15, 15, replay_16, 16, replay_17, 17, replay_18, 18, replay_19, 19,
+    replay_20, 20
 );

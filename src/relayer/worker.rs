@@ -76,6 +76,7 @@ impl RelayerWorker {
                     chain: ext_tx.chain,
                     tx_hash: "0x".to_string() + &hex::encode([0xEE; 32]), // TODO(phase9)
                     success: true,
+                    message: None,
                     receipt_proof: Vec::new(),
                     external_state_root: [0u8; 32],
                 };

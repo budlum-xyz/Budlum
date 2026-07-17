@@ -347,10 +347,6 @@ mod tests {
     use super::*;
     use crate::cross_domain::message::CrossDomainMessageParams;
 
-    fn hash(label: &[u8]) -> Hash32 {
-        crate::core::hash::hash_fields_bytes(&[label])
-    }
-
     fn make_event_and_message(
         source_domain: DomainId,
         target_domain: DomainId,
@@ -497,6 +493,10 @@ mod tests {
         let root2 = ledger.root();
         assert_eq!(root1, root2);
     }
+}
+
+fn hash(label: &[u8]) -> Hash32 {
+    crate::core::hash::hash_fields_bytes(&[label])
 }
 
 #[test]

@@ -1,8 +1,9 @@
 //! Expanded Consensus and Chain tests (ARENA2 - Chief Auditor perspective).
 
 use crate::chain::blockchain::{Blockchain, MAX_REORG_DEPTH};
+use crate::consensus::poa::{PoAConfig, PoAEngine};
 use crate::consensus::pow::PoWEngine;
-use crate::consensus::poa::{PoAEngine, PoAConfig};
+use crate::consensus::ConsensusEngine;
 use crate::core::address::Address;
 use crate::core::block::Block;
 use std::sync::Arc;
@@ -17,7 +18,9 @@ fn test_pow_engine_zero_difficulty() {
     let engine = PoWEngine::new(0);
     let mut block = Block::new(1, "prev".to_string(), vec![]);
     block.nonce = 0;
-    assert!(engine.validate_block(&block, &[], &crate::core::account::AccountState::new()).is_ok());
+    assert!(engine
+        .validate_block(&block, &[], &crate::core::account::AccountState::new())
+        .is_ok());
 }
 
 #[test]
@@ -27,7 +30,9 @@ fn test_poa_engine_empty_authorities() {
     let mut block = Block::new(1, "prev".to_string(), vec![]);
     block.producer = Some(addr(1));
     // Should fail because addr(1) is not an authority
-    assert!(engine.validate_block(&block, &[], &crate::core::account::AccountState::new()).is_err());
+    assert!(engine
+        .validate_block(&block, &[], &crate::core::account::AccountState::new())
+        .is_err());
 }
 
 #[test]
@@ -70,13 +75,15 @@ gen_pow_difficulty_tests!(
 );
 
 // Meaningful variations of chain tests
-#[test] fn chain_boundary_index_zero() {
+#[test]
+fn chain_boundary_index_zero() {
     let consensus = Arc::new(PoWEngine::new(0));
     let bc = Blockchain::new(consensus, None, 1337, None);
     assert_eq!(bc.chain[0].index, 0);
 }
 
-#[test] fn chain_genesis_balance_check() {
+#[test]
+fn chain_genesis_balance_check() {
     let consensus = Arc::new(PoWEngine::new(0));
     let bc = Blockchain::new(consensus, None, 1337, None);
     // Devnet default allocation
@@ -101,12 +108,84 @@ macro_rules! gen_block_prod_tests {
 }
 
 gen_block_prod_tests!(
-    prod_test_1, 1, prod_test_2, 2, prod_test_3, 3, prod_test_4, 4, prod_test_5, 5,
-    prod_test_6, 6, prod_test_7, 7, prod_test_8, 8, prod_test_9, 9, prod_test_10, 10,
-    prod_test_11, 11, prod_test_12, 12, prod_test_13, 13, prod_test_14, 14, prod_test_15, 15,
-    prod_test_16, 16, prod_test_17, 17, prod_test_18, 18, prod_test_19, 19, prod_test_20, 20,
-    prod_test_21, 21, prod_test_22, 22, prod_test_23, 23, prod_test_24, 24, prod_test_25, 25,
-    prod_test_26, 26, prod_test_27, 27, prod_test_28, 28, prod_test_29, 29, prod_test_30, 30,
-    prod_test_31, 31, prod_test_32, 32, prod_test_33, 33, prod_test_34, 34, prod_test_35, 35,
-    prod_test_36, 36, prod_test_37, 37, prod_test_38, 38, prod_test_39, 39, prod_test_40, 40
+    prod_test_1,
+    1,
+    prod_test_2,
+    2,
+    prod_test_3,
+    3,
+    prod_test_4,
+    4,
+    prod_test_5,
+    5,
+    prod_test_6,
+    6,
+    prod_test_7,
+    7,
+    prod_test_8,
+    8,
+    prod_test_9,
+    9,
+    prod_test_10,
+    10,
+    prod_test_11,
+    11,
+    prod_test_12,
+    12,
+    prod_test_13,
+    13,
+    prod_test_14,
+    14,
+    prod_test_15,
+    15,
+    prod_test_16,
+    16,
+    prod_test_17,
+    17,
+    prod_test_18,
+    18,
+    prod_test_19,
+    19,
+    prod_test_20,
+    20,
+    prod_test_21,
+    21,
+    prod_test_22,
+    22,
+    prod_test_23,
+    23,
+    prod_test_24,
+    24,
+    prod_test_25,
+    25,
+    prod_test_26,
+    26,
+    prod_test_27,
+    27,
+    prod_test_28,
+    28,
+    prod_test_29,
+    29,
+    prod_test_30,
+    30,
+    prod_test_31,
+    31,
+    prod_test_32,
+    32,
+    prod_test_33,
+    33,
+    prod_test_34,
+    34,
+    prod_test_35,
+    35,
+    prod_test_36,
+    36,
+    prod_test_37,
+    37,
+    prod_test_38,
+    38,
+    prod_test_39,
+    39,
+    prod_test_40,
+    40
 );

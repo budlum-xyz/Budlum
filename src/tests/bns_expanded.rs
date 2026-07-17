@@ -1,8 +1,8 @@
 //! Expanded BNS Registry tests for Phase 9 coverage (ARENA2).
 
+use crate::bns::types::BnsResolved;
 use crate::bns::BnsRegistry;
 use crate::core::address::Address;
-use crate::bns::types::BnsResolved;
 
 fn addr(b: u8) -> Address {
     Address::from([b; 32])
@@ -34,7 +34,8 @@ fn test_bns_renewal() {
     assert_eq!(reg.resolve("test.bud", 50), Some(alice));
 
     // Renew (extend expiry)
-    reg.register("test.bud".to_string(), alice, 50, 200).unwrap();
+    reg.register("test.bud".to_string(), alice, 50, 200)
+        .unwrap();
     assert_eq!(reg.resolve("test.bud", 150), Some(alice));
     assert_eq!(reg.resolve("test.bud", 250), Some(alice));
     assert_eq!(reg.resolve("test.bud", 350), None);
@@ -46,7 +47,8 @@ fn test_bns_subdomains_owner_only() {
     let alice = addr(1);
     let bob = addr(2);
 
-    reg.register("alice.bud".to_string(), alice, 0, 1000).unwrap();
+    reg.register("alice.bud".to_string(), alice, 0, 1000)
+        .unwrap();
 
     // Alice can create subdomain
     reg.register_subdomain("alice.bud".to_string(), "app".to_string(), alice, bob)
@@ -78,12 +80,14 @@ fn test_bns_transfer() {
     let alice = addr(1);
     let bob = addr(2);
 
-    reg.register("transfer.bud".to_string(), alice, 0, 1000).unwrap();
+    reg.register("transfer.bud".to_string(), alice, 0, 1000)
+        .unwrap();
 
     // Alice transfers to Bob (effectively re-registering as owner)
-    reg.register("transfer.bud".to_string(), alice, 0, 0).unwrap(); // Placeholder for transfer logic if separate
-    // In current impl, register() checks if NameTaken. We need a separate transfer method?
-    // Let's check bns/registry.rs for a transfer method.
+    reg.register("transfer.bud".to_string(), alice, 0, 0)
+        .unwrap(); // Placeholder for transfer logic if separate
+                   // In current impl, register() checks if NameTaken. We need a separate transfer method?
+                   // Let's check bns/registry.rs for a transfer method.
 }
 
 #[test]
@@ -92,8 +96,10 @@ fn test_bns_full_resolve_with_storage() {
     let alice = addr(1);
     let cid = [7u8; 32];
 
-    reg.register("storage.bud".to_string(), alice, 0, 1000).unwrap();
-    reg.set_storage("storage.bud".to_string(), alice, cid, 1).unwrap();
+    reg.register("storage.bud".to_string(), alice, 0, 1000)
+        .unwrap();
+    reg.set_storage("storage.bud", alice, cid, 1, 10)
+        .unwrap();
 
     let resolved = reg.resolve_full("storage.bud", 10).unwrap();
     assert_eq!(resolved.owner, alice);

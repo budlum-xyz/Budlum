@@ -26,6 +26,7 @@ fn make_result(tx_hash: &str) -> RelayerExternalResult {
         chain: ExternalChain::Ethereum,
         tx_hash: tx_hash.to_string(),
         success: true,
+        message: None,
         receipt_proof: Vec::new(),
         external_state_root: [0u8; 32],
     }

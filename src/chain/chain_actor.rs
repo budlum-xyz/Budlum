@@ -1487,6 +1487,7 @@ impl ChainActor {
                     let cid_obj = crate::storage::content_id::ContentId(cid);
                     let pruned_deals = self
                         .blockchain
+                        .state
                         .storage_registry
                         .prune_content(&cid_obj, now_epoch);
                     tracing::info!(
@@ -1986,6 +1987,7 @@ impl ChainActor {
                 ChainCommand::GetStorageDeals(res_tx) => {
                     let deals = self
                         .blockchain
+                        .state
                         .storage_registry
                         .all_deals()
                         .into_iter()
@@ -2019,6 +2021,7 @@ impl ChainActor {
                 ChainCommand::GetStorageChallenges(res_tx) => {
                     let challenges = self
                         .blockchain
+                        .state
                         .storage_registry
                         .all_challenges()
                         .into_iter()

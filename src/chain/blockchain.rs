@@ -1176,10 +1176,12 @@ impl Blockchain {
             .map_err(|e| e.to_string())?;
 
         // Phase 5 Q9: Deduct relayer fee from arriving asset if inbound to Budlum
-        let transfer = self.state
+        let transfer = self
+            .state
             .bridge_state
             .get_transfer(&message.message_id)
-            .ok_or_else(|| "Failed to retrieve transfer after mint".to_string())?;
+            .ok_or_else(|| "Failed to retrieve transfer after mint".to_string())?
+            .clone();
 
         let mut final_amount = transfer.amount;
 
@@ -1189,7 +1191,9 @@ impl Blockchain {
 
         // Phase 9 Security: Prevent u128 -> u64 truncation (AÇIK Fix)
         if final_amount > u64::MAX as u128 {
-            return Err("Bridge amount exceeds maximum representable balance (u64 overflow)".into());
+            return Err(
+                "Bridge amount exceeds maximum representable balance (u64 overflow)".into(),
+            );
         }
 
         // Credit the recipient and the relayer
@@ -1260,7 +1264,8 @@ impl Blockchain {
         if expiry_height <= source_height {
             return Err("Bridge transfer expiry must be after source height".into());
         }
-        let result = self.state
+        let result = self
+            .state
             .bridge_state
             .lock(
                 source_domain,
@@ -1315,7 +1320,8 @@ impl Blockchain {
         event_index: u32,
         expiry_height: u64,
     ) -> Result<DomainEvent, String> {
-        let event = self.state
+        let event = self
+            .state
             .bridge_state
             .burn_with_event(
                 message_id,
@@ -1397,7 +1403,8 @@ impl Blockchain {
         let transfer_id = message
             .correlation_id
             .ok_or_else(|| "Verified bridge burn message is missing correlation id".to_string())?;
-        let transfer = self.state
+        let transfer = self
+            .state
             .bridge_state
             .transfer(&transfer_id)
             .ok_or_else(|| "Unknown bridge transfer".to_string())?;
@@ -1803,10 +1810,12 @@ impl Blockchain {
                     .mint(&message)
                     .map_err(|e| e.to_string())?;
                 // Deduct relayer fee (Decision 9: 1%)
-                let transfer = self.state
+                let transfer = self
+                    .state
                     .bridge_state
                     .get_transfer(&message.message_id)
-                    .ok_or_else(|| "Failed to retrieve transfer after mint".to_string())?;
+                    .ok_or_else(|| "Failed to retrieve transfer after mint".to_string())?
+                    .clone();
 
                 let fee = transfer.amount.saturating_mul(1) / 100;
                 let final_amount = transfer.amount.saturating_sub(fee);
@@ -1828,10 +1837,12 @@ impl Blockchain {
                     .bridge_state
                     .unlock(message.message_id, source_domain)
                     .map_err(|e| e.to_string())?;
-                let transfer = self.state
+                let transfer = self
+                    .state
                     .bridge_state
                     .get_transfer(&message.message_id)
-                    .ok_or_else(|| "Failed to retrieve transfer after unlock".to_string())?;
+                    .ok_or_else(|| "Failed to retrieve transfer after unlock".to_string())?
+                    .clone();
 
                 // For unlock, the full amount goes back to the owner (Decision: relayer paid on target side)
                 // Actually, if a relayer brings proof of burn on target, they should be paid on source.
@@ -2675,7 +2686,7 @@ impl Blockchain {
         Some((block, nft_burn_cids.iter().map(|(cid, _)| cid.0).collect()))
     }
     pub fn mine_pending_transactions(&mut self, miner_address: Address) {
-        let _ = self.produce_block(miner_address);
+        self.produce_block(miner_address);
     }
     pub fn add_transaction(&mut self, transaction: Transaction) -> Result<(), String> {
         self.validate_pool_transaction(&transaction)
@@ -3665,7 +3676,8 @@ impl Blockchain {
     /// It credits the operator account and records an event, while avoiding
     /// double-accrual with `storage_last_reward_epoch`.
     pub fn accrue_storage_operator_rewards(&mut self, current_epoch: u64) -> (u32, u64) {
-        let deals: Vec<(u64, Address, u64, u64, u64)> = self.state
+        let deals: Vec<(u64, Address, u64, u64, u64)> = self
+            .state
             .storage_registry
             .all_deals()
             .iter()
@@ -3745,7 +3757,8 @@ impl Blockchain {
         }
 
         // Collect active operators with their total fee weight.
-        let deals: Vec<(Address, u64)> = self.state
+        let deals: Vec<(Address, u64)> = self
+            .state
             .storage_registry
             .all_deals()
             .iter()
@@ -3808,7 +3821,8 @@ impl Blockchain {
         const DEFAULT_CHALLENGE_INTERVAL: u64 = 100;
 
         let mut issued = 0u32;
-        let active_deals: Vec<(u64, u64)> = self.state
+        let active_deals: Vec<(u64, u64)> = self
+            .state
             .storage_registry
             .all_deals()
             .iter()
@@ -3846,7 +3860,8 @@ impl Blockchain {
         &mut self,
         current_epoch: u64,
     ) -> Result<(u32, u64), String> {
-        let pending_challenges: Vec<(u64, u64)> = self.state
+        let pending_challenges: Vec<(u64, u64)> = self
+            .state
             .storage_registry
             .all_challenges()
             .iter()
@@ -3864,12 +3879,14 @@ impl Blockchain {
         let mut total_slashed = 0u64;
 
         for (challenge_id, deal_id) in pending_challenges {
-            let operator = self.state
+            let operator = self
+                .state
                 .storage_registry
                 .get_deal(deal_id)
                 .map(|deal| deal.operator)
                 .unwrap_or_else(Address::zero);
-            if let Ok(result) = self.state
+            if let Ok(result) = self
+                .state
                 .storage_registry
                 .finalize_missed_challenge(challenge_id, current_epoch)
             {
@@ -3952,7 +3969,6 @@ impl Clone for Blockchain {
             domain_commitment_registry: self.domain_commitment_registry.clone(),
             global_headers: self.global_headers.clone(),
             plugin_registry: DomainPluginRegistry::new(),
-            universal_relayer: self.universal_relayer.clone(),
             settlement_finality_hashes: self.settlement_finality_hashes.clone(),
             pending_slashing_evidence: self.pending_slashing_evidence.clone(),
             finality_aggregator: None,
@@ -3993,7 +4009,7 @@ mod tests {
 
         blockchain.add_transaction(tx).unwrap();
 
-        let _ = blockchain.produce_block(Address::zero());
+        blockchain.produce_block(Address::zero());
         assert!(blockchain.is_valid());
         assert_eq!(blockchain.chain.len(), 2);
     }
@@ -4020,7 +4036,7 @@ mod tests {
         }
 
         for _ in 0..EPOCH_LENGTH {
-            let _ = blockchain.produce_block(Address::zero());
+            blockchain.produce_block(Address::zero());
         }
 
         assert_eq!(blockchain.chain.len(), (EPOCH_LENGTH as usize) + 1);
@@ -4084,7 +4100,7 @@ mod tests {
             guard.push(evidence);
         }
 
-        let _ = blockchain.produce_block(alice_pub);
+        blockchain.produce_block(alice_pub);
 
         let produced_block = blockchain.chain.last().unwrap();
         assert!(
@@ -4127,7 +4143,7 @@ mod tests {
         let mut miner_bytes = [0u8; 32];
         miner_bytes[0] = 1;
         let miner_addr = Address::from(miner_bytes);
-        let _ = bc.produce_block(miner_addr).unwrap();
+        bc.produce_block(miner_addr).unwrap();
         assert_eq!(bc.state.get_balance(&miner_addr), 55);
     }
 
@@ -4152,7 +4168,7 @@ mod tests {
             .address;
         assert_eq!(expected, signer_addr);
 
-        let _ = bc.produce_block(Address::zero()).unwrap();
+        bc.produce_block(Address::zero()).unwrap();
 
         assert_eq!(
             bc.state.get_balance(&signer_addr),
@@ -4194,7 +4210,7 @@ mod tests {
         let mut bc = Blockchain::new(consensus, Some(storage), 1337, None);
 
         for _ in 0..EPOCH_LENGTH {
-            let _ = bc.produce_block(Address::from([3u8; 32])).unwrap();
+            bc.produce_block(Address::from([3u8; 32])).unwrap();
         }
 
         assert_eq!(bc.state.epoch_index, 1);
@@ -4402,7 +4418,7 @@ mod tests {
 
         let cp_height = crate::core::chain_config::FINALITY_CHECKPOINT_INTERVAL;
         while bc.chain.len() < cp_height as usize {
-            let _ = bc.produce_block(Address::from([1u8; 32]));
+            bc.produce_block(Address::from([1u8; 32]));
         }
 
         assert_eq!(bc.chain.len() as u64, cp_height);

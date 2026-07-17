@@ -163,25 +163,3 @@ impl BnsRegistry {
     }
 }
 
-impl BnsRegistry {
-    pub fn root(&self) -> [u8; 32] {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        // Phase 9 (ARENA2): Collision-resistant hashing with delimiters
-        hasher.update(b"BDLM_BNS_REGISTRY_V2");
-        hasher.update(self.base_cost.to_le_bytes());
-        for (name, entry) in &self.names {
-            hasher.update([0x01]); // Entry start delimiter
-            hasher.update((name.len() as u32).to_le_bytes());
-            hasher.update(name.as_bytes());
-            hasher.update([0x02]); // Metadata delimiter
-            hasher.update(entry.owner.0);
-            hasher.update(entry.expiry.to_le_bytes());
-            if let Some(ref c) = entry.content {
-                hasher.update([0x03]); // Content delimiter
-                hasher.update(c.as_bytes());
-            }
-        }
-        hasher.finalize().into()
-    }
-}
