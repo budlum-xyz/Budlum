@@ -1248,4 +1248,3 @@ mod tests {
         assert_eq!(pruned, 0);
     }
 }
-

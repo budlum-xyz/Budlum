@@ -803,4 +803,3 @@ mod tests {
         assert!(matches!(relayer.status, MemberStatus::Slashed));
     }
 }
-

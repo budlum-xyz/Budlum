@@ -446,4 +446,3 @@ mod tests {
         bridge.unlock(transfer.message_id, 1).unwrap();
     }
 }
-
