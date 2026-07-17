@@ -42,24 +42,35 @@ impl Pkcs11Signer {
             return Err(CryptoError::KeyGeneration("PKCS#11 PIN is empty".into()));
         }
         let client = cryptoki::context::Pkcs11::new(&module_path).map_err(|e| {
-            CryptoError::KeyGeneration(format!("Failed to load PKCS#11 module '{}': {}", module_path, e))
+            CryptoError::KeyGeneration(format!(
+                "Failed to load PKCS#11 module '{}': {}",
+                module_path, e
+            ))
         })?;
-        client.initialize(cryptoki::context::CInitializeArgs::OsThreads).map_err(|e| {
-            CryptoError::KeyGeneration(format!("Failed to init PKCS#11: {e}"))
-        })?;
+        client
+            .initialize(cryptoki::context::CInitializeArgs::OsThreads)
+            .map_err(|e| CryptoError::KeyGeneration(format!("Failed to init PKCS#11: {e}")))?;
         let slots = client.get_slots_with_token().map_err(|e| {
             CryptoError::KeyGeneration(format!("Failed to enumerate PKCS#11 slots: {e}"))
         })?;
         let target_slot = slots
             .iter()
             .find(|s: &&cryptoki::slot::Slot| s.id() == slot_id)
-            .ok_or_else(|| CryptoError::KeyGeneration(format!(
-                "Slot {} not found (available: {:?})",
-                slot_id,
-                slots.iter().map(|s: &cryptoki::slot::Slot| s.id()).collect::<Vec<_>>()
-            )))?;
+            .ok_or_else(|| {
+                CryptoError::KeyGeneration(format!(
+                    "Slot {} not found (available: {:?})",
+                    slot_id,
+                    slots
+                        .iter()
+                        .map(|s: &cryptoki::slot::Slot| s.id())
+                        .collect::<Vec<_>>()
+                ))
+            })?;
         let session = client.open_rw_session(*target_slot).map_err(|e| {
-            CryptoError::KeyGeneration(format!("Failed to open RW session on slot {}: {}", slot_id, e))
+            CryptoError::KeyGeneration(format!(
+                "Failed to open RW session on slot {}: {}",
+                slot_id, e
+            ))
         })?;
         let pin_secret = secrecy::Secret::new(pin);
         session
@@ -68,9 +79,8 @@ impl Pkcs11Signer {
         let public_key_bytes = Self::extract_ed25519_public_key(&session).map_err(|e| {
             CryptoError::KeyGeneration(format!("Failed to extract Ed25519 key from HSM: {}", e))
         })?;
-        let bls_key =
-            Self::extract_data_object(&session, BLS_DATA_LABEL)
-                .and_then(|bytes| BlsKeypair::from_bytes(&bytes).ok());
+        let bls_key = Self::extract_data_object(&session, BLS_DATA_LABEL)
+            .and_then(|bytes| BlsKeypair::from_bytes(&bytes).ok());
         #[cfg(feature = "pq-dilithium")]
         let pq_key = Self::extract_data_object(&session, PQ_DATA_LABEL).and_then(|bytes| {
             let pk_len = pqcrypto_dilithium::dilithium5::public_key_bytes();
@@ -96,7 +106,10 @@ impl Pkcs11Signer {
             public_key_bytes,
             bls_key: Mutex::new(bls_key),
             pq_key: Mutex::new(pq_key),
-            inner: Mutex::new(Some(Pkcs11Inner { pkcs11_client: client, session })),
+            inner: Mutex::new(Some(Pkcs11Inner {
+                pkcs11_client: client,
+                session,
+            })),
             bls_mechanism: None,
             pq_mechanism: None,
         })
@@ -104,7 +117,11 @@ impl Pkcs11Signer {
 
     /// S1 (ARENA3, 2026-07-17): set vendor-native BLS/PQ mechanism IDs.
     /// cryptoki 0.12 uses Mechanism::VendorDefined for hardware-native signing.
-    pub fn with_vendor_mechanisms(mut self, bls_mech: Option<String>, pq_mech: Option<String>) -> Self {
+    pub fn with_vendor_mechanisms(
+        mut self,
+        bls_mech: Option<String>,
+        pq_mech: Option<String>,
+    ) -> Self {
         self.bls_mechanism = bls_mech.and_then(|s| Self::parse_mechanism(&s));
         self.pq_mechanism = pq_mech.and_then(|s| Self::parse_mechanism(&s));
         if let Some(id) = self.bls_mechanism {
@@ -123,12 +140,22 @@ impl Pkcs11Signer {
             .or_else(|| s.parse::<u64>().ok())
     }
 
-    fn vendor_mechanism(id: u64) -> cryptoki::mechanism::Mechanism<'static> {
+    /// Vendor mekanizma kurulumu. S1 fix (ARENA2, 2026-07-17): cryptoki 0.12
+    /// GERÇEK API'si — struct literal YOK (alanlar private: E0451/E0560):
+    /// MechanismType::new_vendor_defined CKM_VENDOR_DEFINED tabanının
+    /// altındaki id'leri reddeder (fail-closed value doğrulaması);
+    /// VendorDefinedMechanism yalnızca ::new ile kurulur.
+    fn vendor_mechanism(id: u64) -> Result<cryptoki::mechanism::Mechanism<'static>, CryptoError> {
         use cryptoki::mechanism::vendor_defined::VendorDefinedMechanism;
-        cryptoki::mechanism::Mechanism::VendorDefined(VendorDefinedMechanism {
-            mechanism_type: id,
-            parameter: None,
-        })
+        use cryptoki::mechanism::MechanismType;
+        let mech_type = MechanismType::new_vendor_defined(id).map_err(|e| {
+            CryptoError::Signing(format!(
+                "PKCS#11 vendor mechanism id 0x{id:08X} CKM_VENDOR_DEFINED tabaninin altinda: {e}"
+            ))
+        })?;
+        Ok(cryptoki::mechanism::Mechanism::VendorDefined(
+            VendorDefinedMechanism::new::<[u8]>(mech_type, None),
+        ))
     }
 
     fn try_vendor_sign(
@@ -138,16 +165,19 @@ impl Pkcs11Signer {
         label: &str,
         msg: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let mechanism = Self::vendor_mechanism(mech_id);
+        let mechanism = Self::vendor_mechanism(mech_id)?;
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PRIVATE_KEY),
             cryptoki::object::Attribute::Label(label.into()),
         ];
-        let objects = session.find_objects(template).map_err(|e| {
-            CryptoError::Signing(format!("Failed to find key '{}': {}", label, e))
-        })?;
+        let objects = session
+            .find_objects(template)
+            .map_err(|e| CryptoError::Signing(format!("Failed to find key '{}': {}", label, e)))?;
         if objects.is_empty() {
-            return Err(CryptoError::Signing(format!("Key '{}' not found for vendor sign", label)));
+            return Err(CryptoError::Signing(format!(
+                "Key '{}' not found for vendor sign",
+                label
+            )));
         }
         session
             .sign(&mechanism, objects[0], msg)
@@ -155,31 +185,49 @@ impl Pkcs11Signer {
     }
 
     pub fn store_bls_key(&self, keypair: &BlsKeypair) -> Result<(), CryptoError> {
-        let guard = self.inner.lock().map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
-        let inner = guard.as_ref().ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
+        let inner = guard
+            .as_ref()
+            .ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
         Self::create_data_object(&inner.session, BLS_DATA_LABEL, &keypair.to_bytes())?;
-        *self.bls_key.lock().map_err(|_| CryptoError::Signing("BLS mutex poisoned".into()))? =
+        *self
+            .bls_key
+            .lock()
+            .map_err(|_| CryptoError::Signing("BLS mutex poisoned".into()))? =
             Some(keypair.clone());
         Ok(())
     }
 
     pub fn store_pq_key(&self, keypair: &PqKeyPair) -> Result<(), CryptoError> {
-        let guard = self.inner.lock().map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
-        let inner = guard.as_ref().ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
+        let inner = guard
+            .as_ref()
+            .ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
         let mut bytes = keypair.public_key_bytes().to_vec();
         bytes.extend_from_slice(keypair.secret_key_bytes());
         Self::create_data_object(&inner.session, PQ_DATA_LABEL, &bytes)?;
-        *self.pq_key.lock().map_err(|_| CryptoError::Signing("PQ mutex poisoned".into()))? =
-            Some(keypair.clone());
+        *self
+            .pq_key
+            .lock()
+            .map_err(|_| CryptoError::Signing("PQ mutex poisoned".into()))? = Some(keypair.clone());
         Ok(())
     }
 
-    fn extract_ed25519_public_key(session: &cryptoki::session::Session) -> Result<[u8; 32], String> {
+    fn extract_ed25519_public_key(
+        session: &cryptoki::session::Session,
+    ) -> Result<[u8; 32], String> {
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PUBLIC_KEY),
             cryptoki::object::Attribute::KeyType(cryptoki::object::KeyType::EC_EDWARDS),
         ];
-        let objects = session.find_objects(template)
+        let objects = session
+            .find_objects(template)
             .map_err(|e| format!("Ed25519 key search failed: {e}"))?;
         if objects.is_empty() {
             return Err("No Ed25519 public key found in HSM".into());
@@ -203,12 +251,18 @@ impl Pkcs11Signer {
             cryptoki::object::Attribute::Label(label.into()),
         ];
         let objects = session.find_objects(template).ok()?;
-        if objects.is_empty() { return None; }
+        if objects.is_empty() {
+            return None;
+        }
         let attr = session
             .get_attributes(objects[0], &[cryptoki::object::AttributeType::Value])
             .ok()?;
         attr.first().and_then(|a| {
-            if let cryptoki::object::Attribute::Value(v) = a { Some(v.clone()) } else { None }
+            if let cryptoki::object::Attribute::Value(v) = a {
+                Some(v.clone())
+            } else {
+                None
+            }
         })
     }
 
@@ -224,8 +278,9 @@ impl Pkcs11Signer {
             cryptoki::object::Attribute::Label(label.into()),
             cryptoki::object::Attribute::Value(value.to_vec()),
         ];
-        session.create_object(template)
-            .map_err(|e| CryptoError::KeyGeneration(format!("Failed to store '{}': {}", label, e)))?;
+        session.create_object(template).map_err(|e| {
+            CryptoError::KeyGeneration(format!("Failed to store '{}': {}", label, e))
+        })?;
         Ok(())
     }
 }
@@ -236,13 +291,20 @@ impl ConsensusSigner for Pkcs11Signer {
     }
 
     fn sign_block(&self, block_hash: &[u8; 32]) -> Result<Vec<u8>, CryptoError> {
-        let guard = self.inner.lock().map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
-        let inner = guard.as_ref().ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| CryptoError::Signing("HSM mutex poisoned".into()))?;
+        let inner = guard
+            .as_ref()
+            .ok_or_else(|| CryptoError::Signing("HSM session closed".into()))?;
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PRIVATE_KEY),
             cryptoki::object::Attribute::KeyType(cryptoki::object::KeyType::EC_EDWARDS),
         ];
-        let objects = inner.session.find_objects(template)
+        let objects = inner
+            .session
+            .find_objects(template)
             .map_err(|e| CryptoError::Signing(format!("Ed25519 key search: {e}")))?;
         if objects.is_empty() {
             return Err(CryptoError::Signing("No Ed25519 private key in HSM".into()));
@@ -250,17 +312,25 @@ impl ConsensusSigner for Pkcs11Signer {
         let mechanism = cryptoki::mechanism::Mechanism::Eddsa(
             cryptoki::mechanism::eddsa::EddsaParams::default(),
         );
-        let sig = inner.session.sign(&mechanism, objects[0], block_hash)
+        let sig = inner
+            .session
+            .sign(&mechanism, objects[0], block_hash)
             .map_err(|e| CryptoError::Signing(format!("HSM sign: {e}")))?;
         if sig.len() < 64 {
-            return Err(CryptoError::Signing(format!("Undersized sig: {} bytes", sig.len())));
+            return Err(CryptoError::Signing(format!(
+                "Undersized sig: {} bytes",
+                sig.len()
+            )));
         }
         Ok(sig[..64].to_vec())
     }
 
     fn bls_sign(&self, msg: &[u8]) -> Result<Vec<u8>, CryptoError> {
         if let Some(mech_id) = self.bls_mechanism {
-            let guard = self.inner.lock().map_err(|_| CryptoError::Signing("HSM mutex".into()))?;
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| CryptoError::Signing("HSM mutex".into()))?;
             if let Some(inner) = guard.as_ref() {
                 match self.try_vendor_sign(&inner.session, mech_id, BLS_DATA_LABEL, msg) {
                     Ok(sig) => return Ok(sig),
@@ -268,14 +338,22 @@ impl ConsensusSigner for Pkcs11Signer {
                 }
             }
         }
-        let guard = self.bls_key.lock().map_err(|_| CryptoError::Signing("BLS mutex".into()))?;
-        let bls = guard.as_ref().ok_or_else(|| CryptoError::Signing("No BLS key in HSM".into()))?;
+        let guard = self
+            .bls_key
+            .lock()
+            .map_err(|_| CryptoError::Signing("BLS mutex".into()))?;
+        let bls = guard
+            .as_ref()
+            .ok_or_else(|| CryptoError::Signing("No BLS key in HSM".into()))?;
         Ok(crate::chain::finality::sign_bls(&bls.secret_key, msg))
     }
 
     fn pq_sign(&self, msg: &[u8]) -> Result<Vec<u8>, CryptoError> {
         if let Some(mech_id) = self.pq_mechanism {
-            let guard = self.inner.lock().map_err(|_| CryptoError::Signing("HSM mutex".into()))?;
+            let guard = self
+                .inner
+                .lock()
+                .map_err(|_| CryptoError::Signing("HSM mutex".into()))?;
             if let Some(inner) = guard.as_ref() {
                 match self.try_vendor_sign(&inner.session, mech_id, PQ_DATA_LABEL, msg) {
                     Ok(sig) => return Ok(sig),
@@ -283,17 +361,28 @@ impl ConsensusSigner for Pkcs11Signer {
                 }
             }
         }
-        let guard = self.pq_key.lock().map_err(|_| CryptoError::Signing("PQ mutex".into()))?;
-        let pq = guard.as_ref().ok_or_else(|| CryptoError::Signing("No PQ key in HSM".into()))?;
+        let guard = self
+            .pq_key
+            .lock()
+            .map_err(|_| CryptoError::Signing("PQ mutex".into()))?;
+        let pq = guard
+            .as_ref()
+            .ok_or_else(|| CryptoError::Signing("No PQ key in HSM".into()))?;
         pq.sign(msg)
     }
 
     fn bls_public_key(&self) -> Option<Vec<u8>> {
-        self.bls_key.lock().ok().and_then(|g| g.as_ref().map(|k| k.public_key.clone()))
+        self.bls_key
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|k| k.public_key.clone()))
     }
 
     fn pq_public_key(&self) -> Option<Vec<u8>> {
-        self.pq_key.lock().ok().and_then(|g| g.as_ref().map(|k| k.public_key_bytes().to_vec()))
+        self.pq_key
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|k| k.public_key_bytes().to_vec()))
     }
 
     fn backend_name(&self) -> &'static str {
