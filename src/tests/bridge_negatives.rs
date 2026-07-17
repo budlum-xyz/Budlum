@@ -160,9 +160,8 @@ fn forged_proof_against_committed_root_rejected() {
     forged_tree.push(forged_event);
     let forged_proof = forged_tree.proof(0).unwrap();
 
-    let res = f
-        .bc
-        .submit_relay_proof(f.message_id, f.relayer, &forged_proof, 1);
+    let res =
+        f.bc.submit_relay_proof(f.message_id, f.relayer, &forged_proof, 1);
     assert!(res.is_err(), "forged proof must never mint");
     // Bridge state must still show the transfer un-minted (pending path only).
     let t = f.bc.state.bridge_state.get_transfer(&f.message_id).unwrap();
@@ -180,13 +179,10 @@ fn replay_same_relay_proof_rejected() {
     anchor_commitment(&mut f, 0, 10);
     let proof = f.tree.proof(0).unwrap();
 
-    f.bc
-        .submit_relay_proof(f.message_id, f.relayer, &proof, 1)
+    f.bc.submit_relay_proof(f.message_id, f.relayer, &proof, 1)
         .unwrap(); // positive path still holds
 
-    let replay = f
-        .bc
-        .submit_relay_proof(f.message_id, f.relayer, &proof, 1);
+    let replay = f.bc.submit_relay_proof(f.message_id, f.relayer, &proof, 1);
     assert!(replay.is_err(), "replayed relay proof must be rejected");
 }
 
@@ -195,9 +191,7 @@ fn replay_same_relay_proof_rejected() {
 fn relay_proof_without_committed_anchor_rejected() {
     let mut f = honest_fixture(true);
     let proof = f.tree.proof(0).unwrap();
-    let res = f
-        .bc
-        .submit_relay_proof(f.message_id, f.relayer, &proof, 1);
+    let res = f.bc.submit_relay_proof(f.message_id, f.relayer, &proof, 1);
     assert!(
         res.is_err(),
         "proof without a chain-committed event root must be rejected"
@@ -211,9 +205,7 @@ fn relay_proof_with_wrong_domain_anchor_rejected() {
     let mut f = honest_fixture(true);
     anchor_commitment(&mut f, 1, 10); // commitment lands on domain 2, not source domain 1
     let proof = f.tree.proof(0).unwrap();
-    let res = f
-        .bc
-        .submit_relay_proof(f.message_id, f.relayer, &proof, 1);
+    let res = f.bc.submit_relay_proof(f.message_id, f.relayer, &proof, 1);
     assert!(
         res.is_err(),
         "cross-domain anchor substitution must be rejected"
@@ -226,9 +218,7 @@ fn inactive_relayer_proof_rejected() {
     let mut f = honest_fixture(false); // relayer NOT registered
     anchor_commitment(&mut f, 0, 10);
     let proof = f.tree.proof(0).unwrap();
-    let res = f
-        .bc
-        .submit_relay_proof(f.message_id, f.relayer, &proof, 1);
+    let res = f.bc.submit_relay_proof(f.message_id, f.relayer, &proof, 1);
     assert!(res.is_err(), "inactive relayer must be rejected");
 }
 
@@ -240,8 +230,6 @@ fn unknown_message_proof_rejected() {
     anchor_commitment(&mut f, 0, 10);
     let proof = f.tree.proof(0).unwrap();
     let ghost_id = hash(b"GHOST_MESSAGE");
-    let res = f
-        .bc
-        .submit_relay_proof(ghost_id, f.relayer, &proof, 1);
+    let res = f.bc.submit_relay_proof(ghost_id, f.relayer, &proof, 1);
     assert!(res.is_err(), "unknown message relay must be rejected");
 }
