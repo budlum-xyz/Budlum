@@ -1793,8 +1793,28 @@ impl Blockchain {
 
         let current_height = self.chain.len() as u64;
 
-        // Build event tree from bridge state for the source domain
-        let event_tree_root = self.universal_relayer.ledger_root(); // Use relay ledger root as commitment
+        // Authenticate the relay proof against the source domain's committed
+        // event root for the height at which the event was emitted (Phase 5 /
+        // ADIM5 wiring). The relay-ledger root can never authenticate source
+        // events: the ledger only records relays that already completed, so
+        // the previous lookup made the positive path unverifiable by
+        // construction. The chain-anchored commitment registry is the only
+        // sound root of trust here.
+        let event_tree_root = {
+            let pending = self.universal_relayer.pending_relay(&message_id).ok_or_else(|| {
+                format!("no pending relay for message {}", hex::encode(message_id))
+            })?;
+            let source_height = pending.source_event.domain_height;
+            self.domain_commitment_registry
+                .find_by_height(source_domain, source_height)
+                .map(|commitment| commitment.event_root)
+                .ok_or_else(|| {
+                    format!(
+                        "No committed event root for domain {} at height {}",
+                        source_domain, source_height
+                    )
+                })?
+        };
 
         // Process the relay through the Universal Relayer
         let message = self

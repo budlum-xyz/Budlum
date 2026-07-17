@@ -318,6 +318,11 @@ impl UniversalRelayer {
         Ok(message)
     }
 
+    /// Get a pending relay by message ID.
+    pub fn pending_relay(&self, message_id: &MessageId) -> Option<&PendingRelay> {
+        self.pending.get(message_id)
+    }
+
     /// Check if a message has been relayed.
     pub fn is_relayed(&self, message_id: &MessageId) -> bool {
         self.ledger.is_relayed(message_id)

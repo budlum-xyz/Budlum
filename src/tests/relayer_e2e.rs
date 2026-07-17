@@ -175,9 +175,11 @@ fn full_internal_relay_cycle_lock_mint() {
     let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
 
     // 1. Register domains
+    let mut domains = Vec::new();
     for id in [1u32, 2u32] {
         let mut d = default_domain(id, ConsensusKind::PoW, 1337, "pow-confirmation-depth", 0);
         d.bridge_enabled = true;
+        domains.push(d.clone());
         bc.register_consensus_domain(d).unwrap();
     }
 
@@ -202,6 +204,9 @@ fn full_internal_relay_cycle_lock_mint() {
     let message = lock_event.message.clone().unwrap();
     let message_id = message.message_id;
 
+    // Relayers watch domain event logs and enqueue off-chain.
+    bc.enqueue_bridge_relay(lock_event.clone(), &message);
+
     // Relayer enqueued it
     assert_eq!(bc.pending_relay_count(), 1);
 
@@ -209,6 +214,19 @@ fn full_internal_relay_cycle_lock_mint() {
     let mut tree = DomainEventTree::new();
     tree.push(lock_event.clone());
     let proof = tree.proof(0).unwrap();
+
+    // 5b. The source domain anchors its event root on-chain via a domain
+    // commitment; relay proofs are verified against that committed root.
+    {
+        let mut b = crate::core::block::Block::new(10, bc.last_block().hash.clone(), vec![]);
+        b.state_root = "22".repeat(32);
+        b.tx_root = b.calculate_tx_root();
+        b.hash = b.calculate_hash();
+        let commitment =
+            crate::domain::DomainCommitment::from_block(&domains[0], &b, tree.root(), [0u8; 32], 0)
+                .unwrap();
+        bc.submit_domain_commitment(commitment).unwrap();
+    }
 
     // 6. Submit relay proof on Budlum
     let relayed_msg = bc
@@ -241,9 +259,11 @@ fn full_internal_relay_cycle_burn_unlock() {
     let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
 
     // 1. Setup domains and relayer
+    let mut domains = Vec::new();
     for id in [1u32, 2u32] {
         let mut d = default_domain(id, ConsensusKind::PoW, 1337, "pow-confirmation-depth", 0);
         d.bridge_enabled = true;
+        domains.push(d.clone());
         bc.register_consensus_domain(d).unwrap();
     }
     let relayer = relayer_addr();
@@ -281,6 +301,19 @@ fn full_internal_relay_cycle_burn_unlock() {
     let mut tree = DomainEventTree::new();
     tree.push(burn_event.clone());
     let proof = tree.proof(0).unwrap();
+
+    // 4b. The source domain anchors its event root on-chain (burn emitted at
+    // domain 2, height 20); relay proof verifies against the committed root.
+    {
+        let mut b = crate::core::block::Block::new(20, bc.last_block().hash.clone(), vec![]);
+        b.state_root = "22".repeat(32);
+        b.tx_root = b.calculate_tx_root();
+        b.hash = b.calculate_hash();
+        let commitment =
+            crate::domain::DomainCommitment::from_block(&domains[1], &b, tree.root(), [0u8; 32], 0)
+                .unwrap();
+        bc.submit_domain_commitment(commitment).unwrap();
+    }
 
     // 5. Submit relay proof
     let relayed_msg = bc

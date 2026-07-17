@@ -567,6 +567,13 @@ impl AccountState {
         if tx.fee < self.base_fee {
             return Err(format!("Fee too low: {} < {}", tx.fee, self.base_fee));
         }
+        // Overflow guard (security): reject amount+fee > u64::MAX explicitly.
+        // total_cost() uses saturating_add, which would silently clamp to
+        // u64::MAX and admit an otherwise unpayable transfer whenever the
+        // sender happens to hold u64::MAX.
+        if tx.amount.checked_add(tx.fee).is_none() {
+            return Err("Transaction amount + fee overflows u64".into());
+        }
         let total_cost = tx.total_cost();
         if spendable_balance < total_cost {
             return Err(format!(

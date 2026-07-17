@@ -23,18 +23,25 @@ async fn test_chaos_v2_heavy_load_under_pressure() {
     bc.state.base_fee = 0;
     bc.mempool.set_min_fee(0);
 
-    let alice_kp = KeyPair::generate().unwrap();
-    let alice = Address::from(alice_kp.public_key_bytes());
-    bc.state.add_balance(&alice, 10_000_000);
-
     let bob = Address::from([2u8; 32]);
 
-    println!("PHASE 1: Injecting 1000 transactions...");
-    for i in 0..1000 {
-        let mut tx = Transaction::new(alice, bob, 1, vec![]);
-        tx.nonce = i as u64;
-        tx.sign(&alice_kp);
-        bc.mempool.add_transaction(tx).unwrap();
+    println!("PHASE 1: Injecting 1000 transactions (10 senders x 100)...");
+    // Mempool enforces a per-sender DoS cap (config.max_per_sender = 100),
+    // so the 1000-tx workload is distributed across 10 funded senders,
+    // each exactly at the cap.
+    let senders: Vec<KeyPair> = (0..10).map(|_| KeyPair::generate().unwrap()).collect();
+    for kp in &senders {
+        bc.state
+            .add_balance(&Address::from(kp.public_key_bytes()), 100_000);
+    }
+    for kp in &senders {
+        let from = Address::from(kp.public_key_bytes());
+        for i in 0..100 {
+            let mut tx = Transaction::new(from, bob, 1, vec![]);
+            tx.nonce = i as u64;
+            tx.sign(kp);
+            bc.mempool.add_transaction(tx).unwrap();
+        }
     }
 
     assert_eq!(bc.mempool.len(), 1000);

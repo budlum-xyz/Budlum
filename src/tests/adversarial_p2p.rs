@@ -74,6 +74,9 @@ async fn test_p2p_topology_latency_drift_simulation() {
 
     // 1. Block from the "Future" (+5 seconds propagation drift)
     let mut future_block = crate::core::block::Block::new(1, bc.chain[0].hash.clone(), vec![]);
+    // validate_and_add_block requires a committed state root matching the
+    // post-execution state (no txs => current state root).
+    future_block.state_root = bc.state.calculate_state_root();
     future_block.timestamp = now + 5000;
     future_block.hash = future_block.calculate_hash();
 

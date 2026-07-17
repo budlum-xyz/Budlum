@@ -53,6 +53,53 @@ impl BnsRegistry {
         Ok(())
     }
 
+    /// Renew an existing name registration. Only the current owner may renew
+    /// and only while the record is still live (not expired). The new expiry
+    /// extends from the current expiry — never from `current_epoch` — so
+    /// renewing early never shortens the registration.
+    pub fn renew(
+        &mut self,
+        name: &str,
+        caller: &Address,
+        current_epoch: u64,
+        duration: u64,
+    ) -> Result<(), BnsError> {
+        let record = self.names.get_mut(name).ok_or(BnsError::InvalidName)?;
+        if &record.owner != caller {
+            return Err(BnsError::NotOwner);
+        }
+        if record.expires_at <= current_epoch {
+            return Err(BnsError::Expired);
+        }
+        record.expires_at = record
+            .expires_at
+            .checked_add(duration)
+            .ok_or(BnsError::InvalidName)?;
+        Ok(())
+    }
+
+    /// Transfer ownership of a live (non-expired) name to a new owner. Only
+    /// the current owner may transfer. Resolver/content bindings and existing
+    /// subdomain mappings are preserved; after the transfer the previous
+    /// owner loses all control over the record.
+    pub fn transfer(
+        &mut self,
+        name: &str,
+        caller: &Address,
+        new_owner: Address,
+        current_epoch: u64,
+    ) -> Result<(), BnsError> {
+        let record = self.names.get_mut(name).ok_or(BnsError::InvalidName)?;
+        if &record.owner != caller {
+            return Err(BnsError::NotOwner);
+        }
+        if record.expires_at <= current_epoch {
+            return Err(BnsError::Expired);
+        }
+        record.owner = new_owner;
+        Ok(())
+    }
+
     pub fn register_subdomain(
         &mut self,
         parent_name: &str,

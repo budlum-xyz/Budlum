@@ -48,8 +48,10 @@ fn security_reject_zero_length_data_for_contract_call() {
     tx.tx_type = TransactionType::ContractCall;
     tx.sign(&alice_kp);
 
-    // Depending on VM impl, empty bytecode might be rejected early
-    assert!(state.validate_transaction(&tx).is_ok()); // Valid TX, but VM will fail
+    // Protocol rule: ContractCall data MUST be non-empty BudZKVM bytecode
+    // (validated before signature cost, anti-spam). The VM never sees an
+    // empty call payload.
+    assert!(state.validate_transaction(&tx).is_err());
 }
 
 macro_rules! gen_security_tests {

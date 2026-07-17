@@ -2924,9 +2924,20 @@ mod tests {
         // The VM should return 0 in rd_val_new because root doesn't match
         assert_eq!(vm.registers[1], 0);
 
+        // The public inputs must bind to the REAL program hash: verify()
+        // recomputes keccak(program) and rejects dummies.
+        let program_bytes: Vec<u8> = program
+            .iter()
+            .flat_map(|&inst| inst.to_le_bytes().to_vec())
+            .collect();
+        let mut hasher = Keccak::v256();
+        hasher.update(&program_bytes);
+        let mut real_program_hash = [0u8; 32];
+        hasher.finalize(&mut real_program_hash);
+
         let pi = ExecutionPublicInputs {
             chain_id: 1,
-            program_hash: [0; 32], // dummy
+            program_hash: real_program_hash,
             initial_state_root: [0u8; 32],
             final_state_root: [0u8; 32],
             sender: 0,
