@@ -790,4 +790,123 @@ mod chaos_tests {
         let final_header = settlement_node.seal_global_header(None).unwrap();
         assert_ne!(final_header.bridge_state_root, [0u8; 32]);
     }
+
+    /// Chaos v2 (ARENA3, ADIM5 §5.4 genişletme — mempool poison):
+    /// Çakışan nonce saldırısı: aynı gönderici aynı nonce'u iki farklı
+    /// payload ile basarsa pool yalnızca RBF kazananını tutmalı; blok YALNIZ
+    /// kazananı içermeli; zincir nonce'u ilerledikten sonra eski çakışan tx
+    /// geri dönememeli; gap'li nonce doğrudan reddedilmeli.
+    #[test]
+    fn test_chaos_v2_mempool_poison_conflicting_nonce_serves_latest_fee() {
+        let consensus = Arc::new(PoWEngine::new(0));
+        let mut blockchain = Blockchain::new(consensus, None, 1337, None);
+
+        let sender = KeyPair::generate().unwrap();
+        let sender_pub = Address::from(sender.public_key_bytes());
+        blockchain.state.add_balance(&sender_pub, 10_000);
+
+        // tx_old: nonce=0 fee=1, payload=[1] — önce bu girer.
+        let mut tx_old = Transaction::new(sender_pub, Address::from([0x99; 32]), 1, vec![1]);
+        tx_old.nonce = 0;
+        tx_old.fee = 1;
+        tx_old.sign(&sender);
+        let old_hash = tx_old.hash.clone();
+        blockchain.add_transaction(tx_old).unwrap();
+        assert_eq!(blockchain.mempool.len(), 1);
+
+        // tx_new: aynı nonce=0 ama fee=5, payload=[2] — RBF kazananı; eski silinir.
+        let mut tx_new = Transaction::new(sender_pub, Address::from([0x99; 32]), 1, vec![2]);
+        tx_new.nonce = 0;
+        tx_new.fee = 5;
+        tx_new.sign(&sender);
+        blockchain.add_transaction(tx_new).unwrap();
+        assert_eq!(blockchain.mempool.len(), 1, "RBF kazanani tek kalmali");
+
+        // Blok üret: YALNIZ kazanan (fee=5, data=[2]) zincire girmeli.
+        blockchain.produce_block(Address::from([0x03; 32]));
+        let blk = blockchain.chain.last().unwrap();
+        assert_eq!(blk.transactions.len(), 1);
+        assert_eq!(blk.transactions[0].fee, 5);
+        assert_eq!(blk.transactions[0].data, vec![2u8]);
+        assert!(
+            !blk.transactions.iter().any(|tx| tx.hash == old_hash),
+            "poisoned replace: eski tx asla zincire girmemeli"
+        );
+
+        // Zincir nonce'u 1 oldu; eski çakışan tx geri dönemez.
+        let mut tx_back = Transaction::new(sender_pub, Address::from([0x88; 32]), 1, vec![3]);
+        tx_back.nonce = 0;
+        tx_back.fee = 10;
+        tx_back.sign(&sender);
+        let res = blockchain.add_transaction(tx_back);
+        assert!(res.is_err(), "zincir nonce=1 iken nonce=0 tx kabul edilmemeli");
+
+        // Gap'li nonce (zincir 1, tx 5) doğrudan reddedilir.
+        let mut tx_gap = Transaction::new(sender_pub, Address::from([0x77; 32]), 1, vec![4]);
+        tx_gap.nonce = 5;
+        tx_gap.fee = 10;
+        tx_gap.sign(&sender);
+        let res = blockchain.add_transaction(tx_gap);
+        assert!(res.is_err(), "gap'li nonce kabul edilmemeli");
+    }
+
+    /// Chaos v2 (ARENA3 — mempool poison): spam flood'cu dürüst ücretliler
+    /// tarafından tamamen evict edilmeli. Pool doluyken evict_lowest_fee
+    /// (new.fee > lowest) çalışır; tüm spam'ler atılınca yeni düşük-fee tx
+    /// en düşük dürüst fee'yi aşamadığından PoolFull ile reddedilir.
+    #[test]
+    fn test_chaos_v2_mempool_poison_flooder_evicted_by_honest_fees() {
+        use crate::mempool::pool::{Mempool, MempoolConfig};
+
+        let cfg = MempoolConfig {
+            max_size: 100,
+            max_per_sender: 100,
+            min_fee: 0,
+            tx_ttl_secs: 3600,
+            rbf_bump_percent: 10,
+        };
+        let mut pool = Mempool::new(cfg);
+
+        // 1) Flooder: 100 farklı gönderici, hepsi fee=1.
+        for i in 0..100u8 {
+            let from = Address::from([i; 32]);
+            let mut tx = Transaction::new(from, Address::from([0x09; 32]), 1, vec![]);
+            tx.nonce = 0;
+            tx.fee = 1;
+            tx.hash = tx.calculate_hash();
+            pool.add_transaction(tx).unwrap();
+        }
+        assert_eq!(pool.len(), 100);
+
+        // 2) Dürüst akış: 100 gönderici fee=2 — her biri bir spam'i evict eder.
+        for i in 0..100u8 {
+            let from = Address::from([i | 0x80; 32]);
+            let mut tx = Transaction::new(from, Address::from([0x09; 32]), 1, vec![]);
+            tx.nonce = 0;
+            tx.fee = 2;
+            tx.hash = tx.calculate_hash();
+            pool.add_transaction(tx).unwrap();
+        }
+        assert_eq!(pool.len(), 100);
+
+        // 3) Mühür: havuzun en düşük fee'si artık 2 — yeni fee=1 spam hiçbir
+        //    şeyi evict edemez -> PoolFull; fee=3 ise tam tersine evict EDER.
+        let from = Address::from([0x7E; 32]);
+        let mut spam = Transaction::new(from, Address::from([0x09; 32]), 1, vec![]);
+        spam.nonce = 0;
+        spam.fee = 1;
+        spam.hash = spam.calculate_hash();
+        assert!(matches!(
+            pool.add_transaction(spam),
+            Err(crate::mempool::pool::MempoolError::PoolFull)
+        ));
+
+        let from = Address::from([0x7F; 32]);
+        let mut rich = Transaction::new(from, Address::from([0x09; 32]), 1, vec![]);
+        rich.nonce = 0;
+        rich.fee = 3;
+        rich.hash = rich.calculate_hash();
+        pool.add_transaction(rich).unwrap();
+        assert_eq!(pool.len(), 100);
+    }
 }
