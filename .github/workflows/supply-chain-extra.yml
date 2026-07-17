@@ -42,13 +42,14 @@ jobs:
         run: cargo +nightly install cargo-udeps --locked
       - name: Kanarya (vacuous-gate koruması)
         run: bash ./scripts/check-udeps.sh --self-test
-      - name: "Ölçüm + kapı (rapor modu — baseline 2. adımda)"
+      - name: "Ölçüm + kapı (ratchet: baseline dışı bulgu = FAIL)"
         run: |
+          ROOT="$PWD"
           cargo +nightly udeps --all-targets 2>&1 | tee /tmp/udeps1.txt || true
-          bash ./scripts/check-udeps.sh /tmp/udeps1.txt
+          bash "$ROOT/scripts/check-udeps.sh" /tmp/udeps1.txt
           cd budzero
           cargo +nightly udeps --all-targets 2>&1 | tee /tmp/udeps2.txt || true
-          bash ./scripts/check-udeps.sh /tmp/udeps2.txt
+          bash "$ROOT/scripts/check-udeps.sh" /tmp/udeps2.txt
 
   geiger:
     name: "Geiger — unsafe görünürlük (G11; first-party 0 kanıt katmanı)"
@@ -71,8 +72,9 @@ jobs:
         run: bash ./scripts/check-geiger.sh --self-test
       - name: Ölçüm + first-party kapısı (budlum + budzero)
         run: |
+          ROOT="$PWD"
           cargo geiger --all-targets 2>&1 | tee /tmp/geiger1.txt || true
-          bash ./scripts/check-geiger.sh /tmp/geiger1.txt
+          bash "$ROOT/scripts/check-geiger.sh" /tmp/geiger1.txt
           cd budzero
           cargo geiger --all-targets 2>&1 | tee /tmp/geiger2.txt || true
-          bash ./scripts/check-geiger.sh /tmp/geiger2.txt
+          bash "$ROOT/scripts/check-geiger.sh" /tmp/geiger2.txt

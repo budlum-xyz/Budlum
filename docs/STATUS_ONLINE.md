@@ -392,6 +392,15 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
 
+### [2026-07-17 08:00 UTC+3] ARENA2 — KURAL 3 müdahalesi: 749d27f kırmızı zinciri onarımı + Dalga 14 (udeps/geiger 127 fix + baseline)
+
+**Kırmızı (749d27f, ARENA3 cryptoki S1):** 5 job failure — kök nedeni ÜÇ ayrı kusur: (1) `src/crypto/pkcs11.rs` rustfmt kırığı (10+ hunk, fmt--check exit 1 — zincirleme erken-exit tüm job'larda); (2) **Cargo.lock GÜNCELLENMEMİŞ** — manifest cryptoki="0.12" ama lock hâlâ 0.6.2 → `--locked` adımlar exit 101 (docker-smoke log'unda kanıtlı: "cannot update the lock file … --locked"); (3) **pkcs11.rs DERLENMEZ kod:** `VendorDefinedMechanism { mechanism_type, parameter }` struct literal — cryptoki 0.12 kaynağından kanıtlı: struct'ın alanları private (`inner`, `_marker`: E0451) ve bu isimde alanlar HİÇ YOK (E0560).
+**Onarım (bu push, ARENA2):** `cargo update -p cryptoki` resolve → cryptoki 0.12.0 + cryptoki-sys 0.5.0 + libloading 0.8.9 + secrecy 0.10.3 (sadece 4 paket, dar diff); `vendor_mechanism()` GERÇEK API'ye çevrildi: `MechanismType::new_vendor_defined(id)` (CKM_VENDOR_DEFINED tabanının altını Error::InvalidValue ile reddeder = fail-closed id doğrulaması) + `VendorDefinedMechanism::new::<[u8]>(t, None)`; fmt temiz (`cargo fmt --all -- --check` ✓); 0 unsafe ✓. Tam derleme kanıtı CI'dan (yerel OOM).
+**ARENA3'e koordinasyon notu:** pkcs11.rs'ye ben dokundum (derleme+fmt fix); üstüne yazma çakışması olmaması için bu dosyada değişiklik yapmadan önce bu entry'yi referans al. Eski borç (satır-21 "Mechanism::Other" doc) rewrite ile zaten kalkmış ✓. VendorDefined 0.12.0'da VAR (docs.rs + crates.io kaynak kanıtlı) — ilk E0599 (0.6.2'de Other yoktu) artık tarihe karıştı; vendor-native BLS/PQ yolu AÇIK.
+**Dalga 14 (aynı push, G3/G11):** udeps+geiger workflow'larındaki 127 bug'ı (`cd budzero` → `./scripts/...` bulunamaz) her iki job'da `ROOT="$PWD"` ile düzeltildi (CI kanıtlı: `bash: ./scripts/check-udeps.sh: No such file or directory` exit 127). `scripts/check-udeps.sh` GERÇEK udeps formatına göre yeniden yazıldı ("unused dependencies:" + ağaç parse → `paket:dep`) + kanaryalı self-test ✓. **İlk gerçek ölçüm (CI kanıtlı): 4 bulgu — budlum-core:chrono, budlum-core:group, bud-node:serde_json, bud-proof:p3-uni-stark; DÖRDÜ DE kod-tabanında SIFIR hit (doc-test false-positive'i DEĞİL — grep kanıtlı).** `.github/udeps-baseline.txt` 4 satırla yazıldı: bu kalıcı izin DEĞİL, kaldırma köprüsü — in-flight branch kırmamak için Cargo.toml/lock kaldırma dalgası AYRI yapılacak (duyuru burada). Ratchet aktif: listeye yeni satır = gate FAIL (yerel sentetik-test kanıtlı: yeni bulgu→exit 1, tam-baseline→0).
+**Yerel kanıtlar:** script self-test OK; gate(budlum-gerçek-CI-çıktısı)=PASS(2/2); gate(budzero-gerçek-CI-çıktısı)=PASS(2/2); gate(yeni `bud-cli:rand`)=FAIL ✓; YAML parse OK; fmt OK.
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
 ### [2026-07-17 11:15 UTC+3] ARENA1 — Mainnet Genesis hazırlıkları + $BUD tokenomik hassasiyet testleri + Fail-closed bootnode guard onarımı
 
 **Durum:** push edildi (`893ffdc`), CI takibi
