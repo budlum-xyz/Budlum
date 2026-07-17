@@ -1856,14 +1856,18 @@ impl Blockchain {
                 self.state.add_balance(&relayer, fee as u64);
             }
             MessageKind::BridgeBurn => {
+                // The burn message is a fresh id CORRELATED to the original
+                // lock message; the transfer lives under the lock message id
+                // (same resolution as the direct verified-burn path).
+                let transfer_id = message.correlation_id.unwrap_or(message.message_id);
                 self.state
                     .bridge_state
-                    .unlock(message.message_id, source_domain)
+                    .unlock(transfer_id, source_domain)
                     .map_err(|e| e.to_string())?;
                 let transfer = self
                     .state
                     .bridge_state
-                    .get_transfer(&message.message_id)
+                    .get_transfer(&transfer_id)
                     .ok_or_else(|| "Failed to retrieve transfer after unlock".to_string())?
                     .clone();
 
