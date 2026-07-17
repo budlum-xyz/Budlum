@@ -27,11 +27,12 @@ pub struct ExecutionReceipt {
 
 /// Phase 9 F2 config-driven (ARENA2 Q-X2): Production builds use MainnetActivation
 /// controlled via config file (mainnet.toml [features] verify_merkle) and env var
-/// BUDLUM_VERIFY_MERKLE. When mainnet_mode=true:
-/// - verify_merkle_enabled=true  → MainnetActivation::full() (gate open, current behavior)
-/// - verify_merkle_enabled=false → MainnetActivation::default() (gate closed, staged rollout)
-/// Unit tests use Testing profile so Z-B harnesses can exercise the opcode regardless.
-/// This wires MainnetActivation from dead code to active config-driven gate (F2).
+/// BUDLUM_VERIFY_MERKLE. When mainnet_mode=true: verify_merkle_enabled=true ->
+/// MainnetActivation::full() (gate open, current behavior);
+/// verify_merkle_enabled=false -> MainnetActivation::default() (gate closed, staged
+/// rollout). Unit tests use Testing profile so Z-B harnesses can exercise the
+/// opcode regardless. This wires MainnetActivation from dead code to active
+/// config-driven gate (F2).
 fn is_verify_merkle_enabled() -> bool {
     // Config-driven via env var set by main.rs from TOML [features] verify_merkle
     // Defaults to true (gate open) for backward compatibility and Phase 9 audited state (V7)

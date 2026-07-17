@@ -369,8 +369,7 @@ impl Executor {
                 if protocol_share > 0 {
                     if let Some(treasury_addr) = state.burn_reserve_address {
                         let treasury = state.get_or_create(&treasury_addr);
-                        treasury.balance =
-                            treasury.balance.saturating_add(protocol_share);
+                        treasury.balance = treasury.balance.saturating_add(protocol_share);
                         tracing::info!(
                             nft_id = %nft_id,
                             protocol_treasury = %treasury_addr,
