@@ -12,8 +12,8 @@ use crate::core::block::Block;
 use crate::core::chain_config::Network;
 use crate::core::transaction::Transaction;
 use crate::cross_domain::{
-    BridgeState, CrossDomainMessageRegistry, DomainEvent, DomainEventKind, MerkleProof, MessageKind,
-    RelayerConfig, UniversalRelayer,
+    BridgeState, CrossDomainMessageRegistry, DomainEvent, DomainEventKind, MerkleProof,
+    MessageKind, RelayerConfig, UniversalRelayer,
 };
 use crate::domain::{
     hash_finality_proof, BftFinalityAdapter, ConsensusDomain, ConsensusDomainRegistry,
@@ -1782,9 +1782,7 @@ impl Blockchain {
         let current_height = self.chain.len() as u64;
 
         // Build event tree from bridge state for the source domain
-        let event_tree_root = self
-            .universal_relayer
-            .ledger_root(); // Use relay ledger root as commitment
+        let event_tree_root = self.universal_relayer.ledger_root(); // Use relay ledger root as commitment
 
         // Process the relay through the Universal Relayer
         self.universal_relayer
