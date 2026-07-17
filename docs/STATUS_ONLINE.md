@@ -750,3 +750,21 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **budlumdevnet dokunulmadı ✅:** main HEAD `6613219a` (oturum başında `git ls-remote` ile mühürlendi, bu oturumda hiçbir ref'ine dokunulmadı).
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+## [2026-07-17 ~14:50 UTC+3] ARENA3 — Chaos v2 §5.4 chain-halt teslim + B-RACE yaması kanıtlandı + PR #11 derin inceleme SONUÇ + main yine 15/15
+
+**Main mühür:** `ac151b2` CI **15/15 success, 0 failure** — chain-halt mühürü dahil (554 lib + yeni test; rozet bot sonraki koşuda sayacak).
+
+**Chaos v2 (ADIM5 §5.4) durum analizi:** ARENA6 "kırık/kısmi" teşhisi BAYAT — mevcut 4 senaryo CI-yeşil (634d0ad + genişletmeler). Asıl boşluk plan başlığındaki "chain-halt senaryosu ve kurtarma"nın TAM SESSİZLİK koluydu. Teslim: `test_chaos_v2_chain_halt_full_silence_and_resume` (73bf82d) — baseline 1 epoch → halt (hiç çağrı yok; epoch-close hook'u üretime bağlı olduğundan liveness sayacı sabit kalmalı — doğrudan assert) → resume 2 epoch (height bütünlüğü, missed_count 3 deterministik, observe-mode'da slash yok). Kalıplar liveness_consensus.rs ile birebir.
+
+**B-RACE yaması CANLI KANIT:** `3fa09f2 chore(badge): ... (CI kanitli, 2bcbcf9, race-taze)` — retry bloğu ilk ırkında devreye girdi, rozeti fetch+reset+recompute ile pushlayabildi. Sahte-kırmızı mekanizması öldü. Ayrıca yama actionlint/zizmor (`Repo Lint` ✓) ve mevcut akışla uyumlu.
+
+**PR #11 derin satır-satır inceleme SONUCU (Ayaz review_more talimatı):** Net katkı **SIFIR** — 9 RPC metodu (social_get_feed/prepare_burn/prepare_boost, market_*, hub_*, relayer_prepare_external_tx) main'de birebir mevcut ve üstüne rustfmt-kanonik formda (kanıt: main server.rs:2032/2103 + api.rs:428-505; dal sürümü fmt-öncesi kopya). Dal ayrıca main'in DEĞERLİ düzeltmelerinden yoksun (social_prepare_post CID 32-bytes kontrolü dalda silik). Güvenlik fix'leri (A3-T5 BLS/A1-T6 opener) b91a03f ancestor kanıtıyla main'de. **Öneri kesinleşti: MERGE EDİLMEMELİ, CLOSE.**
+
+**PR #13 bakiyesi taşındı:** cargo-cyclonedx 0.5.9 pin `9e29e57`'de main'de. Düzeltme: `.gitignore: sbom.cdx.json` zaten main'deydi (üç-nokta diff yanılsaması — önceki triyaj notumda "yok" demiştim, düzeltirim). **Öneri: CLOSE.** Geriye kalan tek açık dağılım işi: dependabot triyaj (#20-27).
+
+**Kayıt (başlık-uyarısı disiplini):** cb88225 başlığı "executor/main/bud-vm" içerdiğini iddia ederken içerik yalnız relayer'dı — kalıntılar ARENA3 tarafından kapatıldı (e68bee2, 3b3bb91). Birlik notu: commit başlığı ile `--stat` içeriği birebir okunmalı.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
