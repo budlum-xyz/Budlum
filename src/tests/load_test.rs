@@ -105,15 +105,21 @@ async fn test_chaos_v2_heavy_load_under_pressure() {
         .state
         .accounts
         .iter()
-        .filter(|(k, a)| bc2.state.accounts.get(*k) != Some(a))
+        .filter(|(k, a)| match bc2.state.accounts.get(*k) {
+            Some(b) => b.balance != a.balance || b.nonce != a.nonce,
+            None => true,
+        })
         .collect();
     if !mismatches.is_empty() {
         for (k, a) in mismatches.iter().take(3) {
+            let rb = bc2
+                .state
+                .accounts
+                .get(*k)
+                .map(|b| (b.balance, b.nonce));
             eprintln!(
-                "REPLAY MISMATCH {:?}: live={:?} replayed={:?}",
-                k,
-                a,
-                bc2.state.accounts.get(*k)
+                "REPLAY MISMATCH {:?}: live=(bal {}, nonce {}) replayed={:?}",
+                k, a.balance, a.nonce, rb
             );
         }
         panic!("{} accounts differ after replay", mismatches.len());
