@@ -359,7 +359,11 @@ impl Executor {
                 let creator = state.get_or_create(&nft.owner);
                 creator.balance = creator.balance.saturating_add(creator_share);
 
-                tracing::info!(nft_id = %nft_id, creator_reward = %creator_share, protocol_fee = %protocol_share, "SocialFi: Content Boosted");
+                // F4 (Constitution §3): route 4% B.U.D. share to storage operator pool.
+                // Distributed by blockchain after block commit via distribute_bud_boost_share.
+                state.pending_bud_boost_share = state.pending_bud_boost_share.saturating_add(bud_share);
+
+                tracing::info!(nft_id = %nft_id, creator_reward = %creator_share, bud_share = %bud_share, protocol_fee = %protocol_share, "SocialFi: Content Boosted");
             }
             TransactionType::NftUpdateLight { nft_id, delta_mcd } => {
                 // Phase 8.9 C3 fix: real luminance update with ownership check.

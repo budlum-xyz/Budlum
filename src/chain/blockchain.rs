@@ -2470,6 +2470,11 @@ impl Blockchain {
         // F1 (Constitution §1): prune storage content for burned NFTs.
         self.process_nft_burn_storage_pruning(&nft_burn_cids);
 
+        // F4 (Constitution §3): distribute boost B.U.D. share to storage operators.
+        let boost_share = self.state.pending_bud_boost_share;
+        self.distribute_bud_boost_share(boost_share);
+        self.state.pending_bud_boost_share = 0;
+
         self.record_validator_snapshot(self.state.epoch_index);
 
         if block.index > 0 && block.index.is_multiple_of(EPOCH_LENGTH) {
@@ -2696,6 +2701,11 @@ impl Blockchain {
 
         // F1 (Constitution §1): prune storage content for burned NFTs.
         self.process_nft_burn_storage_pruning(&nft_burn_cids);
+
+        // F4 (Constitution §3): distribute boost B.U.D. share to storage operators.
+        let boost_share = self.state.pending_bud_boost_share;
+        self.distribute_bud_boost_share(boost_share);
+        self.state.pending_bud_boost_share = 0;
 
         self.record_validator_snapshot(self.state.epoch_index);
         self.mempool.set_min_fee(self.state.base_fee);
@@ -3604,6 +3614,69 @@ impl Blockchain {
 
     pub fn storage_economics_events(&self) -> &[StorageEconomicsEvent] {
         &self.storage_economics_events
+    }
+
+    /// F4 (Constitution §3): distribute accumulated boost B.U.D. share to
+    /// active storage operators proportionally based on their per-deal fees.
+    /// Called after `apply_block_effects` when `committed_state.pending_bud_boost_share > 0`.
+    ///
+    /// "4% to B.U.D. (Storage Operators)" — Constitution §3.
+    /// If no active deals exist, the share is burned (implicit protocol sink).
+    pub fn distribute_bud_boost_share(&mut self, boost_share: u64) {
+        if boost_share == 0 {
+            return;
+        }
+
+        // Collect active operators with their total fee weight.
+        let deals: Vec<(Address, u64)> = self
+            .storage_registry
+            .all_deals()
+            .iter()
+            .filter(|d| d.is_active())
+            .map(|d| (d.operator, d.economics.fee_per_epoch))
+            .collect();
+
+        let total_weight: u64 = deals.iter().map(|(_, w)| w).sum();
+        if total_weight == 0 {
+            // No active deals — boost share is burned (protocol sink).
+            tracing::info!(
+                amount = boost_share,
+                "F4: B.U.D. boost share burned — no active storage operators"
+            );
+            return;
+        }
+
+        // Distribute proportionally to each operator's fee weight.
+        let mut distributed = 0u64;
+        for (operator, weight) in &deals {
+            let share = boost_share.saturating_mul(*weight) / total_weight;
+            if share > 0 {
+                self.state.add_balance(operator, share);
+                distributed = distributed.saturating_add(share);
+                tracing::debug!(
+                    operator = %operator,
+                    amount = share,
+                    "F4: B.U.D. boost share distributed to storage operator"
+                );
+            }
+        }
+
+        // Handle rounding dust — add remainder to first operator.
+        let dust = boost_share.saturating_sub(distributed);
+        if dust > 0 {
+            if let Some((first_op, _)) = deals.first() {
+                self.state.add_balance(first_op, dust);
+            }
+        }
+
+        tracing::info!(
+            total = boost_share,
+            distributed = distributed.saturating_add(
+                boost_share.saturating_sub(distributed).min(boost_share)
+            ),
+            operators = deals.len(),
+            "F4: B.U.D. boost share distributed to storage operators"
+        );
     }
 
     /// Issue retrieval challenges for all active storage deals whose

@@ -137,6 +137,11 @@ pub struct AccountState {
     /// Invalid-vote tracker (Phase 0.08): counts consensus-rule violations
     /// per validator per epoch so we can slash or jail on spam.
     pub invalid_votes: crate::registry::InvalidVoteTracker,
+    /// F4: Accumulated B.U.D. boost share pending distribution to storage operators.
+    /// Populated by executor during NftBoost (4% of boost amount).
+    /// Distributed by blockchain after block commit via distribute_bud_boost_share.
+    #[serde(default)]
+    pub pending_bud_boost_share: u64,
 }
 impl AccountState {
     pub fn new() -> Self {
@@ -170,6 +175,7 @@ impl AccountState {
             registry: crate::registry::PermissionlessRegistry::new(),
             liveness: crate::registry::LivenessTracker::new(),
             invalid_votes: crate::registry::InvalidVoteTracker::new(),
+            pending_bud_boost_share: 0,
         }
     }
     pub fn with_storage(storage: Storage) -> Self {
@@ -203,6 +209,7 @@ impl AccountState {
             registry: crate::registry::PermissionlessRegistry::new(),
             liveness: crate::registry::LivenessTracker::new(),
             invalid_votes: crate::registry::InvalidVoteTracker::new(),
+            pending_bud_boost_share: 0,
         };
         if let Err(e) = state.load_from_storage() {
             tracing::error!("Could not load account state: {}", e);
@@ -251,6 +258,7 @@ impl AccountState {
             registry: crate::registry::PermissionlessRegistry::new(),
             liveness: crate::registry::LivenessTracker::new(),
             invalid_votes: crate::registry::InvalidVoteTracker::new(),
+            pending_bud_boost_share: 0,
         }
     }
 
@@ -320,6 +328,7 @@ impl AccountState {
             registry: snapshot.registry.clone().unwrap_or_default(),
             liveness: snapshot.liveness.clone().unwrap_or_default(),
             invalid_votes: snapshot.invalid_votes.clone().unwrap_or_default(),
+            pending_bud_boost_share: 0,
         }
     }
 
