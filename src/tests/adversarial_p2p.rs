@@ -95,12 +95,21 @@ async fn test_p2p_topology_latency_drift_simulation() {
         future_res.err()
     );
 
-    // 2. Block from the "Past" (Older than genesis)
+    // 2. Block with a clock-regression timestamp (older than the current
+    // tip — replay / skewed producer clock). NOTE: the chain's genesis
+    // timestamp is a deterministic constant (GENESIS_TIMESTAMP == 0), so
+    // "older than genesis" is not representable; regressing against the tip
+    // exercises the same monotonicity guard.
     let mut past_block =
         crate::core::block::Block::new(2, bc.chain.last().unwrap().hash.clone(), vec![]);
-    past_block.timestamp = bc.chain[0].timestamp - 1000;
+    past_block.timestamp = bc.chain.last().unwrap().timestamp - 1000;
     past_block.hash = past_block.calculate_hash();
 
     // MUST be rejected
-    assert!(bc.validate_and_add_block(past_block).map(|_| ()).is_err());
+    let past_res = bc.validate_and_add_block(past_block);
+    assert!(
+        past_res.is_err(),
+        "clock-regressed block must be rejected, got {:?}",
+        past_res.ok()
+    );
 }
