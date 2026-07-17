@@ -29,6 +29,8 @@ pub enum PipelineError {
     },
     /// No event tree built for the source domain.
     NoEventTree(DomainId),
+    /// A correlated message (e.g. bridge burn) is missing its correlation id.
+    MissingCorrelationId,
 }
 
 impl std::fmt::Display for PipelineError {
@@ -42,6 +44,9 @@ impl std::fmt::Display for PipelineError {
             }
             PipelineError::NoEventTree(domain) => {
                 write!(f, "no event tree for domain {}", domain)
+            }
+            PipelineError::MissingCorrelationId => {
+                write!(f, "correlated message is missing its correlation id")
             }
         }
     }
@@ -247,7 +252,14 @@ impl BridgeRelayerPipeline {
                 got: "other",
             });
         }
-        self.bridge.unlock(message.message_id, source_domain)?;
+        // A burn message carries its own id, but the bridge transfer is keyed
+        // by the original lock message id. Resolve the transfer through the
+        // burn message's `correlation_id`, mirroring the production unlock
+        // path (blockchain.rs), which mandates it.
+        let transfer_id = message
+            .correlation_id
+            .ok_or(PipelineError::MissingCorrelationId)?;
+        self.bridge.unlock(transfer_id, source_domain)?;
         Ok(())
     }
 
@@ -367,6 +379,12 @@ mod tests {
         let burn_event = p.burn(lock_msg_id, 2, 200, 1000).unwrap();
         assert!(burn_event.message.is_some());
         assert_eq!(p.relayer().pending_count(), 1); // burn relay pending
+
+        // The burn message is correlated to the original lock transfer; the
+        // pipeline must resolve the transfer through `correlation_id`.
+        let burn_msg = burn_event.message.as_ref().unwrap();
+        assert_ne!(burn_msg.message_id, lock_msg_id);
+        assert_eq!(burn_msg.correlation_id, Some(lock_msg_id));
 
         // Relay burn proof back to source
         let burn_msg_id = burn_event.message.as_ref().unwrap().message_id;
