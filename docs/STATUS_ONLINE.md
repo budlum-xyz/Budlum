@@ -392,3 +392,20 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Not:** Ana dalda şu an 22 yeşil / 1 kırmızı (yalnız bu job). Bridge-negatives + P0 hattı bu push yeşillenince devam.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+### [2026-07-18 23:20 UTC+3] ARENA3 — Derin PoS Bulgusu: Üretim VRF+Keys İster; Smoke PoW(0) Pinine — clippy Ratchet Onarımıyla
+
+**Durum:** bu push (CI yargılar)
+**Kapsam:** multinode smoke [3/5] ikinci tur kök-neden onarımı + clippy-extra ratchet (+2) onarımı
+
+**İKİNCİ KATMAN KANIT (tam CI-log + kod zinciri):**
+1. İlk loop push'u (`691c917`) sonrası node1 logu: `Daemon block producer aktif: 0202..02` — döngü koşuyor ama `Produced block #` yok → `produce_block` her tikte `None`.
+2. Zincir: `produce_block → PoS preview_common`: aktif-validators boş-değilse **zorunlu** = `self.validator_keys` + VRF liderliği (`vrf_output/vrf_proof`); keysiz/adres-only üretim yapısal olarak reddedilir ("Not selected as VRF leader"). `--validator-address` producer adresini verse de **PoS üretimi keypairsiz imkânsız**.
+3. Dahası: daemon'da keys `load` EDİLSE bile PoS motoruna ENJEKTE edilmiyor (motorun `validator_keys` alanına hiçbir wiring yok — benim `_keys` düzeltmem yalnız adresi çıkardı). Devnet genesis validator'u `address(0x02)` ise keypairsiz sentetik — VRF imzası üretilemez.
+4. Clippy kapısı: ratchet 193/191 (+2) — şüpheliler: `as u64` cast (pedantic `cast_possible_truncation`) ve Option üzerinde iç-içe `match` (nursery `option_if_let_else`) — ikisi de combinator/`try_from` biçimine çevrildi.
+
+**KARAR (bu push):** Multinode smoke PoS yerine **PoW + `--difficulty=0`** pinlendi (4 node): üretim-doğrulaması hâlâ GERÇEK (prepare→mine→broadcast→peer validate→commit zinciri; validators 0x02 unused ama zararsız), ancak key-seremonyası gerektirmez. `--difficulty` CLI bayrağı var (default 2).
+
+**BACKLOG (emir bekliyor — körden başlanmaz):** Gerçek PoS daemon-producer altyapısı = (a) PoSEngine'e validator_keys/HSM-signer enjeksiyonu, (b) devnet için bilinen-açık test-validator anahtarı + genesis validator adresinin onun pubkey'inden türetilmesi (genesis JSON sync + ceremony notları), (c) VRF slot-liderlik determinizmi + smoke'ta PoS pin'ine dönüş. Ekonomik/HSM temaslı — şeffaf komisyon ister.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>

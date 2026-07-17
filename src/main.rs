@@ -723,29 +723,26 @@ async fn main() {
     // yüklenen validator anahtarının ADRESİ producer-aday zincirine düşer.
     // Davranış değişikliği yalnızca şu: anahtar yüklemesi başarılıysa adresi
     // artık bir değişkende tutulur; imza/devnet'lik doğrulama kuralları aynı.
-    let validator_keys_address: Option<Address> = match consensus_type {
-        ConsensusType::PoS => match config.validator_key_file {
-            Some(ref v_path) => {
-                match budlum_core::crypto::primitives::ValidatorKeys::load(v_path) {
-                    Ok(keys) => {
-                        let addr = Address::from(keys.sig_key.public_key_bytes());
-                        println!("Auto-bootstrapping validator: {}", addr);
-                        Some(addr)
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            "Validator key load failed ({}): {} — producersuz devam.",
-                            v_path,
-                            e
-                        );
-                        None
-                    }
-                }
-            }
-            None => None,
-        },
-        _ => None,
-    };
+    // (combinator biçimi: clippy pedantic/nursery ratchet'i için)
+    let validator_keys_address: Option<Address> = (consensus_type == ConsensusType::PoS)
+        .then_some(config.validator_key_file.clone())
+        .flatten()
+        .and_then(|v_path| {
+            budlum_core::crypto::primitives::ValidatorKeys::load(&v_path)
+                .map_err(|e| {
+                    tracing::warn!(
+                        "Validator key load failed ({}): {} — producersuz devam.",
+                        v_path,
+                        e
+                    );
+                })
+                .ok()
+        })
+        .map(|keys| {
+            let addr = Address::from(keys.sig_key.public_key_bytes());
+            println!("Auto-bootstrapping validator: {}", addr);
+            addr
+        });
 
     if consensus_type == ConsensusType::PoA {
         if !poa_validators.is_empty() {
@@ -1028,23 +1025,27 @@ async fn main() {
         });
     }
 
-    // Phase 9.x (2026-07-18, ARENA3): Daemon PoS blok-üretim döngüsü.
+    // Phase 9.x (2026-07-18, ARENA3): Daemon blok-üretim döngüsü (PoS + PoW).
     // Kök neden (CI kanıtlı, multinode smoke job 87990206239): binary yalnız
     // interaktif stdin "mine" komutuyla blok üretiyordu — daemon/compose
-    // ağları genesis'te (height=0x0) donuyordu. Döngü yalnız PoS'ta ve
-    // producer adresi yapılandırılmışsa çalışır; üretici-uygunluk tek
-    // otorite olarak ALICI taraftaki `validate_block`'ta kalır (aktif-
-    // validator/slash/min-stake şartları değişmedi). Yayın gossipsub
-    // "blocks" kanalından; eşler aynı deterministik commit yolunu koşar.
-    if consensus_type == ConsensusType::PoS {
+    // ağları genesis'te (height=0x0) donuyordu. Döngü, producer adresi
+    // yapılandırılmışsa PoS ve PoW'da çalışır. Üretici-uygunluk tek otorite
+    // olarak motor katmanında kalır: PoS'ta `preview_common` (aktif-validator
+    // + VRF liderlik — bunun için daemon'un PoSEngine'e enjekte edilmiş
+    // validator_keys'e ihtiyacı vardır; adres-only 0x02 ile PoS üretimi
+    // YAPAMAZ, bakınız STATUS_ONLINE backlog) — PoW'da `mine()` (difficulty
+    // CLI bayrağından; smoke difficulty=0). Yayın gossipsub "blocks"
+    // kanalından; eşler aynı deterministik commit yolunu koşar.
+    if consensus_type == ConsensusType::PoS || consensus_type == ConsensusType::PoW {
         if let Some(producer) = cli_producer_address {
             let chain_p = chain.clone();
             let client_p = client.clone();
             tracing::info!("Daemon block producer aktif: {}", producer);
             tokio::spawn(async move {
-                let mut tick = tokio::time::interval(std::time::Duration::from_millis(
-                    budlum_core::consensus::MIN_BLOCK_INTERVAL_MS as u64,
-                ));
+                let interval_ms =
+                    u64::try_from(budlum_core::consensus::MIN_BLOCK_INTERVAL_MS).unwrap_or(1_000);
+                let mut tick =
+                    tokio::time::interval(std::time::Duration::from_millis(interval_ms));
                 tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                 loop {
                     tick.tick().await;
@@ -1058,7 +1059,7 @@ async fn main() {
             });
         } else {
             tracing::warn!(
-                "PoS daemon: producer adresi yapılandırılmadı (--validator-address / validator key) — node yalnızca doğrular ve senkronize olur."
+                "Daemon: producer adresi yapılandırılmadı (--validator-address / validator key) — node yalnızca doğrular ve senkronize olur."
             );
         }
     }

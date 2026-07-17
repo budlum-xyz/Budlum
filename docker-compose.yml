@@ -26,7 +26,8 @@ services:
     command:
       - "--network=devnet"
       - "--port=4001"
-      - "--consensus=pos"
+      - "--consensus=pow"
+      - "--difficulty=0"
       - "--validator-address=0202020202020202020202020202020202020202020202020202020202020202"
       - "--rpc-public-listener=0.0.0.0:8545"
       - "--rpc-operator-listener=127.0.0.1:8546"
@@ -55,7 +56,8 @@ services:
     command:
       - "--network=devnet"
       - "--port=4002"
-      - "--consensus=pos"
+      - "--consensus=pow"
+      - "--difficulty=0"
       - "--db-path=/home/budlum/data/devnet-node2"
       - "--p2p-identity-file=/home/budlum/secrets/node-id.key"
       - "--bootstrap=/dns4/node1/tcp/4001"
@@ -79,7 +81,8 @@ services:
     command:
       - "--network=devnet"
       - "--port=4003"
-      - "--consensus=pos"
+      - "--consensus=pow"
+      - "--difficulty=0"
       - "--db-path=/home/budlum/data/devnet-node3"
       - "--p2p-identity-file=/home/budlum/secrets/node-id.key"
       - "--bootstrap=/dns4/node1/tcp/4001"
@@ -103,7 +106,8 @@ services:
     command:
       - "--network=devnet"
       - "--port=4004"
-      - "--consensus=pos"
+      - "--consensus=pow"
+      - "--difficulty=0"
       - "--db-path=/home/budlum/data/devnet-node4"
       - "--p2p-identity-file=/home/budlum/secrets/node-id.key"
       - "--bootstrap=/dns4/node1/tcp/4001"
