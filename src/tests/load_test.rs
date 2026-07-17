@@ -77,6 +77,9 @@ async fn test_chaos_v2_heavy_load_under_pressure() {
 
     println!("PHASE 3: Verifying V3-Anchored state root determinism...");
     let root1 = bc.state.calculate_state_root();
+    // Snapshot the live accounts before the restart; the map-level diff is
+    // the diagnostic layer for any replay divergence.
+    let live_accounts = bc.state.accounts.clone();
 
     // Simulate restart and reload (same funded genesis => same genesis hash,
     // same funded accounts; replay reproduces the exact live state root).
@@ -97,13 +100,11 @@ async fn test_chaos_v2_heavy_load_under_pressure() {
     // accounts map — diagnose at map level first so any replay divergence
     // pinpoints the offending accounts instead of an opaque hash.
     assert_eq!(
-        bc.state.accounts.len(),
+        live_accounts.len(),
         bc2.state.accounts.len(),
         "account count must survive replay"
     );
-    let mismatches: Vec<_> = bc
-        .state
-        .accounts
+    let mismatches: Vec<_> = live_accounts
         .iter()
         .filter(|(k, a)| match bc2.state.accounts.get(*k) {
             Some(b) => b.balance != a.balance || b.nonce != a.nonce,
@@ -112,11 +113,7 @@ async fn test_chaos_v2_heavy_load_under_pressure() {
         .collect();
     if !mismatches.is_empty() {
         for (k, a) in mismatches.iter().take(3) {
-            let rb = bc2
-                .state
-                .accounts
-                .get(*k)
-                .map(|b| (b.balance, b.nonce));
+            let rb = bc2.state.accounts.get(*k).map(|b| (b.balance, b.nonce));
             eprintln!(
                 "REPLAY MISMATCH {:?}: live=(bal {}, nonce {}) replayed={:?}",
                 k, a.balance, a.nonce, rb
