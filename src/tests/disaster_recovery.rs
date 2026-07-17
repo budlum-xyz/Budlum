@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use super::reopen_storage;
     use crate::chain::blockchain::Blockchain;
     use crate::consensus::pow::PoWEngine;
     use crate::core::address::Address;
     use crate::core::transaction::{Transaction, TransactionType};
     use crate::storage::db::Storage;
-    use super::reopen_storage;
 
     use std::sync::Arc;
     use tempfile::tempdir;
