@@ -27,6 +27,7 @@ services:
       - "--network=devnet"
       - "--port=4001"
       - "--consensus=pos"
+      - "--validator-address=0202020202020202020202020202020202020202020202020202020202020202"
       - "--rpc-public-listener=0.0.0.0:8545"
       - "--rpc-operator-listener=127.0.0.1:8546"
       - "--metrics-port=9090"

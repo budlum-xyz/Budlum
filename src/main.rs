@@ -719,22 +719,33 @@ async fn main() {
         chain_actor.run().await;
     });
 
-    if let Some(_keys) = match consensus_type {
-        ConsensusType::PoS => {
-            if let Some(ref v_path) = config.validator_key_file {
-                if let Ok(keys) = budlum_core::crypto::primitives::ValidatorKeys::load(v_path) {
-                    let addr = Address::from(keys.sig_key.public_key_bytes());
-                    println!("Auto-bootstrapping validator: {}", addr);
-                    Some(keys)
-                } else {
-                    None
+    // Phase 9.x (2026-07-18, ARENA3): ölü `_keys` bootstrap'ı gerçeğe bağlandı —
+    // yüklenen validator anahtarının ADRESİ producer-aday zincirine düşer.
+    // Davranış değişikliği yalnızca şu: anahtar yüklemesi başarılıysa adresi
+    // artık bir değişkende tutulur; imza/devnet'lik doğrulama kuralları aynı.
+    let validator_keys_address: Option<Address> = match consensus_type {
+        ConsensusType::PoS => match config.validator_key_file {
+            Some(ref v_path) => {
+                match budlum_core::crypto::primitives::ValidatorKeys::load(v_path) {
+                    Ok(keys) => {
+                        let addr = Address::from(keys.sig_key.public_key_bytes());
+                        println!("Auto-bootstrapping validator: {}", addr);
+                        Some(addr)
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Validator key load failed ({}): {} — producersuz devam.",
+                            v_path,
+                            e
+                        );
+                        None
+                    }
                 }
-            } else {
-                None
             }
-        }
+            None => None,
+        },
         _ => None,
-    } {}
+    };
 
     if consensus_type == ConsensusType::PoA {
         if !poa_validators.is_empty() {
@@ -840,7 +851,8 @@ async fn main() {
         .validator_address
         .as_ref()
         .and_then(|addr_str| Address::from_hex(addr_str).ok())
-        .or(local_signer_address);
+        .or(local_signer_address)
+        .or(validator_keys_address);
 
     if config.rpc_enabled {
         let rpc_security = match RpcSecurityConfig::from_env(
@@ -1014,6 +1026,41 @@ async fn main() {
         tokio::spawn(async move {
             relayer.run().await;
         });
+    }
+
+    // Phase 9.x (2026-07-18, ARENA3): Daemon PoS blok-üretim döngüsü.
+    // Kök neden (CI kanıtlı, multinode smoke job 87990206239): binary yalnız
+    // interaktif stdin "mine" komutuyla blok üretiyordu — daemon/compose
+    // ağları genesis'te (height=0x0) donuyordu. Döngü yalnız PoS'ta ve
+    // producer adresi yapılandırılmışsa çalışır; üretici-uygunluk tek
+    // otorite olarak ALICI taraftaki `validate_block`'ta kalır (aktif-
+    // validator/slash/min-stake şartları değişmedi). Yayın gossipsub
+    // "blocks" kanalından; eşler aynı deterministik commit yolunu koşar.
+    if consensus_type == ConsensusType::PoS {
+        if let Some(producer) = cli_producer_address {
+            let chain_p = chain.clone();
+            let client_p = client.clone();
+            tracing::info!("Daemon block producer aktif: {}", producer);
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(std::time::Duration::from_millis(
+                    budlum_core::consensus::MIN_BLOCK_INTERVAL_MS as u64,
+                ));
+                tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                loop {
+                    tick.tick().await;
+                    if let Some((block, _pruned_cids)) = chain_p.produce_block(producer).await {
+                        tracing::info!("Produced block #{}", block.index);
+                        client_p
+                            .broadcast("blocks".to_string(), NetworkMessage::Block(block))
+                            .await;
+                    }
+                }
+            });
+        } else {
+            tracing::warn!(
+                "PoS daemon: producer adresi yapılandırılmadı (--validator-address / validator key) — node yalnızca doğrular ve senkronize olur."
+            );
+        }
     }
 
     tokio::select! {

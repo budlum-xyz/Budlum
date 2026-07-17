@@ -372,3 +372,23 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **3) NOT:** `5af46d9`'da rozet-bot yeni kanıt sayısını yazdı: `740 lib` (dolgu imhası 134 → gerçek fn); workspace CI-kanıtlı toplam: 740 core + 119 BudZero = **859**.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+### [2026-07-18 22:30 UTC+3] ARENA3 — Daemon Blok-Üretim Döngüsü (multinode smoke'un yakaladığı mainnet blocker) — kullanıcı emriyle
+
+**Durum:** bu push (CI yargılar)
+**Kapsam:** `Devnet Multi-Node Smoke [3/5]` kırmızısının kök-neden onarımı (kullanıcı kararı: ARENA3 yazsın, protokol şeffaf)
+
+**KANITLI ZİNCİR:**
+1. `[1/5]` EACCES (volume sahipliği) önceki push'ta düzeldi → `[2/5]` mesh PASS (node1 peerCount=0x6; çift-yönlü sayım tutarlı).
+2. `[3/5]` FAIL: `bud_blockNumber` 0x0'a kilitli, loglar `Chain length: 1` (genesis-only) — CI job 87990206239.
+3. **Kök neden #1 (ürün):** daemon'un ana döngüsü `tokio::select!{ node.run(), ctrl_c(), stdin }` — blok üretimi yalnız interaktif stdin `mine` komutunda var; daemon'a tty yok → **node binary'si blok üretemiyor.** Herkeste aynı davranış: zincir 1'de donar.
+4. **Kök neden #2 (ölü kod):** PoS validator-key bootstrap bloğu `Some(keys)`i boş `{}`'a bağlıyordu (`_keys` hiç kullanılmıyordu).
+
+**ONARIM (minimal, protokol-şeffaf — ARENA1/2 review'a açık):**
+- `main.rs`'a yalnız-PoS daemon üretim döngüsü: `MIN_BLOCK_INTERVAL_MS` tik + `produce_block` + gossipsub "blocks" yayını. **Konsensus tanımı DEĞİŞMEDİ:** üretici uygunluğu alıcı tarafta `pos::validate_block`'ta kalır (aktif-validator/slash/min-stake şartları aynı — PoS imza-denetimi zaten PoA-dışı yok, dokunulmadı). Producer adresi yoksa node bugünkü gibi yalnız doğrular (uyarı loguyla).
+- Ölü `_keys` wire edildi: yüklenen validator anahtarının adresi producer-aday zincirine düşüyor.
+- compose node1: `--validator-address` = **devnet genesis'in gömülü tek validator'u `address(0x02)`** (genesis.rs:281-291) — tüm nodelar aynı genesis validator-set'ine sahip; node2-4 üretmez (adresi yok), node1 ürettiğini eşler kabul eder.
+
+**Not:** Ana dalda şu an 22 yeşil / 1 kırmızı (yalnız bu job). Bridge-negatives + P0 hattı bu push yeşillenince devam.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
