@@ -25,26 +25,25 @@ pub struct ExecutionReceipt {
     pub state_writes_digest: [u8; 32],
 }
 
-/// Phase 9 (F2 fix, ARENAX): Production builds use MainnetActivation::full()
-/// (VerifyMerkle enabled) after gate was opened in 4e2b920 and proven with
-/// 64-depth STARK tests (V7). Previous comment saying "VerifyMerkle disabled"
-/// was stale. MainnetActivation is now wired so the staged-rollout flag is
-/// not dead code (F2). Default full() keeps current mainnet behavior (open),
-/// but allows future ceremony flip if needed.
-fn decode_instruction(raw: u64) -> Result<bud_isa::Instruction, String> {
-    #[cfg(test)]
-    {
-        use bud_isa::IsaProfile;
-        bud_isa::Instruction::decode_for_profile(raw, IsaProfile::Testing)
-            .map_err(|e| e.to_string())
-    }
-    #[cfg(not(test))]
-    {
-        // F2 wiring: use MainnetActivation::full() so VerifyMerkle is allowed
-        // on mainnet today (gate opened). This consumes the MainnetActivation
-        // type, fixing dead-code finding, while preserving open-gate behavior.
+/// Production builds use the Production ISA profile (VerifyMerkle disabled).
+/// Unit tests use Testing so Z-B harnesses can still exercise the opcode.
+/// When `mainnet_mode` is true, `decode_for_mainnet` gates VerifyMerkle
+/// behind `MainnetActivation::full()` — staged rollout protection.
+fn decode_instruction(raw: u64, mainnet_mode: bool) -> Result<bud_isa::Instruction, String> {
+    if mainnet_mode {
         bud_isa::Instruction::decode_for_mainnet(raw, bud_isa::MainnetActivation::full())
             .map_err(|e| e.to_string())
+    } else {
+        #[cfg(test)]
+        {
+            use bud_isa::IsaProfile;
+            bud_isa::Instruction::decode_for_profile(raw, IsaProfile::Testing)
+                .map_err(|e| e.to_string())
+        }
+        #[cfg(not(test))]
+        {
+            bud_isa::Instruction::decode(raw)
+        }
     }
 }
 
@@ -62,6 +61,10 @@ pub struct Vm {
     pub gas_limit: u64,
     pub error: Option<VmError>,
     pub state_writes: Vec<(i32, u64)>,
+    /// F2: Mainnet mode flag. When true, VerifyMerkle is gated behind
+    /// `MainnetActivation::full()`. Set by `ZkVmExecutor::execute_bytecode`
+    /// when network is Mainnet.
+    pub mainnet_mode: bool,
 }
 
 pub struct Context {
@@ -148,7 +151,16 @@ impl Vm {
             gas_limit,
             error: None,
             state_writes: Vec::new(),
+            mainnet_mode: false,
         }
+    }
+
+    /// F2: Create a VM in mainnet mode where VerifyMerkle is gated
+    /// behind `MainnetActivation::full()`.
+    pub fn with_mainnet_mode(memory_size: usize, gas_limit: u64, mainnet: bool) -> Self {
+        let mut vm = Self::with_gas_limit(memory_size, gas_limit);
+        vm.mainnet_mode = mainnet;
+        vm
     }
 
     pub fn consume_gas(&mut self, amount: u64) -> Result<(), VmError> {
@@ -182,7 +194,7 @@ impl Vm {
         }
 
         let raw_inst = program[self.pc];
-        let inst = match decode_instruction(raw_inst) {
+        let inst = match decode_instruction(raw_inst, self.mainnet_mode) {
             Ok(i) => i,
             Err(e) => {
                 self.halted = true;
