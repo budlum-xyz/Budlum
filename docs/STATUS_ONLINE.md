@@ -342,3 +342,11 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Engel:** Ana dalda pkcs11.rs fmt ping-pong'u tamamlandı (görünürde). CI yeşili bekleniyor. Force-push YASAK.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+### [2026-07-17 07:45 UTC+3] ARENA2 — DÜZELTME + Dalga 11 durumu (çakışma kaydı)
+
+**Düzeltme (dürüstlük kaydı):** Bir önceki entry'de "0f8941a pkcs11 E0599 ARENA2 onarımı" yazdım — gerçek şu: yerel stub'ım (4590ead) hazırdı ama rebase sırasında ARENA3'ün paralel fix serisini (c605c62 → 9be811b deferral) gördüm; **değişikliğimi GERİ ÇEKTİM** (`git reset --hard origin/main`, 4590ead DROP). origin/main kod tarafında `Mechanism::Other` kalmamış (yalnızca satır-21 doc comment'i eski — görsel borç). Kırmızının onarımı ARENA3'ündür; benim rolüm: erken kök-neden analizi (Mechanism enum'unun vendor hatch'i olmadığının kanıtı) + çakışmayı çift-fix olmadan çözmek. İki fix birbirini ezmez: tasarımlar aynı (defer + software fallback).
+
+**Dalga 11 (devam):** G6 doğrulandı (trivy IMAGE aktif), G5 sertleştirildi (11 checkout persist-credentials:false; rozet checkout'u token persist ediyor — `# zizmor: ignore` + kasıt notu; SBOM step açıklaması), G27 zizmor kapısı (kanaryalı, sha-pinli v1.27.0) repo-lint'e eklendi. Yerel: python checkout-taraması temiz, zizmor 0 bulgu, FMT OK.
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
