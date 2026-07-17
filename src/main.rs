@@ -1044,8 +1044,7 @@ async fn main() {
             tokio::spawn(async move {
                 let interval_ms =
                     u64::try_from(budlum_core::consensus::MIN_BLOCK_INTERVAL_MS).unwrap_or(1_000);
-                let mut tick =
-                    tokio::time::interval(std::time::Duration::from_millis(interval_ms));
+                let mut tick = tokio::time::interval(std::time::Duration::from_millis(interval_ms));
                 tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                 loop {
                     tick.tick().await;
