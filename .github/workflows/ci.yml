@@ -104,7 +104,11 @@ jobs:
               echo "UYARI: BADGE_PUSH_TOKEN yok — GITHUB_TOKEN denecek (protected main'de red beklenir)"
             fi
             for attempt in 1 2 3; do
-              if { [ -n "$PUSH_URL" ] && git push "$PUSH_URL" HEAD:main; } || { [ -z "$PUSH_URL" ] && git push; }; then
+              # extraheader gotcha: checkout persist-credentials GITHUB_TOKEN'i
+              # http.extraheader ile zorlar ve URL-embedded PAT'i ezer (kanit:
+              # 00f618a badge run — admin-PAT kanali acikken bile 'hook declined').
+              # Tek komutluk derogasyon: extraheader'i temizle, URL PAT'i kullan.
+              if { [ -n "$PUSH_URL" ] && git -c "http.https://github.com/.extraheader=" push "$PUSH_URL" HEAD:main; } || { [ -z "$PUSH_URL" ] && git push; }; then
                 PUSH_OK=1
                 echo "rozet push'landi: $N (deneme $attempt)"
                 break

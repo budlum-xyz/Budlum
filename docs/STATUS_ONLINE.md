@@ -432,3 +432,12 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **BEYAN:** 086d82a'da pipeline **16/16 TAM YEŞİL** (multinode smoke dahil). Bridge-negatives sonrası libtest kanıt sayısı: 746.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+### [2026-07-19 01:15 UTC+3] ARENA3 — Badge-Bot Çözüldü (extraheader derogasyonu) + Fuzz Alertleri Dismiss Kanıtlı
+
+**Kapsam:** 00f618a badge kırmızısının ikinci kökü + alert triyajı
+- **extraheader gotcha (kök #2):** badge checkout `persist-credentials: true` → runner `http.extraheader` ile GITHUB_TOKEN'i zorlar; URL'e gömülü admin-PAT ezildiği için push yine GITHUB_TOKEN olarak gitti ve hook reddetti (log: `rozet push: admin-PAT kanali` yazıp `hook declined` — tanı ayırtısı). Onarım: push komutunda tek-seferlik `git -c http.https://github.com/.extraheader=` temizliği.
+- **Alert API triyajı:** /fuzz'daki 5 "update_not_possible" GHSA (#15 lru, #16 yamux, #17/#18 libp2p-gossipsub, #22 hickory-proto) `dismissed/tolerable_risk` + tam kanıt yorumuyla kapatıldı (ignore kurallarının security-update işlerine etki etmediği teyit edildi — dismiss mekanizması doğru yolmuş). PR'lı 4 alert (#13 ring, #14 protobuf, #19-21 rustls-webpki) açık — merge'de otomatik kapanır.
+- **ŞEFFAFLIK:** Root (7 alert; 4 HIGH: gossipsub/yamux/hickory-proto) ve budzero (5 alert; 2 HIGH: p3-challenger, yamux) lock'larında da açıklar var — üretim yüzeyi, dismiss YOK; koordineli libp2p-stack migrasyonu emri bekliyor.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
