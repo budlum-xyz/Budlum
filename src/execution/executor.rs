@@ -362,28 +362,31 @@ impl Executor {
                 // F4 fix (ARENAX): Constitution §3 says 4% to B.U.D. Storage Operators.
                 // Previously bud_share was computed but never distributed (implicit burn).
                 // Now distribute equally among active STORAGE_OPERATORs if any; otherwise treat as protocol burn (honest fallback).
+                // Fix E0502: clone operator addresses before mutable borrow of state.
                 if bud_share > 0 {
-                    let operators = state
+                    let operator_addrs: Vec<_> = state
                         .registry
-                        .active_members(crate::registry::role::roles::STORAGE_OPERATOR);
-                    if !operators.is_empty() {
-                        let per_operator = bud_share / (operators.len() as u64);
-                        let remainder = bud_share % (operators.len() as u64);
-                        for reg in &operators {
-                            let op_acc = state.get_or_create(&reg.account);
+                        .active_members(crate::registry::role::roles::STORAGE_OPERATOR)
+                        .into_iter()
+                        .map(|reg| reg.account)
+                        .collect();
+                    if !operator_addrs.is_empty() {
+                        let per_operator = bud_share / (operator_addrs.len() as u64);
+                        let remainder = bud_share % (operator_addrs.len() as u64);
+                        for addr in &operator_addrs {
+                            let op_acc = state.get_or_create(addr);
                             op_acc.balance = op_acc.balance.saturating_add(per_operator);
                         }
-                        // Remainder goes to first operator to avoid dust loss
                         if remainder > 0 {
-                            if let Some(first) = operators.first() {
-                                let first_acc = state.get_or_create(&first.account);
+                            if let Some(first) = operator_addrs.first() {
+                                let first_acc = state.get_or_create(first);
                                 first_acc.balance = first_acc.balance.saturating_add(remainder);
                             }
                         }
                         tracing::info!(
                             nft_id = %nft_id,
                             bud_share = %bud_share,
-                            operator_count = operators.len(),
+                            operator_count = operator_addrs.len(),
                             per_operator = %per_operator,
                             "SocialFi: B.U.D. operator share distributed"
                         );
