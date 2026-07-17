@@ -486,6 +486,13 @@ impl Codegen {
                     self.emit(Opcode::Load, reg, 0, 0, v as i32);
                     reg
                 } else {
+                    // Values larger than i32::MAX cannot be encoded in a
+                    // single Load immediate. We decompose them into three
+                    // base-2^30 digits:
+                    //   v = high * 2^60 + mid * 2^30 + low
+                    // where each digit fits in a signed i32 immediate.
+                    // This covers the full u64 range because:
+                    //   high in [0, 15], mid/low in [0, 2^30 - 1].
                     let chunks = [
                         ((v >> 60) & 0xF) as i32,
                         ((v >> 30) & 0x3FFFFFFF) as i32,
@@ -669,9 +676,37 @@ impl Codegen {
                 } else if name == "verify_merkle_proof" {
                     let r_root = self.generate_expr(&args[0], scope, storage);
                     let r_leaf = self.generate_expr(&args[1], scope, storage);
-                    let r_path = self.generate_expr(&args[2], scope, storage);
+
+                    // Phase 0.338 / B4: the VM's VerifyMerkle opcode takes
+                    // the path *address* as an immediate (`imm`). The path
+                    // address must therefore be a compile-time constant
+                    // that fits in a signed 32-bit offset.
+                    // Reject dynamic expressions and out-of-range literals
+                    // explicitly instead of silently truncating a register
+                    // number (the old `r_path as i32` bug).
+                    let path_addr = match &args[2] {
+                        Expr::Int(v) => *v,
+                        _ => {
+                            if self.error.is_none() {
+                                self.error = Some(CompileError::CodegenError(
+                                    "verify_merkle_proof path argument must be a compile-time constant address fitting in i32".to_string(),
+                                ));
+                            }
+                            return 0;
+                        }
+                    };
+                    if path_addr > i32::MAX as u64 {
+                        if self.error.is_none() {
+                            self.error = Some(CompileError::CodegenError(format!(
+                                "verify_merkle_proof path address {} exceeds i32::MAX",
+                                path_addr
+                            )));
+                        }
+                        return 0;
+                    }
+
                     let res = self.alloc_reg();
-                    self.emit(Opcode::VerifyMerkle, res, r_root, r_leaf, r_path as i32);
+                    self.emit(Opcode::VerifyMerkle, res, r_root, r_leaf, path_addr as i32);
                     res
                 } else {
                     let saved_next_reg = self.next_reg;
