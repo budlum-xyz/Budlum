@@ -482,11 +482,16 @@ async fn main() {
             );
             std::process::exit(1);
         }
+        // F3: wire vendor mechanism IDs from CLI config to signer.
+        let bls_mech = config.pkcs11_bls_mechanism.clone();
+        let pq_mech = config.pkcs11_pq_mechanism.clone();
         match budlum_core::crypto::pkcs11::Pkcs11Signer::new(
             module_path.to_string(),
             slot_id,
             pin_env.to_string(),
-        ) {
+        )
+        .map(|s| s.with_vendor_mechanisms(bls_mech, pq_mech))
+        {
             Ok(signer) => {
                 // F3 fix (ARENAX): vendor-native BLS/PQ mechanism IDs previously parsed but never wired to signer.
                 // Wire config values via with_vendor_mechanisms() so hardware-native signing path is active when configured.
