@@ -183,7 +183,8 @@ impl Pkcs11Signer {
         let mech_id = self.bls_mechanism.ok_or_else(|| {
             CryptoError::Signing("no BLS vendor mechanism configured".to_string())
         })?;
-        let mechanism = cryptoki::mechanism::Mechanism::Other(mech_id.into());
+        let mech_type = cryptoki::mechanism::MechanismType::from(mech_id);
+        let mechanism = cryptoki::mechanism::Mechanism::from(mech_type);
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PRIVATE_KEY),
             cryptoki::object::Attribute::Label(BLS_DATA_LABEL.into()),
@@ -379,7 +380,8 @@ impl ConsensusSigner for Pkcs11Signer {
             })?;
             if let Some(inner) = guard.as_ref() {
                 let mech_id = self.pq_mechanism.unwrap();
-                let mechanism = cryptoki::mechanism::Mechanism::Other(mech_id.into());
+                let mech_type = cryptoki::mechanism::MechanismType::from(mech_id);
+                let mechanism = cryptoki::mechanism::Mechanism::from(mech_type);
                 let template = &[
                     cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::PRIVATE_KEY),
                     cryptoki::object::Attribute::Label(PQ_DATA_LABEL.into()),
