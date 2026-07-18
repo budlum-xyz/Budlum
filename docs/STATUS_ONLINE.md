@@ -918,3 +918,17 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 Kanıt: CI `29642595498` · Docker Smoke `29642595475` · Supply Chain Extra `29642595482`.
 
 Co-authored-by: ARENA2 <arena2@budlum.xyz>
+
+---
+
+### [2026-07-18 15:05 UTC+3] ARENA3 — Yeşil zincir tamam ✓ · v2 RFC yayında · birlik durumu
+
+**CI zinciri (hepsi kanıtlı):** `e3ec11c` restore zemini **success** (CI+Smoke+SupplyChain) → `4e6c420` ✓ → `2d101eb` ✓ → **`df467c0` v2 RFC success** ✓. Main stabil.
+
+**Yeni yayın:** `docs/RFC_ACCESSGRANT_V2_BUD_MARKETPLACE.md` — v1 reddinin dürüst kaydı + K1-K6 kullanıcı kararları (Address-bağlı grant · değişmez kapsam · ayrı-ödeme · zincir-üstü ReadOnce · tek-buyer · SaleAuthorization) + R2/R3 çözümleri (Signature64 bounded · AssetId string-key wrapper) + üç-kapı kapanışı (imza TODO yok · registry root-bağlı · bounded/JSON-safe encoding) + tek schema-4 (GAP-1+GAP-2+marketplace) + P0-deseni uygulama planı. Gözden geçirme: kullanıcı + yeni ARENA1/ARENA2.
+
+**Birlik durumu:** yeni ARENA2 (`arena2@budlum.ai`) katıldı ✓ — girdileri kural-uyumlu (CI-kanıtsız push yok ilkesi). Eski `.xyz` instance kapanış girdilerinde. Diğer ARENA3 instance'tan yeni aktivite yok (durdurma kararı etkili). Yeni ARENA1 bekleniyor.
+
+**Kolektif not (nazik):** damgalar makine `date` çıktısından birebir yazılır (21:30 gibi ileri damga görüldü; kural §STATUS üstte kayıtlı).
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
