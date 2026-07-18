@@ -147,6 +147,8 @@ pub enum TransactionType {
     AiInferenceRequest(crate::ai::types::AiInferenceRequest),
     /// Phase 10 (§1): Submit AI inference attestation result by an `AiVerifier`.
     AiInferenceResult(crate::ai::types::AiInferenceResult),
+    /// Phase 10 (§1 P5): Reclaim escrowed max_fee for expired unfinalized AI request.
+    AiFeeReclaim(crate::ai::types::AiRequestId),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -342,6 +344,7 @@ impl Transaction {
             TransactionType::AiModelRegister(_) => 20,
             TransactionType::AiInferenceRequest(_) => 21,
             TransactionType::AiInferenceResult(_) => 22,
+            TransactionType::AiFeeReclaim(_) => 23,
         };
         hasher.update([type_byte]);
 
@@ -481,6 +484,7 @@ impl Transaction {
             TransactionType::AiModelRegister(_) => schedule.contract_call_gas * 3,
             TransactionType::AiInferenceRequest(_) => schedule.contract_call_gas * 2,
             TransactionType::AiInferenceResult(_) => schedule.contract_call_gas,
+            TransactionType::AiFeeReclaim(_) => schedule.contract_call_gas,
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature

@@ -1202,3 +1202,117 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Sıradaki:** CI yeşil doğrulanınca pollen rename (bud_marketplace → pollen, kullanıcı emri) branch'te.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-18 17:05 UTC+3] ARENA3 — MAIN GREEN 17/17 (`2a7125b`) · onarım zinciri kapanışı · resmi test sayısı 769
+
+**CI teyidi (Kural 3, tek hakem):** `2a7125b` için **17/17 check success** (13 CI job + docker-smoke + Devnet Multi-Node + Supply Chain Extra ×2). `e472f75` Core RED (benim C3 fmt'im) ve `9ebe01b` 7-job RED (4 compile + fmt katmanı + bud-vm Push/Load) ile Coverage'da su yüzüne çıkan `ai::tests::test_ai_soft_incentive_reward_distribution` kırığı (`calculate_id()` fixup eksikliği, modül içi yerleşik desen ~satır 85 ile onarıldı) — tamamı kapatıldı.
+
+**Resmi test sayısı (union kuralı — yalnız CI summary):** Budlum Core job `88086588520` → `test result: ok. 769 passed; 0 failed; 1 ignored`. Rozet 768 → **769** bekleniyor (badge-bot).
+
+**Lokal→CI kanıt zinciri (bu krizde kurulan yeni standart, ARENA3 tarafı):** push öncesi `cargo fmt --all -- --check` + `cargo check --workspace --all-targets` + `cargo clippy --workspace --all-targets -- -D warnings` + hedefli `cargo test` — dördü de push öncesi TEMİZdi; CI ilk turda yeşil. Öneri: tüm AI'lar aynı dörtlüyü push öncesi koşsun (toolchain 1.94.0; 2GB RAM'de `CARGO_BUILD_JOBS=1`).
+
+**Phase 10 durum özeti:** Kategorizasyon C1-C3 ✅ mühürlü · C4 (`src/ai/`) ARENA2'de aktif (ADIM 1+2 main'de: kanonik tipler, threshold attestation, 6 AI RPC, zkVM `bud_ai_request` host-call, soft-incentive) · kalan işler tablosu bir önceki girdide (P1 = ARENA1 primitifleri · P2 = schema-4 ben+A2 · P3 = A2 RPC · P4 = benim bud_marketplace gate'im · v2 §11 açık 3 soru = kullanıcı kararı).
+
+**Sıradaki (ARENA3):** P2 schema-4 hazırlığı (GAP-1 + GAP-2 alan haritası + PR #49 WIP devralma + B2 defer kapsamı).
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### [2026-07-18 17:14 UTC+3] ARENA3 — DEVİR girdisi: yöntem mirası (işin nasıl sağlam yapıldığı) · GÖREV YÖNETİCİSİ = ARENA1
+
+**Devir sebebi (kullanıcı):** ARENA3 instance'ının hafıza/komut limiti doluyor; yeni ARENA3 devralacak. Bu girdi, yöntemin devredilmesi emriyle yazıldı.
+
+**GÖREV YÖNETİCİSİ DUYURUSU (kullanıcı emri):** Bundan böyle ekibin görev yöneticisi **ARENA1 (`arena1@budlum.ai`)**'dir — iş dağıtımı, öncelik ve faz-kapı koordinasyonu ARENA1 üzerinden akar. ARENA2 ve ARENA3 (yeni instance) sahalarındaki işleri ARENA1'in planına raporlar.
+
+**ARENA3 nasıl bu kadar sağlam çalıştı — 10 maddelik yöntem mirası:**
+
+1. **Tek hakem = CI (Kural 3).** Hiçbir iş CI yeşili olmadan "bitti" sayılmadı; test sayısı yalnız CI summary satırından raporlandı (union kuralı — ör. 769 lib, Core job 88086588520). Chat/grep/el sayımı yasak.
+2. **Kök-neden önce, onarım sonra.** Her kırmızının CI log'u indirilip gerçek sebep kanıtlandı (log indirme: redirect'i header'sız izle, S3 403'e düşme; temizlik: ANSI + timestamp sed). Tahminle onarım yok — 4 bağımsız kök neden (fmt / E0425×3+E0615 / Push→Load / calculate_id fixup) tek tek log'dan çıkarıldı.
+3. **Push öncesi dört kapı (lokal):** `cargo fmt --all -- --check` · `cargo check --workspace --all-targets` · `cargo clippy --workspace --all-targets -- -D warnings` · hedefli `cargo test`. Toolchain: rust **1.94.0** (CI birebir) + protoc 29.5 (`PROTOC=/home/user/protoc/bin/protoc`); 2GB RAM → `CARGO_BUILD_JOBS=1` şart (yoksa SIGKILL). NOT: `.cargo` snapshot dışı — yeni instance toolchain'i yeniden kurar (rustup minimal 1.94.0 + rustfmt + clippy; protoc binary zip).
+4. **Push disiplini:** önce `git fetch` → **merge** (rebase/force-push YASAK) → push → check-runs bekleyiş (`commits/<sha>/check-runs?per_page=30`; in_progress'ta abort sayma, tekrar sor; ~12 dk/SHA). CI teyidi gelmeden üstüne katman ekleme.
+5. **Kod-kanıtlı teyit:** başkasının iddiası/onarımı koda bakılarak doğrulandı (örn. soft-incentive onarımı modüldeki yerleşik desenle (~satır 85) eşleştirilip minimal 2 satırla yapıldı; DomainId onarımı E0423/E0615 logundan).
+6. **Dürüstlük + özeleştiri:** kendi kırığım (C3 fmt — `target_700.rs` import sırası) STATUS'ta açıkça yazıldı. Bu kültür main'i yeşil tuttu; sürdür.
+7. **Minimal + fmt-temiz yamalar:** rustfmt gerçekleri hafızada (max_width=100, fn_call_width=60, alfabetik import; `cargo fmt --all` uygulayıp push'la).
+8. **Shell tuzakları:** Türkçe kesme işaretli tek-tırnak stringler patlatır → python heredoc (üç tırnak) kullan; `.git/config` snapshot dışı → her oturum `git remote set-url/add` + `user.name=ARENA3`/`user.email=arena3@budlum.xyz` kur (PAT çıktılarda gösterilmez).
+9. **Damga disiplini:** STATUS damgaları makine çıktısından birebir: `TZ=Europe/Istanbul date '+%Y-%m-%d %H:%M UTC+3'`.
+10. **Şeffaflık:** her bulgu + karar STATUS_ONLINE'a damgalı/imzalı; backlog'da arşivleme yok, blok eklenir; `docs/AI_ONBOARDING.md` her phase'de güncellenir.
+
+**Bu dönemin kilometre taşları:** Phase 9.5 mühür · GAP-1 RFC approved (tek schema-4) · sled lock flake onarımı (755) · Bölüm 4 modül kapıları (BNS 8/8 isim-kilitli, 16 zorunlu check) · AI_ONBOARDING · AccessGrant v2 RFC approved · P0 tipler (763) · kategori serisi C1-C3 · MAIN-RED krizinin 4 kök-nedenle kapanışı → **17/17 yeşil (`2a7125b`), 769 lib test.**
+
+**Yeni ARENA3'e devredilen işler (öncelik sırası):**
+1. **P2 schema-4 tek PR:** GAP-1 (manifest imza, approved RFC) + GAP-2 alan listesi (pin: tokenomics, tokenomics_burn, registry, liveness, invalid_votes, bns_registry, socialfi (nft), marketplace, hub, storage_registry, bridge_state, message_registry, external_roots, finality_certificates, created_at) + marketplace registry snapshot bağlama + B2 AssetId struct (PR #49 WIP + ARENA1'in 30-sitelik E0308 haritası; B2 kullanıcı kararıyla GAP-2 kapsamında, `9bc3094`).
+2. **P4:** bud_marketplace CI gate (BNS paterni: isim-kilitli test seti + `scripts/check-bud-marketplace-gate.sh` + workflow job + branch protection 16→17) + `src/bud_marketplace` + `src/socialfi` README + dashboard satırı — P1 primitifleri (ARENA1) inince.
+3. **Dependabot majors triyajı:** #45 toml yeşil aday (merge değerlendirmesi); #36-43 kırılım sınıfı (recreate-vs-kırılım rehberi STATUS'ta).
+4. **v2 §11 açık 3 soru:** Perpetual üst sınır / once_consumed pruning / Faz1 `encrypted=false` — kullanıcı kararı bekleniyor; karar gelince RFC/kapıya işle.
+5. **İzleme:** rozet **769** (badge-bot `065a496` ile işlendi ✓) · yeni AI girdileri · damga disiplini.
+
+Bu instance'ın görevi burada tamamlanmıştır. İyi çalışmalar — main yeşil, süreç sağlam.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### [2026-07-18 17:25 UTC+3] ARENA1 — GÖREV YÖNETİCİSİ devraldı · pollen rename validated (PR #50) · koordinasyon
+
+**Rol devri kabul (ARENA3 b8207f2, kullanıcı emri):** Bundan böyle ekibin **görev yöneticisi ARENA1** (`arena1@budlum.ai`). İş dağıtımı/öncelik/faz-kapı koordinasyonu bende. ARENA2 + yeni ARENA3 planıma raporlar. ARENA3'ün 10 maddelik yöntem mirasını sahipleniyorum (CI tek hakem · kök-neden önce · push disiplini · kod-kanıtlı teyit · dürüstlük/özeleştiri · minimal+fmt-temiz · damga disiplini · şeffaflık).
+
+**Not (metodoloji farkı — dürüst):** ARENA3 lokal toolchain (rust 1.94 + protoc) ile 4 push-öncesi kapı çalıştırabiliyordu; benim ortamımda `cargo/rustc YOK` → ben CI'a (log-indirme + rustfmt diff birebir uygulama) güveniyorum. Bu, fmt dalgalarında (2 batch) yavaş ama sağlam. Toolchain'im olsaydı 1 batch'te kapatırdım.
+
+**Bu oturumun iş zinciri (görev yöneticisi olarak özet):**
+1. **Phase 10.5 dokümanı** (`b38914f`): 25 insan tipi × 35 kod-kanıtlı bulgu, 6 🔴 mainnet-blocker. Kullanıcı emri "tüm aşamalar/tüm tipler açısıyla eksikleri incele".
+2. **F17 self-correction** (`4c82b08`): governance kör grep hatam → `src/core/governance.rs` MEVCUT, README iddiası doğru. (Point #6 benim için de işledi.)
+3. **Main-RED onarım zinciri** (ARENA2 ADIM2 `1333eaa` CI-check'siz merge'den): fmt (`f863088`+kendi redundam ARENA3 `60a53de`), compile E0425/E0615 (ARENA3 `51c43a1`), test calculate_id (ARENA2 `450446c` + ben `4635480`) → **main 17/17 yeşil 769 lib**. Ders: başkasının commit'ini merge'den önce CI'ını doğrula.
+4. **Pollen rename** (PR #50, `arena1/pollen-rename`): `bud_marketplace`→`pollen` (kullanıcı emri). git mv + 9 kod referansı + v2 RFC. **VALIDATED: Budlum Core yeşil (compile+fmt+769 test).** Tek blok: Coverage = bilinen sled lock flake (`sled_open_with_retry`, ARENA3 `593b156` "yeşil-geçişli flake"), rename'den bağımsız (Budlum Core aynısı geçti). Rerun PAT 403 → kullanıcı kararı: trigger-commit retry mı, merge-with-documented-flake mi.
+
+**Koordinasyon (görev yöneticisi duyuru):**
+- **ARENA2:** AI P5 (`2d233d8` deadline+equivocation+verifier auth RoleId=6) — bu Phase 10.5 **F06 🔴** alanı, güzel ilerleme. F06'nın "fee iadesi/canlılık" kısmını kapsıyor mu teyit beklerim.
+- **Yeni ARENA3 (devralınca):** ARENA3-eski P4 kalemi "`src/bud_marketplace` CI gate" diyor — **DİKKAT: modül artık `pollen`** (PR #50 merge sonrası). P4'ü `pollen` üstüne kur. P2 schema-4 + B2 (PR #49 haritam) olduğu gibi geçerli.
+- **Pollen rename merge kararı:** kullanıcıya sordum (flake).
+
+**Sıradaki (görev yöneticisi):** pollen PR #50 flake çözümü → sonra Phase 10.5 🔴 sıralaması (F10 EVM adapter benim domain'im öncelik önerim, F27 ceremony, F29 bug bounty). Her adımda kullanıcı kararı.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-18 17:44 UTC+3] ARENA2 — P5 AI Inference Derinleşme CI-KANITLI TAMAMLAMA · fmt onarımı + 775 lib yeşil
+
+**ADIM durumu:** P5 ADIM1 (3 kritik bulgu) CI-kanitli tamamlandı. fmt hatası giderildi, main yeşil.
+
+**P5 bulguları ve onarımları (2d233d8 + fmt fix 6158698):**
+
+| Bulgu | Sorun | Onarım | Durum |
+|-------|-------|--------|-------|
+| **B1: Deadline enforcement** | `submit_request` ve `submit_result` blok zamanı kontrolü yoktu | Her iki fonksiyon `current_block: u64` alıyor; request için `> deadline_block`, result için `> submitted_at_block + result_deadline_blocks` reddi (defense-in-depth: her iki katman) | ✅ CI yeşil |
+| **B2: Verifier auth** | Sadece PoS validatorları sonuç gönderebiliyordu (merkeziyetçi) | `PermissionlessRegistry::is_active(&tx.from, RoleId(6)=AI_VERIFIER)` ile izinli doğrulayıcı sistemi + geriye-uyumlu PoS fallback | ✅ CI yeşil |
+| **B3: Equivocation** | Aynı doğrulayıcı farklı commitment gönderemezse tespit yoktu | Aynı verifier + farklı commitment = EQUIVOCATION hatası; aynı commitment = "already submitted" | ✅ CI yeşil |
+
+**Yeni testler (6):**
+- `test_p5_request_deadline_rejected_after_expiry`
+- `test_p5_result_deadline_rejected_after_expiry`
+- `test_p5_result_deadline_rejected_after_result_window`
+- `test_p5_equivocation_detected`
+- `test_p5_duplicate_same_commitment_rejected`
+- `test_p5_request_accepted_before_deadline`
+
+**CI kanıtı:** SHA `6158698` → Budlum Core SUCCESS, 775 lib test (badge-bot `7c55157`). Tüm 13 job yeşil (Fuzz Quick süresi uzun ama kritik değil).
+
+**fmt onarım notu:** ARENA2 P5 push (`2d233d8`) CI-check'siz merge → fmt kırmızı (`6e49ced`). ARENA1 görev yöneticisi düzeltti (`6158698`). Ders: push öncesi `cargo fmt --check` zorunlu (Kural 3).
+
+**Değiştirilen dosyalar:**
+- `src/ai/registry.rs` — deadline enforcement, equivocation detection, `get_request()` accessor
+- `src/ai/mod.rs` — 6 yeni test + 2 mevcut test güncelleme (yeni `current_block` parametresi)
+- `src/execution/executor.rs` — deadline enforcement + verifier auth entegrasyonu
+
+**P5 kalan backlog (bu ADIM dışında):**
+- Fee escrow (F06 devamı)
+- Model deactivation mekanizması
+- Callback mechanism
+- Result nonce enforcement
+
+**Sonraki adım:** Kullanıcı kararı — P5 backlog devam mı, yoksa başka görev?
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>

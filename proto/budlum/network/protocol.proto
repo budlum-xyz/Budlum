@@ -26,6 +26,7 @@ enum ProtoTransactionType {
     AI_MODEL_REGISTER = 20;
     AI_INFERENCE_REQUEST = 21;
     AI_INFERENCE_RESULT = 22;
+    AI_FEE_RECLAIM = 23;
 }
 
 message ProtoTransaction {
@@ -53,6 +54,7 @@ message ProtoTransaction {
         ProtoAiModelRegister ai_model_register = 28;
         ProtoAiInferenceRequest ai_inference_request = 29;
         ProtoAiInferenceResult ai_inference_result = 30;
+        ProtoAiFeeReclaim ai_fee_reclaim = 31;
     }
 }
 
@@ -388,4 +390,8 @@ message ProtoGlobalHeader {
 
 message ProtoCrossDomainMessage {
     bytes data = 1;
+}
+
+message ProtoAiFeeReclaim {
+    bytes request_id = 1;
 }

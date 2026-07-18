@@ -6,9 +6,10 @@
 use crate::ai::types::{
     AiInferenceOutcome, AiInferenceRequest, AiInferenceResult, AiModelId, AiModelSpec, AiRequestId,
 };
+use crate::core::address::Address;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AiRegistry {
@@ -16,6 +17,9 @@ pub struct AiRegistry {
     pub requests: BTreeMap<AiRequestId, AiInferenceRequest>,
     pub results: BTreeMap<AiRequestId, Vec<AiInferenceResult>>,
     pub outcomes: BTreeMap<AiRequestId, AiInferenceOutcome>,
+    /// P5 Bulgu 4: Set of request IDs whose max_fee has been reclaimed
+    /// after deadline expiry without finalization. Prevents double-reclaim.
+    pub reclaimed_fees: BTreeSet<AiRequestId>,
 }
 
 impl AiRegistry {
@@ -25,6 +29,7 @@ impl AiRegistry {
             requests: BTreeMap::new(),
             results: BTreeMap::new(),
             outcomes: BTreeMap::new(),
+            reclaimed_fees: BTreeSet::new(),
         }
     }
 
@@ -33,6 +38,7 @@ impl AiRegistry {
             && self.requests.is_empty()
             && self.results.is_empty()
             && self.outcomes.is_empty()
+            && self.reclaimed_fees.is_empty()
     }
 
     pub fn register_model(&mut self, spec: AiModelSpec) -> Result<AiModelId, String> {
@@ -48,7 +54,14 @@ impl AiRegistry {
         Ok(id)
     }
 
-    pub fn submit_request(&mut self, request: AiInferenceRequest) -> Result<AiRequestId, String> {
+    /// Submit an inference request with deadline enforcement (P5 Bulgu 1).
+    /// `current_block` is provided by the executor layer (defense-in-depth:
+    /// both registry and executor check deadlines independently).
+    pub fn submit_request(
+        &mut self,
+        request: AiInferenceRequest,
+        current_block: u64,
+    ) -> Result<AiRequestId, String> {
         if !request.verify_id() {
             return Err("Request ID does not match canonical preimage".into());
         }
@@ -73,14 +86,25 @@ impl AiRegistry {
                 request.request_id.to_hex()
             ));
         }
+        // P5 Bulgu 1 — Deadline enforcement (registry layer):
+        // Request must not be submitted after its own deadline_block.
+        if current_block > request.deadline_block {
+            return Err(format!(
+                "Request deadline exceeded: current_block={current_block}, deadline_block={}",
+                request.deadline_block
+            ));
+        }
         let id = request.request_id;
         self.requests.insert(id, request);
         Ok(id)
     }
 
+    /// Submit an inference result with deadline + dispute enforcement (P5 Bulgu 1+3).
+    /// `current_block` is provided by the executor layer (defense-in-depth).
     pub fn submit_result(
         &mut self,
         result: AiInferenceResult,
+        current_block: u64,
     ) -> Result<Option<AiInferenceOutcome>, String> {
         let request = match self.requests.get(&result.request_id) {
             Some(r) => r.clone(),
@@ -98,10 +122,44 @@ impl AiRegistry {
         if result.output_ref.len() as u64 > spec.max_output_ref_bytes {
             return Err("output_ref exceeds model specification limits".into());
         }
+        // P5 Bulgu 1 — Deadline enforcement (registry layer):
+        // Result must arrive before the request's deadline_block AND
+        // within result_deadline_blocks of the request's submission.
+        if current_block > request.deadline_block {
+            return Err(format!(
+                "Result submitted after request deadline: current_block={current_block}, deadline_block={}",
+                request.deadline_block
+            ));
+        }
+        let result_deadline = request
+            .submitted_at_block
+            .saturating_add(spec.result_deadline_blocks);
+        if current_block > result_deadline {
+            return Err(format!(
+                "Result deadline exceeded: current_block={current_block}, result_deadline={result_deadline}"
+            ));
+        }
 
+        // P5 Bulgu 5 — Result nonce enforcement:
+        // result_nonce must be >= 1 (zero is invalid — prevents accidental/ambiguous submissions).
+        if result.result_nonce == 0 {
+            return Err("result_nonce must be >= 1 (zero is invalid)".into());
+        }
+
+        // P5 Bulgu 3 — Equivocation detection:
+        // If this verifier already submitted a result with a DIFFERENT
+        // commitment for the same request, that is equivocation.
         let entries = self.results.entry(result.request_id).or_default();
-        if entries.iter().any(|r| r.verifier == result.verifier) {
-            return Err("Verifier has already submitted a result for this request".into());
+        if let Some(existing) = entries.iter().find(|r| r.verifier == result.verifier) {
+            if existing.output_commitment == result.output_commitment {
+                return Err("Verifier has already submitted a result for this request".into());
+            } else {
+                return Err(format!(
+                    "EQUIVOCATION: verifier {:?} submitted conflicting commitments for request {} — dispute flagged",
+                    result.verifier,
+                    result.request_id.to_hex()
+                ));
+            }
         }
         entries.push(result.clone());
 
@@ -135,6 +193,71 @@ impl AiRegistry {
         self.outcomes.get(request_id)
     }
 
+    /// Accessor: get a pending (non-finalized) request by ID.
+    pub fn get_request(&self, request_id: &AiRequestId) -> Option<&AiInferenceRequest> {
+        self.requests.get(request_id)
+    }
+
+    /// P5 Bulgu 4: Reclaim escrowed max_fee for an expired, unfinalized request.
+    ///
+    /// After a request's deadline has passed without reaching agreement threshold,
+    /// the requester can reclaim their escrowed max_fee. This prevents fee leaks
+    /// where max_fee is deducted but never distributed (no verifiers, insufficient
+    /// agreement, or deadline expiry before threshold reached).
+    ///
+    /// Returns `(requester_address, max_fee)` on success.
+    /// Errors if: request not found, already finalized, not yet expired, or already reclaimed.
+    pub fn reclaim_fee(
+        &mut self,
+        request_id: &AiRequestId,
+        current_block: u64,
+    ) -> Result<(Address, u64), String> {
+        let request = self
+            .requests
+            .get(request_id)
+            .ok_or_else(|| format!("Request {} not found", request_id.to_hex()))?;
+
+        // Must not already have an outcome (finalized request → fee belongs to verifiers)
+        if self.outcomes.contains_key(request_id) {
+            return Err(format!(
+                "Request {} has been finalized — fee belongs to verifiers",
+                request_id.to_hex()
+            ));
+        }
+
+        // Must not have been already reclaimed
+        if self.reclaimed_fees.contains(request_id) {
+            return Err(format!(
+                "Request {} fee already reclaimed",
+                request_id.to_hex()
+            ));
+        }
+
+        // Deadline must have passed (both request deadline and result deadline)
+        let spec = self
+            .models
+            .get(&request.model_id)
+            .ok_or_else(|| "Associated model for request not found".to_string())?;
+        let result_deadline = request
+            .submitted_at_block
+            .saturating_add(spec.result_deadline_blocks);
+        let effective_deadline = std::cmp::max(request.deadline_block, result_deadline);
+
+        if current_block <= effective_deadline {
+            return Err(format!(
+                "Request {} not yet expired: current_block={current_block}, effective_deadline={effective_deadline}",
+                request_id.to_hex()
+            ));
+        }
+
+        let requester = request.requester;
+        let max_fee = request.max_fee;
+
+        self.reclaimed_fees.insert(*request_id);
+
+        Ok((requester, max_fee))
+    }
+
     /// Calculate deterministic Merkle/SHA256 root of all AI registry maps.
     pub fn state_root(&self) -> [u8; 32] {
         if self.is_empty() {
@@ -162,6 +285,10 @@ impl AiRegistry {
         for (id, outcome) in &self.outcomes {
             hasher.update(id.0);
             hasher.update(outcome.calculate_leaf());
+        }
+        for id in &self.reclaimed_fees {
+            hasher.update(id.0);
+            hasher.update(b"RECLAIMED");
         }
 
         hasher.finalize().into()
