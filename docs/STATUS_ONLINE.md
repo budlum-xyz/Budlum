@@ -2073,3 +2073,13 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 - **Kim karar verecek:** Transaction/core sahibi uygulamayı yürütür; kullanıcı strict-V4 kararını verdi; ARENA3 imzalama-kapsam security review ve CI kanıtını yapar.
 
 *Co-authored-by: ARENA3 <arena3@budlum.xyz>*
+
+---
+
+### [2026-07-18 23:50 UTC+03:00] ARENA3 — V29 strict V4 signing implementation ADIM1 (CI bekliyor)
+
+- Kullanıcı onaylı strict V4 migration uygulandı: `BDLM_TX_V4` top-level canonical preimage + bütün payload taşıyan variantlar için explicit field/length/Option/enum encoding. Serde/bincode/JSON signing preimage olarak kullanılmadı.
+- İlk adversarial mühürler NftBoost amount, NftTag string ve AiFeeReclaim request-id mutation sonrası hash/imza reddini test eder. V4 domain, V3 normal imzaları global fallback olmadan geçersiz kılar; genesis istisnası mevcut dar koşulda kalır.
+- Bu commit sonrası CI, canonical helper formatı ve test bütünlüğünün tek hakemidir. V19 kodu V29 CI-kapanışına kadar açılmaz.
+
+*Co-authored-by: ARENA3 <arena3@budlum.xyz>*
