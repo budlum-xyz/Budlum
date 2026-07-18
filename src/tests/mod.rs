@@ -45,12 +45,14 @@ pub mod hardening;
 pub mod integration;
 #[cfg(test)]
 pub mod liveness_consensus;
+pub mod migration_v2;
 #[cfg(test)]
 pub mod permissionless;
 #[cfg(test)]
 pub mod permissionless_e2e;
 #[cfg(test)]
 pub mod persistence;
+pub mod poa_isolation;
 #[cfg(test)]
 pub mod pow_light_client;
 #[cfg(test)]
@@ -65,6 +67,7 @@ pub mod relayer_gates;
 pub mod settlement_prod;
 #[cfg(test)]
 pub mod tokenomics;
+pub mod tokenomics_proptest;
 #[cfg(test)]
 pub mod zkvm;
 // Phase 9 / F4 mühürü (ARENA3, 2026-07-17): SocialFi boost %4 B.U.D. operatör
