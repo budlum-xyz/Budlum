@@ -63,7 +63,10 @@ pub fn encode(item: &RlpItem) -> Vec<u8> {
             for it in items {
                 payload.extend(encode(it));
             }
-            encode_length(payload.len(), 0xc0).into_iter().chain(payload).collect()
+            encode_length(payload.len(), 0xc0)
+                .into_iter()
+                .chain(payload)
+                .collect()
         }
     }
 }
@@ -150,7 +153,9 @@ fn decode_item(bytes: &[u8]) -> Result<(RlpItem, usize), RlpError> {
             return Err(RlpError::ZeroLength);
         }
         let lh_start = 1;
-        let lh_end = lh_start.checked_add(len_of_len).ok_or(RlpError::UnexpectedEnd)?;
+        let lh_end = lh_start
+            .checked_add(len_of_len)
+            .ok_or(RlpError::UnexpectedEnd)?;
         if bytes.len() < lh_end {
             return Err(RlpError::UnexpectedEnd);
         }
@@ -168,12 +173,17 @@ fn decode_item(bytes: &[u8]) -> Result<(RlpItem, usize), RlpError> {
         if bytes.len() < data_end {
             return Err(RlpError::UnexpectedEnd);
         }
-        Ok((RlpItem::Bytes(bytes[data_start..data_end].to_vec()), data_end))
+        Ok((
+            RlpItem::Bytes(bytes[data_start..data_end].to_vec()),
+            data_end,
+        ))
     } else if first <= 0xf7 {
         // Short list: [0xc0, 0xf7] → payload 0..55 bytes.
         let len = (first - 0xc0) as usize;
         let payload_start = 1;
-        let payload_end = payload_start.checked_add(len).ok_or(RlpError::UnexpectedEnd)?;
+        let payload_end = payload_start
+            .checked_add(len)
+            .ok_or(RlpError::UnexpectedEnd)?;
         if bytes.len() < payload_end {
             return Err(RlpError::UnexpectedEnd);
         }
@@ -186,7 +196,9 @@ fn decode_item(bytes: &[u8]) -> Result<(RlpItem, usize), RlpError> {
             return Err(RlpError::ZeroLength);
         }
         let lh_start = 1;
-        let lh_end = lh_start.checked_add(len_of_len).ok_or(RlpError::UnexpectedEnd)?;
+        let lh_end = lh_start
+            .checked_add(len_of_len)
+            .ok_or(RlpError::UnexpectedEnd)?;
         if bytes.len() < lh_end {
             return Err(RlpError::UnexpectedEnd);
         }
@@ -198,7 +210,9 @@ fn decode_item(bytes: &[u8]) -> Result<(RlpItem, usize), RlpError> {
             return Err(RlpError::NonCanonical);
         }
         let payload_start = lh_end;
-        let payload_end = payload_start.checked_add(len).ok_or(RlpError::UnexpectedEnd)?;
+        let payload_end = payload_start
+            .checked_add(len)
+            .ok_or(RlpError::UnexpectedEnd)?;
         if bytes.len() < payload_end {
             return Err(RlpError::UnexpectedEnd);
         }
@@ -209,7 +223,10 @@ fn decode_item(bytes: &[u8]) -> Result<(RlpItem, usize), RlpError> {
 
 /// Decode all items within a payload slice of exactly `expected_len` bytes.
 /// Trailing bytes within payload → TrailingBytes (strict list parsing).
-fn decode_list_items(payload: &[u8], _expected_len: usize) -> Result<(Vec<RlpItem>, usize), RlpError> {
+fn decode_list_items(
+    payload: &[u8],
+    _expected_len: usize,
+) -> Result<(Vec<RlpItem>, usize), RlpError> {
     let mut items = Vec::new();
     let mut pos = 0;
     while pos < payload.len() {
@@ -368,7 +385,10 @@ mod tests {
     #[test]
     fn canonical_rejects_long_form_short_payload() {
         // length 1 via long form (0xb8 prefix, len_of_len=1, len=0x01) → NonCanonical.
-        assert_eq!(decode(&[0xb8, 0x01, 0xaa]).unwrap_err(), RlpError::NonCanonical);
+        assert_eq!(
+            decode(&[0xb8, 0x01, 0xaa]).unwrap_err(),
+            RlpError::NonCanonical
+        );
     }
 
     #[test]
@@ -391,7 +411,10 @@ mod tests {
     #[test]
     fn decode_rejects_unexpected_end_short_string() {
         // claims length 3 but only 2 bytes follow
-        assert_eq!(decode(&[0x83, 0xaa, 0xbb]).unwrap_err(), RlpError::UnexpectedEnd);
+        assert_eq!(
+            decode(&[0x83, 0xaa, 0xbb]).unwrap_err(),
+            RlpError::UnexpectedEnd
+        );
     }
 
     #[test]
@@ -412,7 +435,9 @@ mod tests {
         // Deterministik pseudo-rastgele; amaç: decode hiçbir girdide panic ETMESİN.
         let mut seed: u64 = 0x1234_5678_9abc_def0;
         let mut next = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             (seed >> 33) as u8
         };
         for _ in 0..5000 {
