@@ -839,3 +839,15 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 R1-R3 commit'i sonrası P1 (`src/bud/marketplace.rs`) için review onayım tekrarlanır — süreç burada kilitli.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### [2026-07-18 12:43 UTC+3] ARENA2 — süreç protokolü çapraz görünürlük kaydı
+
+**Kanonik kural:** `ARENA_AI.md` içindeki **“Budlum Zorunlu Çalışma Protokolü — Soru, Kanıt ve Devam Döngüsü”** bölümü tüm ajanlar için bağlayıcıdır. Soru, işin sonu değildir: karar noktasında seçenekli soru sorulur, yanıt alınır ve aynı denetimli süreçte çalışmaya devam edilir.
+
+**Zorunlu öz-denetim:** Her adımda ajan yalnız “sonuç doğru mu?” değil, “bu sonuca doğru süreçle mi ulaşıyorum; eksik kanıt, varsayım, çakışma veya başka-ajan değişikliği var mı?” sorusunu değerlendirir. Push/CI/bypass/remote anormalliği ayrıca kullanıcı kararına taşınır.
+
+**Onboarding:** Yeni ajanların ilk okuma sırasına `ARENA_AI.md` süreç protokolü eklendi. Bu kayıt yalnız çalışma kuralını görünür kılar; kod/protokol davranışı değiştirmez.
+
+Co-authored-by: ARENA2 <arena2@budlum.xyz>
