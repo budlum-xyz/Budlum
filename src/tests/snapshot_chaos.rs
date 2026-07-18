@@ -256,18 +256,10 @@ mod tests {
 
         let alice = Address::from([0xA1; 32]);
         let v1_state = funded_state(&alice, 700);
-        let v1_snap = StateSnapshot::from_state(
-            10,
-            "dd".repeat(32),
-            1337,
-            &v1_state,
-            10,
-            "ee".repeat(32),
-        );
-        let v2_snap = StateSnapshotV2::from_state(
-            &funded_state(&alice, 1_000),
-            params_v2(20, 1337),
-        );
+        let v1_snap =
+            StateSnapshot::from_state(10, "dd".repeat(32), 1337, &v1_state, 10, "ee".repeat(32));
+        let v2_snap =
+            StateSnapshotV2::from_state(&funded_state(&alice, 1_000), params_v2(20, 1337));
         pm.save_snapshot(&v1_snap).expect("save v1");
         pm.save_snapshot_v2(&v2_snap).expect("save v2");
 
@@ -279,8 +271,7 @@ mod tests {
         // PIN 2: geçerli v2 dosyası YERİNDE kalır (karantina YOK — GAP-4 giderildi).
         assert!(dir.path().join("snaps").join("snapshot_20.json").exists());
         assert!(
-            !dir
-                .path()
+            !dir.path()
                 .join("snaps")
                 .join("snapshot_20.json.corrupted")
                 .exists(),
@@ -304,12 +295,7 @@ mod tests {
         let mut snap_height_b = 0u64;
         {
             let storage = open_storage_bounded(db_str);
-            let mut bc = Blockchain::new(
-                Arc::new(PoWEngine::new(0)),
-                Some(storage),
-                1337,
-                None,
-            );
+            let mut bc = Blockchain::new(Arc::new(PoWEngine::new(0)), Some(storage), 1337, None);
             bc.state.base_fee = 0;
             bc.mempool.set_min_fee(0);
 
@@ -317,10 +303,7 @@ mod tests {
             let _ = bc.produce_block(zero); // tip 1
             snap_height_a = bc.last_block().index;
             let pm = PruningManager::new(10, 10, snap_dir_of(&dir));
-            let snap_a = StateSnapshotV2::from_state(
-                &bc.state,
-                params_v2(snap_height_a, 1337),
-            );
+            let snap_a = StateSnapshotV2::from_state(&bc.state, params_v2(snap_height_a, 1337));
             pm.save_snapshot_v2(&snap_a).expect("save A");
 
             bc.state.add_balance(&alice, 300); // 1000

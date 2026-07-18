@@ -323,7 +323,6 @@ impl PruningManager {
         }
         Ok(None)
     }
-
 }
 
 fn get_snapshot_height(path: &std::path::Path) -> Option<u64> {
