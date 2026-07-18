@@ -985,7 +985,7 @@ mod tests {
         let bytes_v99 = serde_json::to_vec(&snapshot).unwrap();
         assert!(StateSnapshotV2::from_bytes(&bytes_v99)
             .unwrap_err()
-            .contains("current max supported is 3"));
+            .contains("current max supported is 4"));
 
         snapshot.schema_version = 2;
         let report = snapshot.migration_report().unwrap();
