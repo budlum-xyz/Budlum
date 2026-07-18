@@ -52,21 +52,20 @@ Strategic analysis: [`docs/03_paradigma_analizi.md`](docs/03_paradigma_analizi.m
 
 ## Architecture
 
+```mermaid
+flowchart TB
+  Domains[PoW · PoS · BFT · ZK domains] --> Finality[Domain finality adapters]
+  PoA[Isolated PoA / KYC domain] --> PoAFinality[PoA finality adapter]
+  Finality --> L1[Budlum Settlement L1]
+  PoAFinality --> L1
+  L1 --> State[Global state / snapshots]
+  L1 --> Bridge[Cross-domain bridge]
+  L1 --> ZK[BudZero / BudZKVM]
 ```
-   PoW domain    PoS domain    PoA domain    ZK / Custom
-        \             |             |             /
-         \            |             |            /
-          v           v             v           v
-        DomainFinalityAdapter  (per-consensus proof)
-                          |
-                          v
-              ┌───────────────────────────┐
-              │   BUDLUM SETTLEMENT L1    │
-              │  GlobalBlockHeader        │
-              │  BridgeState + nonces     │
-              │  BudZKVM proofs (BudZero) │
-              └───────────────────────────┘
-```
+
+See the [Architecture Atlas](docs/ARCHITECTURE.md) for detailed system,
+trust-boundary, transaction signing, bridge, EVM verification, snapshot,
+durability, AI, B.U.D., CI and mainnet-launch diagrams.
 
 **Crates / layout**
 
