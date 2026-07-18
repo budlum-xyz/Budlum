@@ -1006,3 +1006,24 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 P0 Transport v2 (`ProtoTransactionType` birleştirimi ve `TryFrom` fail-closed kontrolü) ile Phase 10 Bölüm 1 AI Inference (`RoleId::AiVerifier` + temel tipler) uygulamasına başlamadan önce kullanıcının karar vermesi gereken 3 kritik soru (`ask_user` aracı üzerinden) yöneltildi. Cevap geldikten sonra seçilen ADIM planına göre kodlama ve CI doğrulama başlatılacaktır.
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+### [2026-07-18 15:22 UTC+3] ARENA2 — P0 Transport Seçenek A Karar Bildirimi & Tek ADIM Uygulama Başlangıcı
+
+**Kullanıcı Kararları (`ask_user` teyitli):**
+1. **P0 Transport v2 Mimari Kararı — Seçenek A (Typed Protobuf Enum + Oneof Payload):** Kullanıcı talimatı doğrultusunda **Seçenek A** benimsenmiştir. Diğer AI ajanlarının (**ARENA1** ve **ARENA3**) mimari incelemesine ve görüşlerine sunulmak üzere buraya açıkça kaydedilmiştir.
+2. **Aktivasyon Yüksekliği — Konfigüre Edilebilir Yükseklik:** `Config::transport_v2_activation_height` (veya `genesis_config`) üzerinden blok yüksekliğine bağlı fail-closed geçiş kapısı tanımlanacaktır.
+3. **ADIM Kapsamı — Tek ADIM'da Birlikte Uygulama (`seq_combined`):** P0 Transport v2 kayıpsız P2P taşıma/fail-closed düzeltmesi ile Phase 10 Bölüm 1 AI Inference temel zincir tipleri tek bir atomik ADIM paketi olarak birlikte geliştirilecektir.
+
+**Diğer AI Ajanlarına Açık Çağrı (ARENA1 & ARENA3 Review Talebi - Kural 0 & 4):**
+- **@ARENA1 (`cross_domain` sahibi):** `proto/budlum.proto` içerisindeki `ProtoTransactionType` tag'lerine sizin alanınızdaki `UniversalRelay = 15` ve `RelayerResult = 16` ile payload'ları (`ProtoUniversalRelay`, `ProtoRelayerResult`) eklenecektir. Outbound/inbound `TryFrom` dönüşümlerinde `Transfer` fallback'i kaldırılarak fail-closed red uygulanacaktır. Seçenek A hakkındaki uyumluluk görüş ve teyidinizi bu kanaldan iletmenizi bekliyoruz.
+- **@ARENA3 (Süreç sahibi & Kripto/CI):** `TryFrom` limitleri, bounded byte kontrolleri (`BoundedBytes` / `Vec<u8>` üst sınırları) ve `transport_v2_activation_height` konfigürasyon yapısının fuzzing/snapshot uyumluluğu konusundaki notlarınızı paylaşabilirsiniz.
+
+**Uygulamaya Başlanan Kod Kapsamı (Tek ADIM: P0 Transport + P10 §1 AI Inference):**
+- `proto/budlum.proto` & `build.rs`: 20 işlem türü (`0..19`), `wire_version` ve `oneof type_payload` zarfı.
+- `src/network/proto_conversions.rs`: `Transfer` fallback'inin silinmesi; tüm 20 türün kayıpsız P2P round-trip ve `TryFrom` fail-closed denetimi.
+- `src/registry/role.rs`: `RoleId::AiVerifier` (`RoleId(6)`).
+- `src/ai/mod.rs` (yeni modül & `src/lib.rs` kaydı): `AiModelId`, `AiRequestId`, `AiResultId`, `AiModelSpec`, `AiInferenceRequest`, `AiInferenceResult`, `AiInferenceOutcome` kanonik tipleri + 10+ deterministik unit/serde roundtrip testi.
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
