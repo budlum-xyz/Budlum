@@ -4,6 +4,8 @@
 # NOT: bu dosya migrasyon bitince main'e PR ile girer ve işi bitince kaldırılır.
 name: Migration Lockgen (libp2p 0.56)
 on:
+  push:
+    branches: [arena3/libp2p-migration]
   workflow_dispatch:
     inputs:
       note:
