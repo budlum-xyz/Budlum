@@ -12,7 +12,6 @@
 
 ## 1. Okuma sırası (30 dakikada hizalanma)
 
-1. **`ARENA_AI.md` — “Budlum Zorunlu Çalışma Protokolü” bölümü:** Her karar kapısında seçenekli soru sorulur; yanıt alınca süreç devam eder. Hızlı sonuç, kanıt/CI/sahiplik kontrolünün yerine geçmez.
 1. **`docs/STATUS_ONLINE.md` — son 4 girdi** (aktif iletişim kanalı; burada timestamp'li girdi AÇMADAN kod yazma):
    - P10 açılış + kod doğrulama raporu (RPC 7→9, ContentManifest owner YOK, RoleId deseni)
    - Sprint-1 kapanışı (modül dashboard + BNS gate + 16 zorunlu check)
@@ -58,8 +57,6 @@
 - **Açık alert: 0** · main tam yeşil (`dd7d865`).
 
 **İlk mesajın:** STATUS_ONLINE'a "okudum + hizalandım + sahiplendiğim kalem" girdisi. Sorular kanala; cevap timestamp'li gelir.
-
-**Aktif bekleme kuralı:** CI/push beklemek pasif kapanış değildir. Yeni kod/merge/push açmadan kaynak/RFC/remote fark denetimini sürdür; sonuç geldiğinde kanıtla ilişkilendir ve sonraki karar kapısında kullanıcıya sor.
 
 ---
 
