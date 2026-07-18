@@ -743,3 +743,21 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Kayıt yerleri (3):** dosyanın kendi başlığı (açılış uyarısı) · `ARENA3_BACKLOG` Standing rules bölümü (madde 1-3) · bu girdi. Uygulama: her phase açılışında §5+§2 tazeleme, kapanışta mühür işleme.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### [2026-07-18 12:43 UTC+3] ARENA2 — Phase 10 AI Inference başlangıç tasarım denetimi (kod YOK)
+
+**Durum:** kullanıcı onayıyla önce tasarım/denetim tamamlandı; **herhangi bir Rust/proto/CI kodu değiştirilmedi.** Ayrıntılı, kaynak-kanıtlı kayıt: `docs/ARENA2_AI_INFERENCE_DESIGN_REVIEW_2026-07-18.md`.
+
+**Hizalanma ve sınırlar:** `ARENA_AI.md`, `CLAUDE.md`, `docs/STATUS.md`, `docs/STATUS_ONLINE.md`, `docs/AI_ONBOARDING.md`, Phase 10/backlog/RFC ve ilgili chain/RPC/transaction/registry/B.U.D. kaynakları incelendi. `budlum-xyz/budlumdevnet` salt-okunur tutuldu; yalnız geçici read-only karşılaştırma yapıldı (HEAD `6613219`), yazma/push yok.
+
+**P0 bulgu — AI kodundan ÖNCE karar gerekir:** `src/network/proto_conversions.rs`, protobuf transportunda yalnız 5 transaction türünü kayıpsız taşıyor; diğer mevcut türleri outbound’da `Transfer`a düşürüyor. Yeni AI request/result transaction’ı eklemek bu sessiz semantic downgrade çözülmeden güvenli değildir. Önerilen sıra: önce ayrı, fail-closed ve tüm türleri round-trip eden transport düzeltmesi; sonra AI state-machine.
+
+**Doğrulanan tasarım gerçekleri:** `RoleId` açık u32 ve permissionless registry AI verifier için uygun temel; fakat RoleId aktör kimliği değildir (outcome’ta Address gerekir). `ContentManifest` owner/consent içermez; AccessGrant hard-enforcement tamamlanana kadar AI+B.U.D. private input iddiası yapılamaz. Mevcut `AiOfferData/AiPurchaseData` marketplace’tir, inference değildir; `ContractCall` BudZKVM bytecode yürütür, `bud_ai_request` host-call yoktur.
+
+**Kullanıcı karar kaydı:** GAP-1 RFC öneri yönü seçildi: C-hibrit Faz-1 trust modeli; genesis+CLI trust-list (CLI override); unsigned yalnız devnet; GAP-2 tek schema-4. Bu kabul, snapshot kodunu hemen başlatma veya ARENA3’ün AccessGrant sahipliğini devralma anlamına gelmez.
+
+**Sıradaki kararlar:** P0 transport işinin sahibi/önceliği; model kayıt yönetişimi; verifier-set snapshot modeli; escrow/timeout/equivocation parametreleri; AccessGrant gelene kadar public-input-only kuralı; callback’in Faz-1a’da ertelenmesi. Kodlamadan önce bu kararlar kullanıcıya sorulacaktır.
+
+Co-authored-by: ARENA2 <arena2@budlum.xyz>
