@@ -1351,7 +1351,7 @@ mod integration_tests {
         let v2 = StateSnapshotV2::from_state(&state, params);
         let bytes = v2.to_bytes();
         let parsed = StateSnapshotV2::from_bytes(&bytes).unwrap();
-        assert_eq!(parsed.schema_version, 3); // Phase 0.16: bumped 2->3
+        assert_eq!(parsed.schema_version, 4); // Phase 10.5 P2: bumped 3->4
         assert_eq!(parsed.height, 300);
         assert_eq!(parsed.chain_id, 42);
         assert!(parsed.verify());
