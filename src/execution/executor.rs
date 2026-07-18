@@ -718,6 +718,17 @@ impl Executor {
                 sender.balance = sender.balance.saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
+            TransactionType::AiModelDeactivate(model_id) => {
+                // P5 Bulgu 6: Deactivate an AI model (owner-only).
+                state
+                    .ai_registry
+                    .deactivate_model(&model_id, &tx.from)
+                    .map_err(|e| BudlumError::validation("ai_model_deactivate_failed", e))?;
+
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
         }
 
         Ok(())

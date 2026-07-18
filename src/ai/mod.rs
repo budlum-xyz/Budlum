@@ -968,4 +968,288 @@ mod tests {
         let (_, max_fee) = result.unwrap();
         assert_eq!(max_fee, 250);
     }
+
+    // ===================== P5 — Model Deactivation + Callback Tests =====================
+
+    #[test]
+    fn test_p5_model_deactivation_by_owner() {
+        let mut registry = AiRegistry::new();
+        let owner =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap();
+        let model_id = AiModelId::of(&owner, &[1u8; 32], 1);
+        registry
+            .register_model(AiModelSpec {
+                model_id,
+                model_hash: [1u8; 32],
+                owner,
+                min_verifier_count: 2,
+                agreement_threshold: 2,
+                max_input_ref_bytes: 1024,
+                max_output_ref_bytes: 2048,
+                request_deadline_blocks: 100,
+                result_deadline_blocks: 50,
+                version: 1,
+                active: true,
+            })
+            .unwrap();
+
+        assert!(registry.deactivate_model(&model_id, &owner).is_ok());
+        assert!(!registry.models.get(&model_id).unwrap().active);
+
+        let mut req = AiInferenceRequest {
+            request_id: AiRequestId::default(),
+            requester: owner,
+            model_id,
+            input_commitment: [2u8; 32],
+            input_ref: BoundedBytes::try_new(b"test".to_vec()).unwrap(),
+            max_fee: 100,
+            callback: None,
+            submitted_at_block: 10,
+            deadline_block: 110,
+        };
+        req.request_id = req.calculate_id();
+        let result = registry.submit_request(req, 5);
+        assert!(
+            result.is_err(),
+            "Request to inactive model should be rejected"
+        );
+        assert!(result.unwrap_err().contains("inactive"));
+    }
+
+    #[test]
+    fn test_p5_model_deactivation_non_owner_rejected() {
+        let mut registry = AiRegistry::new();
+        let owner =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap();
+        let other =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000002")
+                .unwrap();
+        let model_id = AiModelId::of(&owner, &[1u8; 32], 1);
+        registry
+            .register_model(AiModelSpec {
+                model_id,
+                model_hash: [1u8; 32],
+                owner,
+                min_verifier_count: 2,
+                agreement_threshold: 2,
+                max_input_ref_bytes: 1024,
+                max_output_ref_bytes: 2048,
+                request_deadline_blocks: 100,
+                result_deadline_blocks: 50,
+                version: 1,
+                active: true,
+            })
+            .unwrap();
+
+        let result = registry.deactivate_model(&model_id, &other);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("owner"));
+    }
+
+    #[test]
+    fn test_p5_model_reactivation() {
+        let mut registry = AiRegistry::new();
+        let owner =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap();
+        let model_id = AiModelId::of(&owner, &[1u8; 32], 1);
+        registry
+            .register_model(AiModelSpec {
+                model_id,
+                model_hash: [1u8; 32],
+                owner,
+                min_verifier_count: 2,
+                agreement_threshold: 2,
+                max_input_ref_bytes: 1024,
+                max_output_ref_bytes: 2048,
+                request_deadline_blocks: 100,
+                result_deadline_blocks: 50,
+                version: 1,
+                active: true,
+            })
+            .unwrap();
+
+        registry.deactivate_model(&model_id, &owner).unwrap();
+        assert!(!registry.models.get(&model_id).unwrap().active);
+
+        registry.reactivate_model(&model_id, &owner).unwrap();
+        assert!(registry.models.get(&model_id).unwrap().active);
+
+        let mut req = AiInferenceRequest {
+            request_id: AiRequestId::default(),
+            requester: owner,
+            model_id,
+            input_commitment: [2u8; 32],
+            input_ref: BoundedBytes::try_new(b"test".to_vec()).unwrap(),
+            max_fee: 100,
+            callback: None,
+            submitted_at_block: 10,
+            deadline_block: 110,
+        };
+        req.request_id = req.calculate_id();
+        assert!(registry.submit_request(req, 5).is_ok());
+    }
+
+    #[test]
+    fn test_p5_callback_carried_to_outcome() {
+        let mut registry = AiRegistry::new();
+        let owner =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap();
+        let callback_addr =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000099")
+                .unwrap();
+        let model_id = AiModelId::of(&owner, &[1u8; 32], 1);
+        registry
+            .register_model(AiModelSpec {
+                model_id,
+                model_hash: [1u8; 32],
+                owner,
+                min_verifier_count: 2,
+                agreement_threshold: 2,
+                max_input_ref_bytes: 1024,
+                max_output_ref_bytes: 2048,
+                request_deadline_blocks: 100,
+                result_deadline_blocks: 50,
+                version: 1,
+                active: true,
+            })
+            .unwrap();
+
+        let v1 =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000011")
+                .unwrap();
+        let v2 =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000012")
+                .unwrap();
+
+        let mut req = AiInferenceRequest {
+            request_id: AiRequestId::default(),
+            requester: owner,
+            model_id,
+            input_commitment: [2u8; 32],
+            input_ref: BoundedBytes::try_new(b"test".to_vec()).unwrap(),
+            max_fee: 100,
+            callback: Some(callback_addr),
+            submitted_at_block: 10,
+            deadline_block: 110,
+        };
+        req.request_id = req.calculate_id();
+        let req_id = registry.submit_request(req, 5).unwrap();
+
+        registry
+            .submit_result(
+                AiInferenceResult {
+                    request_id: req_id,
+                    verifier: v1,
+                    output_commitment: [9u8; 32],
+                    output_ref: BoundedBytes::try_new(b"result".to_vec()).unwrap(),
+                    result_nonce: 1,
+                    signature: vec![1],
+                    submitted_at_block: 15,
+                },
+                15,
+            )
+            .unwrap();
+        let outcome = registry
+            .submit_result(
+                AiInferenceResult {
+                    request_id: req_id,
+                    verifier: v2,
+                    output_commitment: [9u8; 32],
+                    output_ref: BoundedBytes::try_new(b"result".to_vec()).unwrap(),
+                    result_nonce: 2,
+                    signature: vec![2],
+                    submitted_at_block: 16,
+                },
+                16,
+            )
+            .unwrap()
+            .expect("Should finalize");
+
+        assert_eq!(outcome.callback, Some(callback_addr));
+        assert_eq!(
+            registry.get_outcome(&req_id).unwrap().callback,
+            Some(callback_addr)
+        );
+    }
+
+    #[test]
+    fn test_p5_callback_none_when_no_callback() {
+        let mut registry = AiRegistry::new();
+        let owner =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap();
+        let model_id = AiModelId::of(&owner, &[1u8; 32], 1);
+        registry
+            .register_model(AiModelSpec {
+                model_id,
+                model_hash: [1u8; 32],
+                owner,
+                min_verifier_count: 2,
+                agreement_threshold: 2,
+                max_input_ref_bytes: 1024,
+                max_output_ref_bytes: 2048,
+                request_deadline_blocks: 100,
+                result_deadline_blocks: 50,
+                version: 1,
+                active: true,
+            })
+            .unwrap();
+
+        let v1 =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000011")
+                .unwrap();
+        let v2 =
+            Address::from_hex("0000000000000000000000000000000000000000000000000000000000000012")
+                .unwrap();
+
+        let mut req = AiInferenceRequest {
+            request_id: AiRequestId::default(),
+            requester: owner,
+            model_id,
+            input_commitment: [2u8; 32],
+            input_ref: BoundedBytes::try_new(b"test".to_vec()).unwrap(),
+            max_fee: 100,
+            callback: None,
+            submitted_at_block: 10,
+            deadline_block: 110,
+        };
+        req.request_id = req.calculate_id();
+        let req_id = registry.submit_request(req, 5).unwrap();
+
+        registry
+            .submit_result(
+                AiInferenceResult {
+                    request_id: req_id,
+                    verifier: v1,
+                    output_commitment: [9u8; 32],
+                    output_ref: BoundedBytes::try_new(b"result".to_vec()).unwrap(),
+                    result_nonce: 1,
+                    signature: vec![1],
+                    submitted_at_block: 15,
+                },
+                15,
+            )
+            .unwrap();
+        let outcome = registry
+            .submit_result(
+                AiInferenceResult {
+                    request_id: req_id,
+                    verifier: v2,
+                    output_commitment: [9u8; 32],
+                    output_ref: BoundedBytes::try_new(b"result".to_vec()).unwrap(),
+                    result_nonce: 2,
+                    signature: vec![2],
+                    submitted_at_block: 16,
+                },
+                16,
+            )
+            .unwrap()
+            .expect("Should finalize");
+
+        assert_eq!(outcome.callback, None);
+    }
 }

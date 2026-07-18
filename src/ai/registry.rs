@@ -175,12 +175,16 @@ impl AiRegistry {
             && !self.outcomes.contains_key(&result.request_id)
         {
             agreeing_verifiers.sort();
+            // P5 Bulgu 7: Carry the callback address from the original request
+            // into the finalized outcome, so consumers can be notified.
+            let callback = request.callback;
             let outcome = AiInferenceOutcome {
                 request_id: result.request_id,
                 output_commitment: result.output_commitment,
                 output_ref: result.output_ref.clone(),
                 agreeing_verifiers,
                 finalized_at_block: result.submitted_at_block,
+                callback,
             };
             self.outcomes.insert(result.request_id, outcome.clone());
             return Ok(Some(outcome));
@@ -196,6 +200,60 @@ impl AiRegistry {
     /// Accessor: get a pending (non-finalized) request by ID.
     pub fn get_request(&self, request_id: &AiRequestId) -> Option<&AiInferenceRequest> {
         self.requests.get(request_id)
+    }
+
+    /// Deactivate a model (P5 Bulgu 6). Only the model owner can deactivate.
+    /// An inactive model rejects new inference requests, but existing pending
+    /// requests/results continue to be processed normally.
+    pub fn deactivate_model(
+        &mut self,
+        model_id: &AiModelId,
+        caller: &Address,
+    ) -> Result<(), String> {
+        let spec = self
+            .models
+            .get_mut(model_id)
+            .ok_or_else(|| format!("Model ID {} not found", model_id.to_hex()))?;
+
+        if spec.owner != *caller {
+            return Err(format!(
+                "Only the model owner can deactivate model {}",
+                model_id.to_hex()
+            ));
+        }
+
+        if !spec.active {
+            return Err(format!("Model {} is already inactive", model_id.to_hex()));
+        }
+
+        spec.active = false;
+        Ok(())
+    }
+
+    /// Reactivate a previously deactivated model. Only the model owner can reactivate.
+    pub fn reactivate_model(
+        &mut self,
+        model_id: &AiModelId,
+        caller: &Address,
+    ) -> Result<(), String> {
+        let spec = self
+            .models
+            .get_mut(model_id)
+            .ok_or_else(|| format!("Model ID {} not found", model_id.to_hex()))?;
+
+        if spec.owner != *caller {
+            return Err(format!(
+                "Only the model owner can reactivate model {}",
+                model_id.to_hex()
+            ));
+        }
+
+        if spec.active {
+            return Err(format!("Model {} is already active", model_id.to_hex()));
+        }
+
+        spec.active = true;
+        Ok(())
     }
 
     /// P5 Bulgu 4: Reclaim escrowed max_fee for an expired, unfinalized request.

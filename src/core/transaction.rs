@@ -149,6 +149,8 @@ pub enum TransactionType {
     AiInferenceResult(crate::ai::types::AiInferenceResult),
     /// Phase 10 (§1 P5): Reclaim escrowed max_fee for expired unfinalized AI request.
     AiFeeReclaim(crate::ai::types::AiRequestId),
+    /// Phase 10 (§1 P5): Deactivate an AI model (owner-only, prevents new requests).
+    AiModelDeactivate(crate::ai::types::AiModelId),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -345,6 +347,7 @@ impl Transaction {
             TransactionType::AiInferenceRequest(_) => 21,
             TransactionType::AiInferenceResult(_) => 22,
             TransactionType::AiFeeReclaim(_) => 23,
+            TransactionType::AiModelDeactivate(_) => 24,
         };
         hasher.update([type_byte]);
 
@@ -485,6 +488,7 @@ impl Transaction {
             TransactionType::AiInferenceRequest(_) => schedule.contract_call_gas * 2,
             TransactionType::AiInferenceResult(_) => schedule.contract_call_gas,
             TransactionType::AiFeeReclaim(_) => schedule.contract_call_gas,
+            TransactionType::AiModelDeactivate(_) => schedule.contract_call_gas,
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature
