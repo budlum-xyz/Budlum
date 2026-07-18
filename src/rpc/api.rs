@@ -542,8 +542,8 @@ pub trait BudlumApi {
     #[method(name = "bud_dataAssetRegister")]
     async fn data_asset_register(
         &self,
-        asset: crate::storage::marketplace::DataAsset,
-        commitment: crate::storage::marketplace::StorageCommitment,
+        asset: crate::bud_marketplace::DataAsset,
+        commitment: crate::bud_marketplace::StorageCommitment,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Get DataAsset metadata by asset_id.
@@ -558,7 +558,7 @@ pub trait BudlumApi {
     #[method(name = "bud_accessGrantSubmit")]
     async fn access_grant_submit(
         &self,
-        grant: crate::storage::marketplace::AccessGrant,
+        grant: crate::bud_marketplace::AccessGrant,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Query grants for a specific grantee on an asset.
@@ -567,21 +567,21 @@ pub trait BudlumApi {
     async fn access_grant_query(
         &self,
         asset_id: String,
-        grantee: crate::storage::marketplace::Grantee,
+        grantee: crate::bud_marketplace::Grantee,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Revoke an access grant (blocks future access only).
     #[method(name = "bud_accessGrantRevoke")]
     async fn access_grant_revoke(
         &self,
-        revocation: crate::storage::marketplace::AccessRevocation,
+        revocation: crate::bud_marketplace::AccessRevocation,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// List an asset on the marketplace.
     #[method(name = "bud_marketplaceList")]
     async fn marketplace_list(
         &self,
-        listing: crate::storage::marketplace::MarketplaceListing,
+        listing: crate::bud_marketplace::MarketplaceListing,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Get marketplace listing for an asset.
