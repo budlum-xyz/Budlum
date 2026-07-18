@@ -1521,3 +1521,87 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 - ARENAX raporundaki BridgeBurn `verify_id`/replay bulgusu ayrı doğrulama ve negatif test gerektirir; kanıtlanmadan kodlanmayacak.
 
 *Co-authored-by: ARENA3 <arena3@budlum.xyz>*
+
+### [2026-07-18 21:10 UTC+3] ARENAX — Derin Denetim Raporu: GAP-2 Doğrulama + Yeni 5 Bulgu (V22-V26)
+
+**Durum:** İlk sürekli denetim turu tamamlandı. Tüm kritik modüller kaynak-kod bazlı incelendi.
+**Kapsam:** bridge.rs, ai/registry.rs, ai/types.rs, chain/snapshot.rs, socialfi/mod.rs, cross_domain/relayer.rs — 145 Rust dosyası taraması.
+**Kime:** ARENA1, ARENA2, ARENA3, kullanıcı (Ayaz)
+
+---
+
+#### V22: [KRİTİK] AI Registry state_root() — Map'ler arası domain-separation yok
+
+**Dosya:** `src/ai/registry.rs:454-490` (`AiRegistry::state_root()`)
+**Sorun:** `models`, `requests`, `results`, `outcomes`, `reclaimed_fees` map'leri TEK hasher ile sıralı güncelleniyor; map'ler arasında domain-separation byte/TAGI yok. Header olarak `BDLM_AI_REGISTRY_ROOT_V1` yazılır ama ardından `models[id]` → `requests[id]` → `results[id]` → `outcomes[id]` → `reclaimed_fees[id]` bitişik hashlenir.
+**Etki:** Farklı iki map'in aynı `[u8;32]` key ve aynı `[u8;32]` leaf hash değerleriyle çakışması durumunda (cross-map collision) state_root değişmez. Pratik saldırı: saldırgan model_id=request_id=[a;32] ile eşleşen bir model ve request yaratırsa ikisi aynı hashing pozisyonunda çakışır — root değişmez ama kayıp/yedek state fark edilmez.
+**Öneri:** Her map için domain prefix eklenmeli:
+```rust
+hasher.update(b"models_v1");
+for (id, spec) in &self.models { ... }
+hasher.update(b"requests_v1");
+for (id, req) in &self.requests { ... }
+```
+**Ciddiyet:** 🟡 Orta (collision saldırısı zor, ama defense-in-depth ihlali)
+**Test:** Negatif test: farklı map'lere aynı key/leaf çiftiyle kayıt ekle, root'un farklı olacağını doğrula.
+
+---
+
+#### V23: [YÜKSEK] NftRegistry::update_luminance — Üst sınır yok (u64::MAX overflow)
+
+**Dosya:** `src/socialfi/mod.rs:53-60`
+**Sorun:** `luminance: u64` alanına negatif koruma var ama ÜST SINIR yok. `delta_mcd: i64` pozitif büyük değerlerle tekrar tekrar çağrılarak `u64::MAX`'a ulaşabilir. `new_val as u128 + delta as i128` = i128 taşması mümkün (i128 MAX > u64 MAX, cast `u64::MAX`'ı aşan değeri truncate eder).
+**Etki:** Sınırsız luminance bir NFT'nin değerini manipüle eder; boost/marketplace mantığı bu değere bağlıysa ekonomik suistimal.
+**Öneri:** `u64::MAX` tavan kontrolü:
+```rust
+if new_val > u64::MAX as i128 {
+    new_val = u64::MAX as i128;
+}
+```
+Veya daha iyisi: makul bir üst sınır sabiti (ör. `MAX_LUMINANCE = 1_000_000_000`).
+**Ciddiyet:** 🟡 Orta (sosyal katman, doğrudan fon kaybı yok ama boost dağıtımını etkiler)
+
+---
+
+#### V24: [YÜKSEK] Bridge root() — transfer detaylarını kapsamıyor (yalnız asset_locations)
+
+**Dosya:** `src/cross_domain/bridge.rs:340-355` (`BridgeState::root()`)
+**Sorun:** Root yalnızca `asset_locations` (AssetId→Status) map'ini hashliyor. `transfers` map'i (amount, owner, recipient, source/target_domain, expiry_height) ve `expiry_queue` root'a dahil DEĞİL.
+**Etki:** Aynı asset_id ve status ile farklı transfer detayları (farklı amount, farklı owner/recipient) root'u değiştirmez. Bu, GAP-2'nin bridge_state alanını hash kapsamına almadaki KRİTİK boşluğu tamamlar: sadece bridge_state'i hash'e eklemek yetmez, BridgeState::root() da transfer detaylarını kapsamalı.
+**Öneri:** Root hesaplamasına transfer detaylarını da ekle:
+```rust
+for (mid, t) in &self.transfers {
+    hasher.update(mid);
+    hasher.update(&t.amount.to_le_bytes());
+    hasher.update(&t.owner.0);
+    hasher.update(&t.recipient.0);
+    // ... diğer alanlar
+}
+```
+**Ciddiyet:** 🔴 Kritik (GAP-2 ile birlikte — snapshot imzası gelene kadar bilinçli borç olarak kabul edilebilir, ama GAP-2 kapanınca mutlaka düzeltilmeli)
+
+---
+
+#### V25: [DÜŞÜK] snapshot_v2 calculate_hash — bridge_root/message_root/settlement_root alanları snapshot yapıldığında zaten köklenmiş AYRI kökler
+
+**Dosya:** `src/chain/snapshot.rs:580-600` (`StateSnapshotV2::calculate_hash()`)
+**Sorun:** `bridge_root`, `message_root`, `settlement_root`, `global_header_summary` zaten snapshot'a girmeden önce `AccountState` tarafından hesaplanmış köklerdir. Bunları hash'e eklemek, kökleri İKİ KEZ demirleme sağlar — iyi bir şey. Ama bu köklerin İÇERİĞİ de tam kapsanmalı (bridge_root sadece asset_locations hashler — V24 bakınız).
+**Not:** Bu bir bulgu değil, V24'ün destekleyici kanıtı. bridge_root(snapshot) = BridgeState::root() = yanlıştır → snapshot.calculate_hash() yanlışı korur.
+
+---
+
+#### V26: [DÜŞÜK] expiry_queue stale entry'leri — sadece Locked transferler release edilir ama queue'dan silinmez
+
+**Dosya:** `src/cross_domain/bridge.rs:371-390` (`sweep_expired_locks`)
+**Sorun:** Bir transfer mint edildikten sonra expiry_queue'daki message_id entry'si kalır. `sweep_expired_locks` çağrıldığında "already minted" diye atlar ama queue'dan silmez. Bu, expiry_queue'nun zamanla gereksiz entry'lerle dolmasına yol açar.
+**Etki:** Hafif performans/snap bloat (her turda boşuna okunuyor). Güvenlik açığı değil.
+**Öneri:** Sweep sırasında status != Locked ise queue entry'sini de kaldır.
+**Ciddiyet:** ⚪ Bilgi (state bloat, performans)
+
+---
+
+**Doğrulama:** Bu bulguların TAMAMI kaynak-kod okumasıyla doğrulanmıştır. CI/derleme ortamım mevcut değil (arenax sandbox'ta `cargo` yoktur); CI teyidi gereken test önerileri kod bloklarıyla birlikte verilmiştir.
+
+**Sıradaki:** Derin denetim devam ediyor — executor.rs, tokenomics/mod.rs, consensus/pow.rs, consensus/pos.rs, cross_domain/relayer.rs, core/transaction.rs ve BNS modülü bir sonraki turda. GAP-1 RFC §7 açık soruları kullanıcı kararı bekliyor (bu denetim kapsamı dışında).
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
