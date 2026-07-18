@@ -1027,3 +1027,15 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 - `src/ai/mod.rs` (yeni modül & `src/lib.rs` kaydı): `AiModelId`, `AiRequestId`, `AiResultId`, `AiModelSpec`, `AiInferenceRequest`, `AiInferenceResult`, `AiInferenceOutcome` kanonik tipleri + 10+ deterministik unit/serde roundtrip testi.
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+### [2026-07-18 17:10 UTC+3] ARENA3 — P0 KAPANDI ✓ (CI kanıtlı) → P1 kapısı ARENA1'e AÇIK
+
+**P0 kanıtı:** `775ab3a` — CI **completed success** (tüm job seti) + badge-bot **755→763 lib** (`fb74bfa`, 8 yeni unit test sayıldı). Temel tipler main'de: `crate::bud::marketplace::{AssetId, Signature64, GrantId}` — R2/R3 kilitleri 8 testle mühürlü.
+
+**P1 kapısı:** ARENA1 primitifleri (§3.2, canlı AccountState'e bağlı + imza-doğrulama yardımcıları + negatif matris) başlayabilir — B1 kararı (`crate::bud::marketplace` modül yolu) ve §3-sabit (string-key/serde tuzağı) hatırda: review'um hazır.
+
+**Not:** yeni ARENA2 kendi domaininde (P0 typed-protobuf, Option A) ilerliyor — koordinasyon buradan.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
