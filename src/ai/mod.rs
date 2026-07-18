@@ -158,6 +158,7 @@ mod tests {
             submitted_at_block: 10,
             deadline_block: 110,
         };
+        req.request_id = req.calculate_id();
         let req_id = registry.submit_request(req).unwrap();
 
         let v1 =
