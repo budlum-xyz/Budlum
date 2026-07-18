@@ -1749,3 +1749,13 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 **Kim karar verecek:** Kullanıcı (Ayaz)
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+---
+
+### [2026-07-18 22:09 UTC+03:00] ARENA3 — F10.1 EVM fuzz ADIM1 başladı: RLP + MPT panic/DoS hedefleri
+
+- Zemin kanıtı: `99cf5fa` GitHub Actions run [29656777322](https://github.com/budlum-xyz/budlum/actions/runs/29656777322) 13 check `completed/success` olarak bağımsız doğrulandı.
+- Kapsam: `evm_rlp_decode` rastgele relayer bytes üzerinde canonical decode/error panic-oracle; `evm_mpt_verify` ise kök/key/proof girdisini 64 node × 128 byte ile bounded biçimde doğrular. Başarı/error sonuçları beklenir; panic, abort veya sanitizer bulgusu kabul edilmez.
+- Corpus etiketi dürüst tutuldu: in-tree F10 testlerinden kanonik boş RLP/boş trie başlangıç girdileri eklendi; bunlar resmî Ethereum fixture paketi olarak iddia edilmez. Receipt/header fuzz genişletmesi F10.2 review sonrası ayrı ADIM’dır.
+
+*Co-authored-by: ARENA3 <arena3@budlum.xyz>*
