@@ -140,15 +140,15 @@ mod tests {
     /// Test-yardımcı: minimal 9-field header RLP (trailing fork fields YOK).
     fn header_bytes(parent: [u8; 32], number: u64, receipts_root: [u8; 32]) -> Vec<u8> {
         let item = Item::List(vec![
-            Item::String(parent.to_vec()),                 // parentHash
-            Item::String(vec![0u8; 32]),                   // ommersHash
-            Item::String(vec![0u8; 20]),                   // coinbase
-            Item::String(vec![0u8; 32]),                   // stateRoot
-            Item::String(vec![0u8; 32]),                   // transactionsRoot
-            Item::String(receipts_root.to_vec()),          // receiptsRoot
-            Item::String(vec![0u8; 256]),                  // logsBloom
-            Item::String(vec![]),                          // difficulty (0)
-            Item::String(trim_u64(number)),                // number
+            Item::String(parent.to_vec()),        // parentHash
+            Item::String(vec![0u8; 32]),          // ommersHash
+            Item::String(vec![0u8; 20]),          // coinbase
+            Item::String(vec![0u8; 32]),          // stateRoot
+            Item::String(vec![0u8; 32]),          // transactionsRoot
+            Item::String(receipts_root.to_vec()), // receiptsRoot
+            Item::String(vec![0u8; 256]),         // logsBloom
+            Item::String(vec![]),                 // difficulty (0)
+            Item::String(trim_u64(number)),       // number
         ]);
         encode(&item)
     }

@@ -94,9 +94,9 @@ pub fn decode_receipt(envelope: &[u8]) -> Result<EthReceipt, ReceiptError> {
 /// 32-byte → pre-Byzantium postState root (varsayılan success).
 fn decode_status(b: &[u8]) -> Result<bool, ReceiptError> {
     match b.len() {
-        0 => Ok(false),                // status 0 (fail)
-        1 => Ok(b[0] != 0),            // 0x01 success, 0x00 fail
-        32 => Ok(true),                // pre-Byzantium postState root
+        0 => Ok(false),     // status 0 (fail)
+        1 => Ok(b[0] != 0), // 0x01 success, 0x00 fail
+        32 => Ok(true),     // pre-Byzantium postState root
         _ => Err(ReceiptError::InvalidEnvelope),
     }
 }
@@ -146,18 +146,9 @@ impl EthReceipt {
     /// Verilen `(emitter_address, topic0)` ile eşleşen ilk log'u döner.
     /// Bridge: `topic0` = keccak256("Deposit(address,uint256,bytes32,uint256)") gibi
     /// event signature; `emitter_address` = bridge kontrat adresi.
-    pub fn find_log<'a>(
-        &'a self,
-        emitter: &[u8],
-        topic0: &[u8; 32],
-    ) -> Option<&'a EthLog> {
+    pub fn find_log<'a>(&'a self, emitter: &[u8], topic0: &[u8; 32]) -> Option<&'a EthLog> {
         self.logs.iter().find(|log| {
-            log.address == emitter
-                && log
-                    .topics
-                    .first()
-                    .map(|t| t == topic0)
-                    .unwrap_or(false)
+            log.address == emitter && log.topics.first().map(|t| t == topic0).unwrap_or(false)
         })
     }
 }
@@ -305,12 +296,18 @@ mod tests {
             Item::List(vec![]),
         ]);
         let bytes = encode(&item);
-        assert_eq!(decode_receipt(&bytes).unwrap_err(), ReceiptError::InvalidEnvelope);
+        assert_eq!(
+            decode_receipt(&bytes).unwrap_err(),
+            ReceiptError::InvalidEnvelope
+        );
     }
 
     #[test]
     fn decode_empty_envelope_rejected() {
-        assert_eq!(decode_receipt(&[]).unwrap_err(), ReceiptError::InvalidEnvelope);
+        assert_eq!(
+            decode_receipt(&[]).unwrap_err(),
+            ReceiptError::InvalidEnvelope
+        );
     }
 
     #[test]
@@ -321,6 +318,9 @@ mod tests {
             Item::String(vec![]),
         ]);
         let bytes = build_legacy_receipt(true, vec![bad_log]);
-        assert_eq!(decode_receipt(&bytes).unwrap_err(), ReceiptError::InvalidLog);
+        assert_eq!(
+            decode_receipt(&bytes).unwrap_err(),
+            ReceiptError::InvalidLog
+        );
     }
 }

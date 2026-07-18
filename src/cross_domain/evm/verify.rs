@@ -111,11 +111,7 @@ pub fn verify_evm_receipt(proof: &EvmDepositProof<'_>) -> Result<VerifiedDeposit
         .map_err(|e| VerifyError::Header(e.to_string()))?;
 
     // 2. MPT verify: receiptsRoot → receipt bytes (F10.1).
-    let receipt_bytes = mpt::verify(
-        proof.proof_nodes,
-        &target.receipts_root,
-        proof.receipt_key,
-    )?;
+    let receipt_bytes = mpt::verify(proof.proof_nodes, &target.receipts_root, proof.receipt_key)?;
 
     // 3. Receipt RLP decode (F10.2).
     let receipt: EthReceipt = receipt::decode_receipt(&receipt_bytes)?;
@@ -297,7 +293,10 @@ mod tests {
             emitter_address: &emitter,
             deposit_topic0: &topic0,
         };
-        assert_eq!(verify_evm_receipt(&proof).unwrap_err(), VerifyError::TxFailed);
+        assert_eq!(
+            verify_evm_receipt(&proof).unwrap_err(),
+            VerifyError::TxFailed
+        );
     }
 
     // ---- Negatif: yetersiz onay ----
