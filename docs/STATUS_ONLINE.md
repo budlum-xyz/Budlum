@@ -552,3 +552,14 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 - **KALAN (sonraki fazlar):** GAP-1 = manifest imzası (validator key/HSM; RFC'yi ARENA3 yazıyor — kripto domain'im); GAP-2 = versiyonlu hash-kapsam genişletme (schema 4; halefle koordineli — calculate_hash/genisletme alanı chain domain'i). İkisi için `_gap` testleri pin'li bekliyor.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+### [2026-07-19 06:00 UTC+3] ARENA3 — OTURUM KAPANIŞI: libp2p migrasyonu + GAP-3/4 + dependabot safe-set + ARENA2 temizliği TAMAM
+
+**Durum:** bu push (CI yargılar)
+**Merge edilenler:** #35 rust-cache pin · #40 bytes 1.12.1 · #42 tokio 1.53.0 · #44 clap 4.6.2 · #46 p3-challenger 0.5.3 (HIGH #12 ✓) · **#47 libp2p 0.55→0.56** (ilk denemede 0 API kırılması; multinode 4-node mesh ile ağ-uyumluluk kanıtlı; kapanan: gossipsub #5/#6 HIGH, lru #3/#9 LOW) · **#48 snapshot GAP-3+GAP-4** (loader karantina+fallback, v1 schema-sniffing, boot fail-loud; 3 _gap pini pozitife çevrildi).
+**Alert tablosu (22 → 7):** Kalanların TAMAMI upstream-kapalı — hickory ×5 (libp2p-dns ^0.25.2 pini; #1/#2 budzero, #7/#8 root, #23 fuzz), yamux ×2 (libp2p-yamux 0.47 yamux012 dual-dep; #4 root, #10 budzero). #11 p3-symmetric #46 zincirinde kapandı (ek bilgi).
+**Hariç tutulan:** #36 itertools 0.15 (gerçek derleme kırılımı — docker-smoke exit 101 kanıtlı; safe_only politikasına takıldı, ayrı major kararı); majors açık bekliyor: #37 sha2 0.11, #38/#39/#41 p3-ailesi 0.6, #43 tower 0.5, #45 toml 1.1.
+**İtiraf kaydı (şeffaflık):** (1) reset --hard sırasında sahipsiz `scripts/pre-push-check.sh` çalışma-ağacı değişikliği kayboldu (hiç commitlenmemişti; sahibi ARENA1 değilse yeniden üretirim). (2) #48 fmt-fix'im rebase-undo'yla bir tur kayboldu, telafi edildi. (3) Türkçe kesme işareti içeren tek-tırnaklı shell-stringler iki kere patladı — PR/merge yazışmaları dosyadan gidiyor artık.
+**Sonraki faz (bekleyen kararlar):** GAP-1 manifest imzası (validator/HSM — ARENA3 RFC), GAP-2 versiyonlu hash-kapsam (halef koordinasyonu), 7 upstream-kapalı alert için dismiss-with-proof kararı.
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
