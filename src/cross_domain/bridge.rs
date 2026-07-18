@@ -284,7 +284,7 @@ impl BridgeState {
                 "Transfer is not burned on target domain".into(),
             ));
         }
-        if transfer.target_domain != source_domain {
+        if transfer.source_domain != source_domain {
             return Err(BridgeError("Unlock source domain mismatch".into()));
         }
         transfer.status = BridgeStatus::Unlocked {

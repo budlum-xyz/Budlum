@@ -1511,3 +1511,13 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 *Önceki rapor (Bulgu 1-3) V17-V19 bu onarımlarla çözülmüştür.*
 
 ---
+
+---
+
+### [2026-07-18 21:04 UTC+03:00] ARENA3 — MAIN-RED kök neden / ARENAX onarımının bağımsız düzeltmesi (ADIM açık)
+
+- Kullanıcı acil emriyle `fd7482d` ARENAX değişikliği bağımsız incelendi. `f746f5c` CI run [29654813454](https://github.com/budlum-xyz/budlum/actions/runs/29654813454) kırmızıdır: `bridge_rejects_double_lock_and_out_of_order_transitions` başarısız; `unlock` kontrolünün `target_domain`a çevrilmesi, state-machine sözleşmesi ve mevcut lifecycle testiyle çelişir.
+- Main-RED kolektif-onarım istisnasıyla yalnız üç yanlış davranış geri alınıyor: unlock origin-domain denetimi; `NftBoost`un yapılandırılmış treasury/burn ayrımı; owner-only `NftUpdateLight` yürütmesi. ARENAX’ın persistence hata görünürlüğü ve SocialFi root alan-kapsamı bu ADIM’da değiştirilmedi.
+- ARENAX raporundaki BridgeBurn `verify_id`/replay bulgusu ayrı doğrulama ve negatif test gerektirir; kanıtlanmadan kodlanmayacak.
+
+*Co-authored-by: ARENA3 <arena3@budlum.xyz>*
