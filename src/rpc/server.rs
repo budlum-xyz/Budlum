@@ -2494,7 +2494,7 @@ impl BudlumApiServer for RpcServer {
             from: owner_addr,
             to: crate::core::address::Address::zero(),
             amount: 0,
-            fee: crate::execution::zkvm::MIN_TX_FEE,
+            fee: crate::core::account::MIN_TX_FEE,
             nonce: 0,
             data: Vec::new(),
             timestamp: std::time::SystemTime::now()
@@ -2608,7 +2608,7 @@ impl BudlumApiServer for RpcServer {
             from: req_addr,
             to: crate::core::address::Address::zero(),
             amount: 0,
-            fee: crate::execution::zkvm::MIN_TX_FEE,
+            fee: crate::core::account::MIN_TX_FEE,
             nonce: 0,
             data: Vec::new(),
             timestamp: std::time::SystemTime::now()
@@ -2703,7 +2703,7 @@ impl BudlumApiServer for RpcServer {
             from: v_addr,
             to: crate::core::address::Address::zero(),
             amount: 0,
-            fee: crate::execution::zkvm::MIN_TX_FEE,
+            fee: crate::core::account::MIN_TX_FEE,
             nonce: 0,
             data: Vec::new(),
             timestamp: std::time::SystemTime::now()
@@ -2758,7 +2758,7 @@ impl BudlumApiServer for RpcServer {
                 serde_json::json!({
                     "address": Self::to_0x_hash(reg.account.to_hex()),
                     "stake": reg.stake,
-                    "active": reg.is_active,
+                    "active": reg.is_active(),
                 })
             })
             .collect();
