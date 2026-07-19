@@ -1057,6 +1057,29 @@ mod tests {
     }
 
     #[test]
+    fn test_gap2_schema4_digest_includes_bud_storage_registry_field() {
+        // Phase 10 strict crate cutover pin: B.U.D. StorageRegistry remains
+        // committed after its canonical type moved to budlum_bud.
+        let account_state = AccountState::new();
+        let mut s1 = StateSnapshotV2::from_state(
+            &account_state,
+            StateSnapshotV2Params {
+                height: 11,
+                block_hash: "h".into(),
+                genesis_hash: "g".into(),
+                chain_id: 1,
+                finalized_height: 0,
+                finalized_hash: "f".into(),
+                finality_certificates: vec![],
+            },
+        );
+        s1.schema_version = 4;
+        let s2 = s1.clone();
+        s1.storage_registry = None;
+        assert_ne!(s1.calculate_digest(), s2.calculate_digest());
+    }
+
+    #[test]
     fn test_gap2_legacy_schema3_vs_schema4_digest_differ() {
         let account_state = AccountState::new();
         let mut s = StateSnapshotV2::from_state(
