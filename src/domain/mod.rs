@@ -16,8 +16,8 @@ pub use plugin::{
     PoADomainPlugin, PoSDomainPlugin, PoWDomainPlugin, ZkDomainPlugin,
 };
 pub use plugin_registry::DomainPluginRegistry;
-pub use registry::ConsensusDomainRegistry;
 pub use budlum_bud::{storage_deal_leaf_hash, StorageDomainParams};
+pub use registry::ConsensusDomainRegistry;
 pub use types::{
     normalize_hash32, ConsensusDomain, ConsensusKind, DomainCommitment, DomainId, DomainStatus,
     Hash32, PoWDomainParameters, RootScheme, VerifiedDomainCommitment, POW_HEADER_CHAIN_ADAPTER,
