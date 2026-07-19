@@ -920,7 +920,6 @@ mod chaos_tests {
         pool.add_transaction(rich).unwrap();
         assert_eq!(pool.len(), 100);
     }
-}
 
     // ─── Phase 10.5 Chaos: double-lock, state determinism, genesis mismatch ───
 
@@ -1054,3 +1053,4 @@ mod chaos_tests {
             "chain A's tip must match chain B's tip"
         );
     }
+}
