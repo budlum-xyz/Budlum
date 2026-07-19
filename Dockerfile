@@ -19,6 +19,9 @@ COPY src/ ./src/
 COPY benches/ ./benches/
 COPY proto/ ./proto/
 COPY budzero/ ./budzero/
+COPY budlum-primitives/ ./budlum-primitives/
+COPY B.U.D/ ./B.U.D/
+COPY BNS/ ./BNS/
 
 # Build release binary
 RUN cargo build --release --locked && \
