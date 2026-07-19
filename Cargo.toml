@@ -79,7 +79,6 @@ rayon = "1.10"
 # fragile sibling-checkout/pinned-repository requirement.
 bud-isa = { path = "budzero/bud-isa" }
 bud-vm = { path = "budzero/bud-vm" }
-bud-proof = { path = "budzero/bud-proof" }
 bud-node = { path = "budzero/bud-node" }
 
 [build-dependencies]
