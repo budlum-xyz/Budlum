@@ -2541,10 +2541,7 @@ impl Blockchain {
     /// content CIDs from the NFT registry (before the burn removes them).
     /// Returns a list of `(ContentId, owner_address)` pairs for content that
     /// should be pruned from the storage registry after block commit.
-    fn collect_nft_burn_cids(
-        &self,
-        block: &Block,
-    ) -> Vec<(budlum_bud::ContentId, Address)> {
+    fn collect_nft_burn_cids(&self, block: &Block) -> Vec<(budlum_bud::ContentId, Address)> {
         let mut cids = Vec::new();
         for tx in &block.transactions {
             if let crate::core::transaction::TransactionType::NftBurn = tx.tx_type {
@@ -2564,10 +2561,7 @@ impl Blockchain {
     /// This MUST be called after `apply_block_effects` (the NFT is already
     /// removed from the registry in committed state) using CIDs collected
     /// BEFORE the commit via `collect_nft_burn_cids`.
-    fn process_nft_burn_storage_pruning(
-        &mut self,
-        burn_cids: &[(budlum_bud::ContentId, Address)],
-    ) {
+    fn process_nft_burn_storage_pruning(&mut self, burn_cids: &[(budlum_bud::ContentId, Address)]) {
         for (cid, _burner) in burn_cids {
             let now_epoch = self.state.epoch_index;
             let pruned = self.state.storage_registry.prune_content(cid, now_epoch);

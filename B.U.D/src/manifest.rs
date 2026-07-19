@@ -12,8 +12,8 @@
 //! fully reconstructable from public on-chain state by any independent
 //! node. No "Budlum Inc. indexer" service is required.
 
-use budlum_primitives::hash_fields_bytes;
 use crate::ContentId;
+use budlum_primitives::hash_fields_bytes;
 
 use serde::{Deserialize, Serialize};
 

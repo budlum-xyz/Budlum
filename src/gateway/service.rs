@@ -1,6 +1,6 @@
 use crate::chain::chain_actor::ChainHandle;
-use budlum_bud::ContentId;
 use crate::storage::db::Storage;
+use budlum_bud::ContentId;
 
 /// Phase 6 §6.1: B.U.D. Universal Gateway.
 /// Resolves a BNS name (.bud) to content stored in B.U.D.

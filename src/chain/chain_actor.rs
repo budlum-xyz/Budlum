@@ -1315,9 +1315,7 @@ impl ChainHandle {
     }
 
     /// Query all storage deals.
-    pub async fn get_storage_deals(
-        &self,
-    ) -> Result<Vec<budlum_bud::StorageDeal>, String> {
+    pub async fn get_storage_deals(&self) -> Result<Vec<budlum_bud::StorageDeal>, String> {
         let (tx, rx) = oneshot::channel();
         let _ = self.tx.send(ChainCommand::GetStorageDeals(tx)).await;
         rx.await.map_err(|_| "Actor dropped".to_string())
@@ -1372,10 +1370,7 @@ impl ChainHandle {
         rx.await.unwrap_or(None)
     }
 
-    pub async fn bns_resolve_content(
-        &self,
-        name: String,
-    ) -> Option<budlum_bud::ContentId> {
+    pub async fn bns_resolve_content(&self, name: String) -> Option<budlum_bud::ContentId> {
         let (tx, rx) = oneshot::channel();
         let _ = self
             .tx

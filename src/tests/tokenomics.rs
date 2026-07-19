@@ -6,10 +6,10 @@ use crate::core::account::AccountState;
 use crate::core::address::Address;
 use crate::core::transaction::{Transaction, TransactionType, DEFAULT_CHAIN_ID};
 use crate::execution::executor::Executor;
-use budlum_bud::ContentId;
 use crate::tokenomics::{
     bud, genesis_allocations, TokenomicsAddresses, TokenomicsParams, BUD_TOTAL_SUPPLY,
 };
+use budlum_bud::ContentId;
 
 /// Build an AccountState seeded with the full $BUD genesis distribution.
 fn genesis_state() -> (AccountState, TokenomicsAddresses) {

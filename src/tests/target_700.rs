@@ -10,12 +10,12 @@
 //! from a CI summary line (libtest "test result:" / nextest "Summary"),
 //! never from hand counts, file greps, or chat claims.
 
-use budlum_bns::{BnsError, BnsRegistry};
 use crate::core::account::AccountState;
 use crate::core::address::Address;
 use crate::cross_domain::relayer::{RelayerConfig, UniversalRelayer};
 use crate::pollen::MarketplaceRegistry;
 use crate::socialfi::NftRegistry;
+use budlum_bns::{BnsError, BnsRegistry};
 use budlum_bud::ContentId;
 
 fn addr(b: u8) -> Address {

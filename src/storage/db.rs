@@ -999,10 +999,7 @@ impl Storage {
 
     /// Retrieve raw content bytes by ContentId.
     /// Stub: content-addressed blob storage is not yet implemented (Phase 0.40 scope).
-    pub fn get_content(
-        &self,
-        _cid: &budlum_bud::ContentId,
-    ) -> std::io::Result<Vec<u8>> {
+    pub fn get_content(&self, _cid: &budlum_bud::ContentId) -> std::io::Result<Vec<u8>> {
         Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "Content-addressed blob storage not yet implemented (Phase 0.40 scope)",

@@ -11,10 +11,9 @@
 //! Data-sovereignty rule: anyone may open a challenge or submit a storage
 //! deal; no team-gated monitor role exists.
 
-
-use budlum_primitives::Address;
-use budlum_primitives::hash_fields_bytes;
 use budlum_bud::StorageDomainParams;
+use budlum_primitives::hash_fields_bytes;
+use budlum_primitives::Address;
 pub type Hash32 = [u8; 32];
 use budlum_bud::ContentId;
 use budlum_bud::ContentManifest;
@@ -749,8 +748,8 @@ pub fn storage_deal_leaf_hash(deal: &StorageDeal) -> Hash32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use budlum_primitives::Address;
     use budlum_bud::StorageDomainParams;
+    use budlum_primitives::Address;
 
     fn params() -> StorageDomainParams {
         StorageDomainParams {

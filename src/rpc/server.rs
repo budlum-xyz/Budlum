@@ -3,12 +3,12 @@ use crate::chain::chain_actor::ChainHandle;
 use crate::core::address::Address;
 use crate::core::block::Block;
 use crate::core::transaction::Transaction;
+use crate::network::node::NodeClient;
+use bincode;
+use budlum_bud::ContentId;
 use budlum_bud::{
     RetrievalChallenge, RetrievalChallengeRequest, RetrievalResponse, StorageDeal, StorageRegistry,
 };
-use crate::network::node::NodeClient;
-use budlum_bud::ContentId;
-use bincode;
 use futures::future::BoxFuture;
 use hex;
 use hyper::header::{HeaderValue, AUTHORIZATION};

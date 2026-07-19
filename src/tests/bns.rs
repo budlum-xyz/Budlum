@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::core::address::Address;
     use budlum_bns::BnsError;
     use budlum_bns::BnsRegistry;
-    use crate::core::address::Address;
 
     #[test]
     fn test_bns_registration_and_resolution() {
