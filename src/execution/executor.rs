@@ -197,13 +197,10 @@ impl Executor {
 
                         state
                             .governance
-                            .create_proposal(
-                                tx.from,
-                                p_type,
-                                state.epoch_index,
-                                duration,
-                            )
-                            .map_err(|e| BudlumError::validation("governance_proposal_failed", e))?;
+                            .create_proposal(tx.from, p_type, state.epoch_index, duration)
+                            .map_err(|e| {
+                                BudlumError::validation("governance_proposal_failed", e)
+                            })?;
                     }
                 }
             }
