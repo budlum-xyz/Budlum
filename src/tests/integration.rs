@@ -29,7 +29,7 @@ mod integration_tests {
         state.add_validator(val_addr, 1000);
 
         let p_type = ProposalType::ChangeBaseFee(10);
-        let mut prop_tx = Transaction::new_proposal(val_addr, p_type, 1, 0);
+        let mut prop_tx = Transaction::new_proposal(val_addr, p_type, 10, 0);
         prop_tx.sign(&val_kp);
 
         Executor::apply_transaction(&mut state, &prop_tx).unwrap();
@@ -41,8 +41,12 @@ mod integration_tests {
 
         Executor::apply_transaction(&mut state, &vote_tx).unwrap();
 
-        state.advance_epoch(1000); // 0 -> 1
-        state.advance_epoch(2000); // 1 -> 2
+        // V68: MIN_PROPOSAL_DURATION=10 → end_epoch=10. advance_epoch
+        // check-before-increment yaptığı için 11 çağrı gerek (epoch 0→10,
+        // 11. çağrıda 10>=10 → finalize → Executed).
+        for _ in 0..11 {
+            state.advance_epoch(1000);
+        }
 
         assert_eq!(
             state.governance.proposals[0].status,
