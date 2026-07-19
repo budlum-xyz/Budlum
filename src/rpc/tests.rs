@@ -490,7 +490,7 @@ mod rpc_tests {
                     operator_bond: 2_000_000,
                     fee_per_epoch: 10,
                 },
-                crate::domain::storage_params::StorageDomainParams::default(),
+                budlum_bud::StorageDomainParams::default(),
                 Some(valid_merkle_proof()),
                 Some([0x42u8; 32]),
             )

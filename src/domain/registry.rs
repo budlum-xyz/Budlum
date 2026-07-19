@@ -167,7 +167,7 @@ pub fn domain_leaf_hash(domain: &ConsensusDomain) -> Hash32 {
         // with different chunk_size / challenge_interval would hash to the
         // same leaf and the registry root would no longer be a sound
         // commitment to the per-domain parameters.
-        let storage_params = crate::domain::storage_params::storage_params_bytes(storage);
+        let storage_params = budlum_bud::storage_params::storage_params_bytes(storage);
         hash_fields_bytes(&[
             b"BDLM_DOMAIN_REGISTRY_LEAF_V3",
             &domain.id.to_le_bytes(),

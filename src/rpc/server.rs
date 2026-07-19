@@ -1455,7 +1455,7 @@ impl BudlumApiServer for RpcServer {
         start_epoch: u64,
         end_epoch: u64,
         economics: crate::domain::storage_deal::StorageEconomicsParams,
-        domain_params: crate::domain::storage_params::StorageDomainParams,
+        domain_params: budlum_bud::StorageDomainParams,
         merkle_proof: Option<Vec<u8>>,
         storage_root: Option<crate::domain::Hash32>,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
@@ -1525,7 +1525,7 @@ impl BudlumApiServer for RpcServer {
                 start_epoch,
                 end_epoch,
                 economics,
-                &crate::domain::storage_params::StorageDomainParams::default(),
+                &budlum_bud::StorageDomainParams::default(),
                 merkle_proof,
                 storage_root,
             );

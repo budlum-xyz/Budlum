@@ -2,7 +2,7 @@ use crate::core::address::Address;
 use crate::core::block::Block;
 use crate::core::hash::hash_fields_bytes;
 use crate::domain::finality_adapter::FinalityProof;
-use crate::domain::storage_params::StorageDomainParams;
+use budlum_bud::StorageDomainParams;
 use serde::{Deserialize, Serialize};
 
 pub type DomainId = u32;
@@ -67,7 +67,7 @@ impl ConsensusKind {
                 // downstream code that already pattern-matches on `as_bytes()`
                 // can recognize storage domains unambiguously.
                 let mut out = b"storage_attestation:".to_vec();
-                out.extend_from_slice(&crate::domain::storage_params::storage_params_bytes(params));
+                out.extend_from_slice(&budlum_bud::storage_params::storage_params_bytes(params));
                 out
             }
             ConsensusKind::AiInference => b"ai_inference".to_vec(),

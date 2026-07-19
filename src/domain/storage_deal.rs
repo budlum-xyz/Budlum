@@ -14,7 +14,7 @@
 
 use crate::core::address::Address;
 use crate::core::hash::hash_fields_bytes;
-use crate::domain::storage_params::StorageDomainParams;
+use budlum_bud::StorageDomainParams;
 use crate::domain::Hash32;
 use budlum_bud::ContentId;
 use budlum_bud::ContentManifest;
@@ -750,7 +750,7 @@ pub fn storage_deal_leaf_hash(deal: &StorageDeal) -> Hash32 {
 mod tests {
     use super::*;
     use crate::core::address::Address;
-    use crate::domain::storage_params::StorageDomainParams;
+    use budlum_bud::StorageDomainParams;
 
     fn params() -> StorageDomainParams {
         StorageDomainParams {

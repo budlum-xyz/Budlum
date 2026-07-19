@@ -20,7 +20,7 @@ use crate::domain::storage_deal::{
     ChallengeOutcome, DealStatus, RetrievalChallengeRequest, StorageEconomicsParams, StorageError,
     StorageRegistry,
 };
-use crate::domain::storage_params::StorageDomainParams;
+use budlum_bud::StorageDomainParams;
 use budlum_bud::ContentId;
 use budlum_bud::ContentManifest;
 
