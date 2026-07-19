@@ -3776,7 +3776,7 @@ mod tests {
             Address::from_hex("0000000000000000000000000000000000000000000000000000000000000011")
                 .unwrap();
         // Stake the verifier
-        registry.lock_verifier_stake(v1, 1_000).unwrap();
+        registry.lock_verifier_stake(&v1, 1_000).unwrap();
 
         // In permissionless mode, staked verifier is authorized
         assert!(!registry.is_whitelist_mode());
@@ -3795,8 +3795,8 @@ mod tests {
                 .unwrap();
 
         // Stake both verifiers
-        registry.lock_verifier_stake(v1, 1_000).unwrap();
-        registry.lock_verifier_stake(v2, 1_000).unwrap();
+        registry.lock_verifier_stake(&v1, 1_000).unwrap();
+        registry.lock_verifier_stake(&v2, 1_000).unwrap();
 
         // Whitelist only v1
         registry.whitelist_verifier(v1);
@@ -3825,7 +3825,7 @@ mod tests {
         let v1 =
             Address::from_hex("0000000000000000000000000000000000000000000000000000000000000011")
                 .unwrap();
-        registry.lock_verifier_stake(v1, 1_000).unwrap();
+        registry.lock_verifier_stake(&v1, 1_000).unwrap();
         registry.whitelist_verifier(v1);
         assert!(registry.is_verifier_authorized(&v1));
 
