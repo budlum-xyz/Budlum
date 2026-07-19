@@ -3160,8 +3160,91 @@ impl Blockchain {
 
         self.chain = new_chain;
         self.state = new_state;
+
+        // V95 fix (ARENAS): Reorg sonrası domain/bridge/settlement yapılarını
+        // storage'dan reload et. Eski kod bu alanları olduğu gibi bırakıyordu —
+        // split-brain (eski zincirin domain/bridge state'i ile yeni zincirin
+        // account state'i tutarsız oluyordu).
+        self.domain_registry = crate::domain::ConsensusDomainRegistry::new();
+        self.domain_commitment_registry = crate::domain::DomainCommitmentRegistry::new();
+        self.global_headers = Vec::new();
+        self.pending_finality_certs = BTreeMap::new();
+        self.pending_slashing_evidence = Vec::new();
+        self.settlement_finality_hashes = Vec::new();
+        self.proof_claims = crate::prover::ProofClaimRegistry::new();
+        self.pending_storage_root = None;
+        self.storage_slashed_bond_total = 0;
+        self.storage_burned_bond_total = 0;
+        self.storage_operator_rewards = BTreeMap::new();
+        self.storage_last_reward_epoch = BTreeMap::new();
+        self.storage_economics_events = Vec::new();
+
+        // Reload domain/bridge/settlement state from storage if available.
+        if let Some(ref store) = self.storage {
+            if let Ok(domains) = store.load_consensus_domains() {
+                for domain in domains {
+                    if let Err(e) = Self::validate_consensus_domain_registration(&domain) {
+                        warn!("Skipping invalid stored domain during reorg: {}", e);
+                        continue;
+                    }
+                    if let Err(e) = self.domain_registry.register(domain) {
+                        warn!("Skipping duplicate stored domain during reorg: {}", e);
+                    }
+                }
+            }
+
+            if let Ok(commitments) = store.load_domain_commitments() {
+                for commitment in commitments {
+                    if let Err(e) = Self::validate_stored_domain_commitment_metadata(
+                        &self.domain_registry,
+                        &commitment,
+                    ) {
+                        warn!("Skipping invalid commitment during reorg: {}", e);
+                        continue;
+                    }
+                    if let Err(e) = self.domain_commitment_registry.insert(commitment.clone()) {
+                        warn!("Skipping duplicate commitment during reorg: {}", e);
+                    } else {
+                        for (addr, new_nonce) in &commitment.state_updates {
+                            if *new_nonce > self.state.get_nonce(addr) {
+                                let account = self.state.get_or_create(addr);
+                                account.nonce = *new_nonce;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Ok(stored_global_headers) = store.load_global_headers() {
+                self.global_headers =
+                    Self::validated_global_header_prefix(stored_global_headers, self.chain_id);
+            }
+
+            if let Ok(Some(stored_bridge_state)) = store.load_bridge_state() {
+                self.state.bridge_state = stored_bridge_state;
+            }
+
+            if let Ok(messages) = store.load_cross_domain_messages() {
+                let mut registry = CrossDomainMessageRegistry::new();
+                for msg in messages {
+                    if let Err(e) = registry.insert(msg) {
+                        warn!("Skipping duplicate cross-domain message during reorg: {}", e);
+                    }
+                }
+                self.state.message_registry = registry;
+            }
+        }
+
         self.validator_snapshots.clear();
         self.record_validator_snapshot(self.state.epoch_index);
+
+        // Reset finalized_height to genesis — will be restored by next finality cert
+        self.finalized_height = 0;
+        self.finalized_hash = self
+            .chain
+            .first()
+            .map(|b| b.hash.clone())
+            .unwrap_or_default();
 
         let mut new_pending = Vec::new();
 
