@@ -71,9 +71,12 @@ impl BootstrapDomainConfig {
                 bridge_enabled: false, // PoA domain bridge default kapalı
                 min_confirmations: 1,
                 poa_authorities: vec![
-                    "0x0000000000000000000000000000000000000000000000000000000000000AA1".to_string(),
-                    "0x0000000000000000000000000000000000000000000000000000000000000AA2".to_string(),
-                    "0x0000000000000000000000000000000000000000000000000000000000000AA3".to_string(),
+                    "0x0000000000000000000000000000000000000000000000000000000000000AA1"
+                        .to_string(),
+                    "0x0000000000000000000000000000000000000000000000000000000000000AA2"
+                        .to_string(),
+                    "0x0000000000000000000000000000000000000000000000000000000000000AA3"
+                        .to_string(),
                 ],
             },
         ]
@@ -366,7 +369,7 @@ pub fn devnet_genesis() -> GenesisConfig {
         gas_schedule: Network::Devnet.gas_schedule(),
         timestamp: GENESIS_TIMESTAMP,
         bud_tokenomics: None,
-    bootstrap_domains: vec![],
+        bootstrap_domains: vec![],
     }
 }
 
