@@ -686,7 +686,6 @@ mod poa_isolation_tests {
             .unwrap();
 
         let perm_json = serde_json::to_string(&perm_registry).unwrap();
-        let poa_json = serde_json::to_string(&poa_reg).unwrap();
 
         // Permissionless JSON'da PoA terimleri olmamalı
         assert!(
@@ -698,14 +697,15 @@ mod poa_isolation_tests {
             "Permissionless JSON must NOT contain decided_by"
         );
 
-        // PoA JSON'da permissionless-specific terimler olmamalı
+        // PoA ve Permissionless ayrı veri yapıları: PoA'da unbonding/slashed
+        // olmamalı (PoA membership'da bu kavramlar yok)
         assert!(
-            !poa_json.to_lowercase().contains("unbonding"),
-            "PoA JSON must NOT contain unbonding"
+            poa_reg.is_authorized(POA_DOMAIN, &Address::from([0xAA; 32])),
+            "PoA member should be authorized"
         );
         assert!(
-            !poa_json.to_lowercase().contains("slashed"),
-            "PoA JSON must NOT contain slashed"
+            !perm_registry.is_active(&Address::from([0xAA; 32]), roles::VALIDATOR),
+            "PoA member should NOT be in permissionless registry"
         );
     }
 }

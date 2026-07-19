@@ -30,7 +30,7 @@ pub use address::Address;
 pub use evidence::{EvidenceError, ProofProvenance, SlashingProof, SlashingReport};
 pub use params::RegistryParams;
 pub use registry::{
-    MemberStatus, Registration, RegistryError, SlashOutcome, SlashingCondition,
-    VerifierRegistry, MIN_REGISTRATION_STAKE, UNBONDING_EPOCHS,
+    MemberStatus, Registration, RegistryError, SlashOutcome, SlashingCondition, VerifierRegistry,
+    MIN_REGISTRATION_STAKE, UNBONDING_EPOCHS,
 };
 pub use role::{roles, RoleId};

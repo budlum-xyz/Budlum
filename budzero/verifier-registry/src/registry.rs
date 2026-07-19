@@ -73,19 +73,39 @@ impl Registration {
 /// Errors surfaced by the registry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RegistryError {
-    InsufficientStake { required: u64, provided: u64 },
-    AlreadyRegistered { account: Address, role: RoleId },
-    NotRegistered { account: Address, role: RoleId },
-    NotActive { account: Address, role: RoleId },
-    StillUnbonding { release_epoch: u64, current_epoch: u64 },
-    RelayerNotActive { account: Address },
+    InsufficientStake {
+        required: u64,
+        provided: u64,
+    },
+    AlreadyRegistered {
+        account: Address,
+        role: RoleId,
+    },
+    NotRegistered {
+        account: Address,
+        role: RoleId,
+    },
+    NotActive {
+        account: Address,
+        role: RoleId,
+    },
+    StillUnbonding {
+        release_epoch: u64,
+        current_epoch: u64,
+    },
+    RelayerNotActive {
+        account: Address,
+    },
 }
 
 impl std::fmt::Display for RegistryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RegistryError::InsufficientStake { required, provided } => {
-                write!(f, "insufficient stake: required {required}, provided {provided}")
+                write!(
+                    f,
+                    "insufficient stake: required {required}, provided {provided}"
+                )
             }
             RegistryError::AlreadyRegistered { account, role } => {
                 write!(f, "{account} already registered as {role}")
@@ -96,8 +116,14 @@ impl std::fmt::Display for RegistryError {
             RegistryError::NotActive { account, role } => {
                 write!(f, "{account} is not active as {role}")
             }
-            RegistryError::StillUnbonding { release_epoch, current_epoch } => {
-                write!(f, "stake still unbonding until epoch {release_epoch} (now {current_epoch})")
+            RegistryError::StillUnbonding {
+                release_epoch,
+                current_epoch,
+            } => {
+                write!(
+                    f,
+                    "stake still unbonding until epoch {release_epoch} (now {current_epoch})"
+                )
             }
             RegistryError::RelayerNotActive { account } => {
                 write!(f, "{account} is not an active relayer")
@@ -232,7 +258,12 @@ impl VerifierRegistry {
         stake: u64,
         current_epoch: u64,
     ) -> Result<(), RegistryError> {
-        self.register(account, crate::role::roles::MASTER_VERIFIER, stake, current_epoch)
+        self.register(
+            account,
+            crate::role::roles::MASTER_VERIFIER,
+            stake,
+            current_epoch,
+        )
     }
 
     /// Register as Relayer.
@@ -363,7 +394,10 @@ impl VerifierRegistry {
             }
             _ => return Err(RegistryError::NotActive { account, role }),
         }
-        let reg = self.registrations.remove(&(role, account)).expect("checked");
+        let reg = self
+            .registrations
+            .remove(&(role, account))
+            .expect("checked");
         Ok(reg.stake)
     }
 
@@ -402,12 +436,7 @@ impl VerifierRegistry {
         })
     }
 
-    fn slash_cross_role(
-        &mut self,
-        account: Address,
-        primary_role: RoleId,
-        slash_ratio_fixed: u64,
-    ) {
+    fn slash_cross_role(&mut self, account: Address, primary_role: RoleId, slash_ratio_fixed: u64) {
         let other_keys: Vec<RoleId> = self
             .registrations
             .keys()
@@ -426,8 +455,7 @@ impl VerifierRegistry {
                     continue;
                 }
                 let penalty = ((reg.stake as u128 * slash_ratio_fixed as u128)
-                    / FIXED_POINT_SCALE as u128)
-                    as u64;
+                    / FIXED_POINT_SCALE as u128) as u64;
                 reg.stake = reg.stake.saturating_sub(penalty);
                 reg.status = MemberStatus::Slashed;
             }
@@ -639,7 +667,9 @@ mod tests {
         reg.register_validator(addr(4), 5_000, 10).unwrap();
         let release = reg.begin_unbonding(addr(4), roles::VALIDATOR, 10).unwrap();
         assert_eq!(release, 10 + UNBONDING_EPOCHS);
-        assert!(reg.withdraw(addr(4), roles::VALIDATOR, release - 1).is_err());
+        assert!(reg
+            .withdraw(addr(4), roles::VALIDATOR, release - 1)
+            .is_err());
         let released = reg.withdraw(addr(4), roles::VALIDATOR, release).unwrap();
         assert_eq!(released, 5_000);
         assert!(reg.get(&addr(4), roles::VALIDATOR).is_none());
@@ -660,7 +690,12 @@ mod tests {
         let mut reg = VerifierRegistry::new();
         reg.register_validator(addr(5), 10_000, 0).unwrap();
         let outcome = reg
-            .slash(addr(5), roles::VALIDATOR, SlashingCondition::DoubleSign, FIXED_POINT_SCALE / 2)
+            .slash(
+                addr(5),
+                roles::VALIDATOR,
+                SlashingCondition::DoubleSign,
+                FIXED_POINT_SCALE / 2,
+            )
             .unwrap();
         assert_eq!(outcome.penalty, 5_000);
         assert_eq!(outcome.remaining_stake, 5_000);
@@ -741,7 +776,7 @@ mod tests {
 
         let result = reg.slash_from_report(&report);
         assert!(result.is_err()); // EvidenceError::Unverified
-        // Registration unchanged
+                                  // Registration unchanged
         assert!(reg.is_active_master_verifier(&addr(10)));
     }
 
@@ -820,8 +855,13 @@ mod tests {
         reg.register_master_verifier(addr(41), 3_000, 0).unwrap();
         reg.register_master_verifier(addr(42), 2_000, 0).unwrap();
         // Slash one
-        reg.slash(addr(42), roles::MASTER_VERIFIER, SlashingCondition::DoubleSign, FIXED_POINT_SCALE / 2)
-            .unwrap();
+        reg.slash(
+            addr(42),
+            roles::MASTER_VERIFIER,
+            SlashingCondition::DoubleSign,
+            FIXED_POINT_SCALE / 2,
+        )
+        .unwrap();
 
         // Total = 5000 + 3000 = 8000 (addr(42) is slashed → inactive)
         assert_eq!(reg.total_stake(roles::MASTER_VERIFIER), 8_000);
@@ -849,8 +889,13 @@ mod tests {
         let mut reg = VerifierRegistry::new();
         reg.register_master_verifier(addr(51), 10_000, 0).unwrap();
         let root_before = reg.state_root();
-        reg.slash(addr(51), roles::MASTER_VERIFIER, SlashingCondition::DoubleSign, FIXED_POINT_SCALE / 2)
-            .unwrap();
+        reg.slash(
+            addr(51),
+            roles::MASTER_VERIFIER,
+            SlashingCondition::DoubleSign,
+            FIXED_POINT_SCALE / 2,
+        )
+        .unwrap();
         assert_ne!(root_before, reg.state_root());
     }
 
@@ -892,7 +937,9 @@ mod tests {
     fn add_stake_increases_bond() {
         let mut reg = VerifierRegistry::new();
         reg.register_master_verifier(addr(80), 5_000, 0).unwrap();
-        let new_stake = reg.add_stake(addr(80), roles::MASTER_VERIFIER, 3_000).unwrap();
+        let new_stake = reg
+            .add_stake(addr(80), roles::MASTER_VERIFIER, 3_000)
+            .unwrap();
         assert_eq!(new_stake, 8_000);
     }
 

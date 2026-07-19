@@ -83,11 +83,18 @@ impl std::fmt::Display for EvidenceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EvidenceError::ZeroOffender => write!(f, "offender is the zero address"),
-            EvidenceError::NonConflictingHashes => write!(f, "double-sign proof references identical block hashes"),
+            EvidenceError::NonConflictingHashes => {
+                write!(f, "double-sign proof references identical block hashes")
+            }
             EvidenceError::MissingSignature => write!(f, "double-sign proof missing a signature"),
-            EvidenceError::ImpossibleLivenessWindow => write!(f, "liveness proof claims more missed than expected"),
+            EvidenceError::ImpossibleLivenessWindow => {
+                write!(f, "liveness proof claims more missed than expected")
+            }
             EvidenceError::EmptyProofTag => write!(f, "opaque proof has an empty tag"),
-            EvidenceError::InsufficientInvalidVoteCount => write!(f, "invalid-signature-spam proof does not cross its threshold"),
+            EvidenceError::InsufficientInvalidVoteCount => write!(
+                f,
+                "invalid-signature-spam proof does not cross its threshold"
+            ),
             EvidenceError::Unverified => write!(f, "cannot slash on an unverified evidence report"),
         }
     }
@@ -136,7 +143,9 @@ impl SlashingReport {
                     return Err(EvidenceError::MissingSignature);
                 }
             }
-            SlashingProof::Liveness { missed, expected, .. } => {
+            SlashingProof::Liveness {
+                missed, expected, ..
+            } => {
                 if missed > expected {
                     return Err(EvidenceError::ImpossibleLivenessWindow);
                 }
@@ -146,7 +155,9 @@ impl SlashingReport {
                     return Err(EvidenceError::EmptyProofTag);
                 }
             }
-            SlashingProof::InvalidSignatureSpam { count, threshold, .. } => {
+            SlashingProof::InvalidSignatureSpam {
+                count, threshold, ..
+            } => {
                 if *threshold == 0 || *count < *threshold {
                     return Err(EvidenceError::InsufficientInvalidVoteCount);
                 }
