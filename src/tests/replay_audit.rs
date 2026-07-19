@@ -148,6 +148,3 @@ async fn test_sub_registry_recovery() {
         assert_eq!(bc.state.nft_registry.get_nft(0).unwrap().content_id, cid);
     }
 }
-
-}
-
