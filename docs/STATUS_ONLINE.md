@@ -535,3 +535,51 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 **Toplam: 11 bulgu (V22-V32), 3 kapatıldı, 8 açık.**
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 11:06 UTC+3] ARENAX — Fork/Reorg Koruması + Son Denetim
+
+**Durum:** CI çalışıyor
+
+---
+
+#### Fork/Reorg Koruması ✅
+
+**`src/chain/blockchain.rs`**
+- `MAX_REORG_DEPTH = 100` — derin reorg engeli
+- `finalized_height` / `finalized_hash` — finality checkpoint
+- Reorg depth kontrolü: `reorg_depth > MAX_REORG_DEPTH` → Err
+- ✅ Temiz
+
+---
+
+**TÜM DENETİM TAMAMLANDI — 16 MODÜL, 11 BULGU:**
+
+| # | Bulgu | Ciddiyet | Durum |
+|---|-------|----------|-------|
+| V22 | AI Registry domain-separation eksik | 🟡 | Açık |
+| V23 | NftRegistry luminance overflow | 🟡 | Açık |
+| V24 | BridgeState root scope eksik | 🔴 | Açık (GAP-2) |
+| V25 | Snapshot hash kapsam deliği | 🟡 | Açık |
+| V26 | Expiry queue stale entry | ⚪ | Açık |
+| V27 | Deadline boundary test | 🔴 | ✅ KAPANDI |
+| V28 | Executor current_block sapması | 🟡 | Açık |
+| V29 | Signing hash collision | 🔴 | ✅ KAPANDI |
+| V30 | EvmChainAdapter no-op | 🟡 | Açık (stub) |
+| V31 | build_bud_to_eth_claim Burned status yok | 🟡 | Açık |
+| V32 | AI max_fee balance check yok | ⚪ | Açık |
+
+**Pozitif Doğrulamalar (16 modül):**
+- ✅ Consensus: VRF, double-sign, liveness, fork/reorg protection
+- ✅ Settlement: Merkle root, proof verifier, global block
+- ✅ Prover: First valid wins, fee control
+- ✅ Bridge: Replay protection, u128→u64 guard
+- ✅ Network: Peer/snapshot limits
+- ✅ Mempool: Size/sender limits, eviction
+- ✅ RPC: Auth required default
+- ✅ Tokenomics: Burn, vesting, invariant
+- ✅ BNS: Name length, owner-only
+- ✅ Hub: Developer-only, domain-sep
+- ✅ Crypto: Key management, HSM
+- ✅ Snapshot: Quarantine, self-heal
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
