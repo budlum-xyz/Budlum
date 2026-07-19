@@ -699,7 +699,7 @@ impl StorageRegistry {
     /// left as-is (audit trail).
     ///
     /// Returns the number of active deals that were expired by this prune.
-    pub fn prune_content(&mut self, manifest_id: &ContentId, now_epoch: u64) -> u64 {
+    pub fn prune_content(&mut self, manifest_id: &ContentId, _now_epoch: u64) -> u64 {
         let deal_ids: Vec<u64> = self
             .deals_for_manifest(manifest_id)
             .iter()
