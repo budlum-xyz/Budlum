@@ -370,3 +370,26 @@ Bu kitabın public bölümleri kaynak kodu, test, CI, operasyon dokümanı ve te
 kararları ayırır. Internal ek; commit/CI matrisi, migration ayrıntıları ve açık
 borçları taşır. Kaynak manifesti `research/SOURCE_MANIFEST.md` dosyasında
 yaşar; her yeni bölüm bu manifestteki ilgili kaynaklarla çapraz doğrulanır.
+
+# Ek B — Terimler
+
+| Terim | Kısa anlam |
+|---|---|
+| Admission | Bir transactionın RPC/P2P/mempool yüzeyinde kabul edilme süreci |
+| Finality | Bir kayıt için geri dönüş olasılığının kabul edilen güvenlik eşiğinin altına inmesi |
+| Domain | Kendi konsensüs/finality kuralları olan izole alan |
+| State root | Belirli state görünümünü bağlayan kriptografik kök |
+| Snapshot | State’in belirli yükseklikte serileştirilmiş/restorable görünümü |
+| Replay | Aynı mesaj veya işlemin tekrar yürütülmesi saldırısı |
+| Canonical encoding | Aynı anlamın tek byte temsili olması kuralı |
+| Fail-stop | Kritik güvenlik/kalıcılık hatasında başarıyla devam etmek yerine işlemi durdurma |
+| Permissionless | Katılımın whitelist yerine açık kurallar/stake ile sağlanması |
+| PoA isolation | Kurumsal izin kurallarının permissionless domainlere sızmaması |
+| Interim retrieval | Erişilebilirlik sinyali veren ama tam storage kanıtı olmayan challenge |
+
+# Ek C — Mimari atlasla birlikte okuma
+
+Bu kitapta anlatılan her büyük katman için görsel referans
+[`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) içindeki Mimari Atlas’tır.
+Atlas; trust boundary, V4 signing, snapshot, durability, EVM bridge, B.U.D.,
+BNS, AI, BudZero ve launch gate diyagramlarını taşır.
