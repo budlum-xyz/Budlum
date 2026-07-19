@@ -1,5 +1,5 @@
 //! Shared, dependency-light primitives for Budlum workspace crates.
-//!
-//! This crate is the planned ownership boundary for types used by both B.U.D.
-//! and BNS. Core integration is deliberately deferred until the migration's
-//! import/serde/snapshot compatibility checks are in place.
+pub mod address;
+pub mod hash;
+pub use address::Address;
+pub use hash::{calculate_hash, calculate_hash_bytes, hash_fields, hash_fields_bytes};
