@@ -126,7 +126,6 @@ pub struct AccountState {
     /// V28 fix (Phase 11): gerçek blok yüksekliği. Eskiden executor
     /// `epoch_index * 100` approximation kullanıyordu (≤99 blok sapma).
     /// Blockchain produce/validate'da tx işleme öncesi set edilir.
-    #[serde(default)]
     pub current_block_height: u64,
     pub governance: GovernanceState,
     pub base_fee: u64,
