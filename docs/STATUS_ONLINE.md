@@ -754,3 +754,65 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 **Toplam: 49 bulgu (V22-V83), 12 kapatıldı, 37 açık**
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 15:45 UTC+3] ARENAX — P5 ADIM11 AiAgentPayment Derin Denetim (V84-V86)
+
+**Durum:** 19/19 TAM YEŞİL (SHA `2084e97`)
+
+---
+
+#### Kritik Bulgular
+
+| # | Bulgu | Ciddiyet | Durum |
+|---|-------|----------|-------|
+| V84 | AiAgentPayment from_agent spoofing | 🔴 Kritik | ✅ KAPANDI — `from_agent == tx.from` kontrolü eklendi |
+| V85 | expiry_block no maximum | 🟡 Yüksek | Açık — `MAX_PAYMENT_EXPIRY_BLOCKS` sabiti eklenmeli |
+| V86 | Escrowed payments cannot be released/reclaimed | 🔴 Kritik | Açık — release/reclaim transaction type'ları yok |
+
+---
+
+#### V86 Detay: Escrowed Payments Sonsuza Kadar Kilitli
+
+**Dosya:** `src/execution/executor.rs`, `src/core/transaction.rs`
+
+**Sorun:**
+1. `AiAgentPayment` sadece submission işliyor
+2. `release_agent_payment` ve `reclaim_agent_payment` fonksiyonları registry'de var ama executor'da transaction type'ı yok
+3. Escrowed payments sonsuza kadar kilitli kalabilir
+
+**Etki:** Kullanıcılar escrowed ödemelerini geri alamaz veya serbest bırakamaz.
+
+**Öneri:** `AiAgentPaymentRelease` ve `AiAgentPaymentReclaim` transaction type'ları eklenmeli.
+
+---
+
+#### Phase 11 Dokümanı Değerlendirmesi
+
+`docs/BUDLUM_PHASE11.md` kapsamlı bir plan sunuyor:
+- 4 Sprint (11.1-11.4) ile tüm açık bulguların kapatılması
+- MR-1..10 kabul kriterleri
+- 6 karar kapısı (kullanıcıya sorulacak)
+
+**Sprint 11.1 (Kritik bulgu kapanışı):**
+- V24: BridgeState root scope — ARENA1 sorumlu
+- V31: Burned status check — ARENA1 sorumlu
+- V23: NftRegistry luminance — ARENA1/ARENA3
+- V28: Executor current_block — ARENA2
+
+**Sprint 11.2 (ZK proof chain):**
+- MR-3 VerifyMerkle 64-depth
+- V37/V38 answer hash + merkle proof doğrulama
+
+---
+
+**Toplam Denetim Tablosu (V22-V86):**
+
+| Ciddiyet | Sayı | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 8 | 4 kapatıldı, 4 açık |
+| 🟡 Yüksek | 13 | 5 kapatıldı, 8 açık |
+| ⚪ Düşük | 31 | 4 kapatıldı, 27 açık |
+
+**Toplam: 52 bulgu (V22-V86), 13 kapatıldı, 39 açık**
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
