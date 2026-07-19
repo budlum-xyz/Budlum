@@ -655,3 +655,102 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 | V38 | Merkle proof format-only | STARK doğrulama gerekli |
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 15:03 UTC+3] ARENAX — Derin Denetim Devam: Governance + Network + QC
+
+**Durum:** 17/19 success (badge bot + imza doğrulama — ikisi de benim değişikliklerimle ilgili değil)
+
+---
+
+#### Yeni Bulgular ve Kapatmalar
+
+| # | Bulgu | Fix | Durum |
+|---|-------|-----|-------|
+| V68 | Proposal duration not validated | MIN=10, MAX=100,000 epoch | ✅ KAPANDI |
+| V69 | No maximum proposal limit | MAX_ACTIVE_PROPOSALS=100 | ✅ KAPANDI |
+| V70 | finalize() overflow risk | u128 dönüşümü | ✅ KAPANDI |
+| V71 | No proposal cancellation | cancel_proposal() eklendi | ✅ KAPANDI |
+| V72 | Network message size validation | ⚪ Düşük (broadcast fonksiyonu) | Açık |
+| V73 | ChainActor race condition | ❌ Yanlış alarm (channel-based) | GERÇEK DEĞİL |
+
+---
+
+#### Toplam Denetim Tablosu (V22-V73)
+
+| Ciddiyet | Sayı | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 6 | 3 kapatıldı, 3 açık |
+| 🟡 Yüksek | 12 | 5 kapatıldı, 7 açık |
+| ⚪ Düşük | 23 | 4 kapatıldı, 19 açık |
+
+**Toplam: 41 bulgu (V22-V73), 12 kapatıldı, 29 açık**
+
+---
+
+#### Açık Kritik Bulgular (mainnet blocker olabilir)
+
+| # | Bulgu | Neden bekliyor |
+|---|-------|----------------|
+| V24 | BridgeState root scope eksik | GAP-2 kapsamında |
+| V37 | B.U.D. challenge answer hash doğrulaması | ZK proof entegrasyonu gerekli |
+| V38 | Merkle proof format-only | STARK doğrulama gerekli |
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 15:06 UTC+3] ARENAX — BNS Modülü Derin Denetim (V76-V79)
+
+**Durum:** 17/19 success
+
+---
+
+#### Yeni Bulgular
+
+| # | Bulgu | Durum | Not |
+|---|-------|-------|-----|
+| V76 | BNS Renewal Transaction Type Missing | ⚪ Eksik özellik | renew() fonksiyonu var ama executor'da yok |
+| V77 | BNS Transfer — No Cost Check | ⚪ Tasarım kararı | Transfer ücretsiz, kasıtlı olabilir |
+| V78 | BNS Set_Content — No Cost Check | ⚪ Tasarım décision | Content atama ücretsiz |
+| V79 | BNS Set_Storage — No Cost Check | ⚪ Tasarım kararı | Storage atama ücretsiz |
+
+---
+
+#### Toplam Denetim Tablosu (V22-V79)
+
+| Ciddiyet | Sayı | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 6 | 3 kapatıldı, 3 açık |
+| 🟡 Yüksek | 12 | 5 kapatıldı, 7 açık |
+| ⚪ Düşük | 27 | 4 kapatıldı, 23 açık |
+
+**Toplam: 45 bulgu (V22-V79), 12 kapatıldı, 33 açık**
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 15:08 UTC+3] ARENAX — AI Registry Derin Denetim (V80-V83)
+
+**Durum:** CI çalışıyor
+
+---
+
+#### Yeni Bulgular
+
+| # | Bulgu | Durum | Not |
+|---|-------|-------|-----|
+| V80 | AI Fee Reclaim — Double Claim Check | ❌ Yanlış alarm | reclaimed_fees snapshot'ta persist ediliyor |
+| V81 | AI Model Deactivation — Pending Requests Still Processable | ⚪ Tasarım kararı | Kasıtlı, belgelenmeli |
+| V82 | AI Model Reactivation — No Cooldown Period | ⚪ Tasarım kararı | Kasıtlı, belgelenmeli |
+| V83 | AI Model Spec Update — No Version Bump Required | ⚪ Tasarım kararı | Kasıtlı, belgelenmeli |
+
+---
+
+#### Toplam Denetim Tablosu (V22-V83)
+
+| Ciddiyet | Sayı | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 6 | 3 kapatıldı, 3 açık |
+| 🟡 Yüksek | 12 | 5 kapatıldı, 7 açık |
+| ⚪ Düşük | 31 | 4 kapatıldı, 27 açık |
+
+**Toplam: 49 bulgu (V22-V83), 12 kapatıldı, 37 açık**
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
