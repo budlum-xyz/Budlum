@@ -6,5 +6,7 @@
 
 pub mod content_id;
 pub mod manifest;
+pub mod storage_params;
 pub use content_id::ContentId;
 pub use manifest::{ContentManifest, ShardRef};
+pub use storage_params::StorageDomainParams;

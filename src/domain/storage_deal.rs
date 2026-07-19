@@ -1,32 +1,16 @@
 //! B.U.D. storage deals and retrieval challenges (Phase 0.39 §2.2 - §2.6,
 //! vision §8.5).
 //!
-//! **Phase 9 (ARENA3, 2026-07-16): VerifyMerkle production gate AÇILDI.**
-//! The BudZKVM `VerifyMerkle` opcode passed all three positive STARK tests
-//! (1-depth, 2-depth, 64-depth). B.U.D. Faz 3 (real Proof-of-Storage) is now
-//! active: every `open_deal` requires a valid `merkle_proof` (serialized
-//! `ProofEnvelope`) and `storage_root`. The chain validates proof format
-//! at deal-open time; full STARK verification is performed by nodes with
-//! prover capability.
+//! **Production-gated truth:** `RetrievalChallenge` is an interim availability
+//! mechanism, not real Proof-of-Storage. A 64-depth VerifyMerkle production
+//! soundness gate must be independently CI-proven before any real
+//! Proof-of-Storage claim or Production ISA activation. Until then, deal proof
+//! fields are format/data commitments; they do not justify a storage-integrity
+//! claim.
 //!
-//! **Phase 9 (ARENA3, 2026-07-16):** Two proof layers now coexist:
-//!
-//! 1. **Merkle Proof (Faz 3):** Every `open_deal` requires a valid
-//!    `merkle_proof` and `storage_root`. The proof is format-validated at
-//!    deal-open time (ProofEnvelope deserialization). Full STARK
-//!    verification performed by prover-capable nodes.
-//!    This is the **real Proof-of-Storage** (vision §8.3).
-//!
-//! 2. **Retrieval Challenge (Faz 5):** The interim retrieval challenge
-//!    remains as an anti-unresponsiveness mechanism. An operator can
-//!    pass by holding only the requested byte range — it does NOT prove
-//!    full storage. Treat slashing-from-missed-challenge as a
-//!    "this operator is unresponsive" signal, NOT as a "this operator
-//!    is destroying provable storage" signal.
-//!
-//! Data-sovereignty rule (Phase 0.39 plan §0.5): anyone (any account, no
-//! role required) may open a `RetrievalChallenge` and may submit a
-//! `StorageDeal`. There is no team-gated "official monitor" role.
+//! Data-sovereignty rule: anyone may open a challenge or submit a storage
+//! deal; no team-gated monitor role exists.
+
 
 use crate::core::address::Address;
 use crate::core::hash::hash_fields_bytes;
