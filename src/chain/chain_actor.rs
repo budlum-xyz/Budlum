@@ -222,8 +222,8 @@ pub enum ChainCommand {
     /// B.U.D. Faz 5 (ARENA1): Open a storage deal with proper escrow locking.
     OpenStorageDeal {
         domain_id: u32,
-        manifest: crate::storage::ContentManifest,
-        shard_id: crate::storage::ContentId,
+        manifest: budlum_bud::ContentManifest,
+        shard_id: budlum_bud::ContentId,
         operator: crate::core::address::Address,
         payer: crate::core::address::Address,
         replica_index: u8,
@@ -273,7 +273,7 @@ pub enum ChainCommand {
     },
     BnsResolveFull {
         name: String,
-        response: oneshot::Sender<Option<crate::bns::types::BnsResolved>>,
+        response: oneshot::Sender<Option<budlum_bns::types::BnsResolved>>,
     },
     BnsResolveContent {
         name: String,
@@ -631,8 +631,8 @@ impl ChainHandle {
     pub async fn open_storage_deal(
         &self,
         domain_id: u32,
-        manifest: crate::storage::ContentManifest,
-        shard_id: crate::storage::ContentId,
+        manifest: budlum_bud::ContentManifest,
+        shard_id: budlum_bud::ContentId,
         operator: crate::core::address::Address,
         payer: crate::core::address::Address,
         replica_index: u8,
@@ -1363,7 +1363,7 @@ impl ChainHandle {
         rx.await.unwrap_or(None)
     }
 
-    pub async fn bns_resolve_full(&self, name: String) -> Option<crate::bns::types::BnsResolved> {
+    pub async fn bns_resolve_full(&self, name: String) -> Option<budlum_bns::types::BnsResolved> {
         let (tx, rx) = oneshot::channel();
         let _ = self
             .tx

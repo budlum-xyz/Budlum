@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::bns::BnsError;
-    use crate::bns::BnsRegistry;
+    use budlum_bns::BnsError;
+    use budlum_bns::BnsRegistry;
     use crate::core::address::Address;
 
     #[test]
@@ -22,7 +22,7 @@ mod tests {
         let err = reg
             .register("ayaz.bud".to_string(), bob, current_epoch + 5, 100)
             .unwrap_err();
-        assert!(matches!(err, crate::bns::BnsError::NameTaken));
+        assert!(matches!(err, budlum_bns::BnsError::NameTaken));
     }
 
     #[test]

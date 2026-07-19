@@ -10,7 +10,7 @@
 //! from a CI summary line (libtest "test result:" / nextest "Summary"),
 //! never from hand counts, file greps, or chat claims.
 
-use crate::bns::{BnsError, BnsRegistry};
+use budlum_bns::{BnsError, BnsRegistry};
 use crate::core::account::AccountState;
 use crate::core::address::Address;
 use crate::cross_domain::relayer::{RelayerConfig, UniversalRelayer};

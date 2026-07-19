@@ -449,7 +449,7 @@ mod rpc_tests {
     #[tokio::test]
     async fn test_storage_rpc_full_lifecycle_register_deal_challenge_answer() {
         let (server, bc) = setup().await;
-        let manifest = crate::storage::ContentManifest::from_bytes_sliced(
+        let manifest = budlum_bud::ContentManifest::from_bytes_sliced(
             b"hello storage rpc lifecycle test",
             16,
         )

@@ -113,7 +113,7 @@ mod tests {
         let mut snap = StateSnapshotV2::from_state(&funded_state(&alice, 500), params_v2(40, 1337));
 
         // Sahteci, snapshot'a kendi BNS adını enjekte eder; hash'E DOKUNMAZ.
-        let mut forged = crate::bns::BnsRegistry::default();
+        let mut forged = budlum_bns::BnsRegistry::default();
         forged
             .register("evil.bud".to_string(), eve, 0, 100)
             .expect("register");

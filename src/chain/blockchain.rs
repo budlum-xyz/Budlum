@@ -3676,8 +3676,8 @@ impl Blockchain {
     pub fn open_storage_deal_with_escrow(
         &mut self,
         domain_id: u32,
-        manifest: &crate::storage::ContentManifest,
-        shard_id: crate::storage::ContentId,
+        manifest: &budlum_bud::ContentManifest,
+        shard_id: budlum_bud::ContentId,
         operator: Address,
         payer: Address,
         replica_index: u8,

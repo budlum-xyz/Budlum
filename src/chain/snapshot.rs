@@ -425,7 +425,7 @@ pub struct StateSnapshotV2 {
     // BNS registry was previously NOT round-tripped, so names were lost on restart from snapshot.
     // Now persisted with #[serde(default)] for backwards compatibility (old snapshots -> empty).
     #[serde(default)]
-    pub bns_registry: Option<crate::bns::BnsRegistry>,
+    pub bns_registry: Option<budlum_bns::BnsRegistry>,
     #[serde(default)]
     pub nft_registry: Option<crate::socialfi::NftRegistry>,
     #[serde(default)]

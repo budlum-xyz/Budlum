@@ -282,7 +282,7 @@ pub trait BudlumApi {
     #[method(name = "bud_storageRegisterManifest")]
     async fn storage_register_manifest(
         &self,
-        manifest: crate::storage::ContentManifest,
+        manifest: budlum_bud::ContentManifest,
     ) -> Result<serde_json::Value, ErrorObjectOwned>;
 
     /// Open a new `StorageDeal` for a specific shard of a registered manifest.
@@ -290,7 +290,7 @@ pub trait BudlumApi {
     async fn storage_open_deal(
         &self,
         domain_id: u32,
-        manifest: crate::storage::ContentManifest,
+        manifest: budlum_bud::ContentManifest,
         shard_id: String,
         operator: String,
         payer: String,

@@ -1426,7 +1426,7 @@ impl BudlumApiServer for RpcServer {
 
     async fn storage_register_manifest(
         &self,
-        manifest: crate::storage::ContentManifest,
+        manifest: budlum_bud::ContentManifest,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
         let manifest_id = manifest.manifest_id;
         let mut reg = self.storage.lock().map_err(|e| {
@@ -1447,7 +1447,7 @@ impl BudlumApiServer for RpcServer {
     async fn storage_open_deal(
         &self,
         domain_id: u32,
-        manifest: crate::storage::ContentManifest,
+        manifest: budlum_bud::ContentManifest,
         shard_id: String,
         operator: String,
         payer: String,
