@@ -653,7 +653,7 @@ impl TryFrom<pb::ProtoTransaction> for Transaction {
                 }
                 cid_bytes.copy_from_slice(&payload.cid);
                 TransactionType::AiOfferData {
-                    cid: crate::storage::content_id::ContentId(cid_bytes),
+                    cid: budlum_bud::ContentId(cid_bytes),
                     price: payload.price,
                 }
             }
@@ -679,7 +679,7 @@ impl TryFrom<pb::ProtoTransaction> for Transaction {
                     }
                     let mut arr = [0u8; 32];
                     arr.copy_from_slice(&payload.manifest_id);
-                    Some(crate::storage::content_id::ContentId(arr))
+                    Some(budlum_bud::ContentId(arr))
                 };
                 TransactionType::HubRegisterApp {
                     name: payload.name,
@@ -1499,7 +1499,7 @@ mod tests {
                 external_state_root: [5u8; 32],
             }),
             TransactionType::AiOfferData {
-                cid: crate::storage::content_id::ContentId([7u8; 32]),
+                cid: budlum_bud::ContentId([7u8; 32]),
                 price: 500,
             },
             TransactionType::AiPurchaseData { offer_id: 888 },
@@ -1507,7 +1507,7 @@ mod tests {
                 name: "BudApp".into(),
                 category: crate::hub::types::AppCategory::DeFi,
                 website_url: "https://budlum.ai".into(),
-                manifest_id: Some(crate::storage::content_id::ContentId([8u8; 32])),
+                manifest_id: Some(budlum_bud::ContentId([8u8; 32])),
             },
             TransactionType::AiModelRegister(crate::ai::types::AiModelSpec {
                 model_id: crate::ai::types::AiModelId([1u8; 32]),

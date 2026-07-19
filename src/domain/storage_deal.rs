@@ -16,8 +16,8 @@ use crate::core::address::Address;
 use crate::core::hash::hash_fields_bytes;
 use crate::domain::storage_params::StorageDomainParams;
 use crate::domain::Hash32;
-use crate::storage::content_id::ContentId;
-use crate::storage::manifest::ContentManifest;
+use budlum_bud::ContentId;
+use budlum_bud::ContentManifest;
 use serde::{Deserialize, Serialize};
 
 /// RPC-facing DTO for `bud_storageOpenChallenge`.

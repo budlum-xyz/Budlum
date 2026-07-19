@@ -16,7 +16,7 @@ use crate::core::address::Address;
 use crate::cross_domain::relayer::{RelayerConfig, UniversalRelayer};
 use crate::pollen::MarketplaceRegistry;
 use crate::socialfi::NftRegistry;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 
 fn addr(b: u8) -> Address {
     Address::from([b; 32])

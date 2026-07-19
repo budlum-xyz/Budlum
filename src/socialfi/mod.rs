@@ -5,7 +5,7 @@ pub mod types;
 
 use crate::core::address::Address;
 pub use crate::socialfi::types::{Nft, NftError};
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

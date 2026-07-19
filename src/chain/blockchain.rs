@@ -2544,7 +2544,7 @@ impl Blockchain {
     fn collect_nft_burn_cids(
         &self,
         block: &Block,
-    ) -> Vec<(crate::storage::content_id::ContentId, Address)> {
+    ) -> Vec<(budlum_bud::ContentId, Address)> {
         let mut cids = Vec::new();
         for tx in &block.transactions {
             if let crate::core::transaction::TransactionType::NftBurn = tx.tx_type {
@@ -2566,7 +2566,7 @@ impl Blockchain {
     /// BEFORE the commit via `collect_nft_burn_cids`.
     fn process_nft_burn_storage_pruning(
         &mut self,
-        burn_cids: &[(crate::storage::content_id::ContentId, Address)],
+        burn_cids: &[(budlum_bud::ContentId, Address)],
     ) {
         for (cid, _burner) in burn_cids {
             let now_epoch = self.state.epoch_index;

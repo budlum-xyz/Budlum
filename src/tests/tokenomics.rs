@@ -6,7 +6,7 @@ use crate::core::account::AccountState;
 use crate::core::address::Address;
 use crate::core::transaction::{Transaction, TransactionType, DEFAULT_CHAIN_ID};
 use crate::execution::executor::Executor;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use crate::tokenomics::{
     bud, genesis_allocations, TokenomicsAddresses, TokenomicsParams, BUD_TOTAL_SUPPLY,
 };

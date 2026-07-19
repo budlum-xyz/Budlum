@@ -7,7 +7,7 @@ use crate::domain::storage_deal::{
     RetrievalChallenge, RetrievalChallengeRequest, RetrievalResponse, StorageDeal, StorageRegistry,
 };
 use crate::network::node::NodeClient;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use bincode;
 use futures::future::BoxFuture;
 use hex;
@@ -1997,7 +1997,7 @@ impl BudlumApiServer for RpcServer {
         }
         let mut cid_arr = [0u8; 32];
         cid_arr.copy_from_slice(&cid_bytes);
-        let cid_obj = crate::storage::content_id::ContentId(cid_arr);
+        let cid_obj = budlum_bud::ContentId(cid_arr);
 
         let data = bincode::serialize(&(name.clone(), cid_obj))
             .map_err(|e| ErrorObjectOwned::owned(-32000, e.to_string(), None::<()>))?;
@@ -2105,7 +2105,7 @@ impl BudlumApiServer for RpcServer {
         }
         let mut cid_arr = [0u8; 32];
         cid_arr.copy_from_slice(&cid_bytes);
-        let cid_obj = crate::storage::content_id::ContentId(cid_arr);
+        let cid_obj = budlum_bud::ContentId(cid_arr);
 
         let data = bincode::serialize(&(cid_obj, author_name.clone()))
             .map_err(|e| ErrorObjectOwned::owned(-32000, e.to_string(), None::<()>))?;
@@ -2233,7 +2233,7 @@ impl BudlumApiServer for RpcServer {
         })?;
         let mut cid_arr = [0u8; 32];
         cid_arr.copy_from_slice(&cid_bytes);
-        let cid_obj = crate::storage::content_id::ContentId(cid_arr);
+        let cid_obj = budlum_bud::ContentId(cid_arr);
 
         let data = bincode::serialize(&(cid_obj, price))
             .map_err(|e| ErrorObjectOwned::owned(-32000, e.to_string(), None::<()>))?;
@@ -2334,7 +2334,7 @@ impl BudlumApiServer for RpcServer {
             })?;
             let mut m_arr = [0u8; 32];
             m_arr.copy_from_slice(&m_bytes);
-            Some(crate::storage::content_id::ContentId(m_arr))
+            Some(budlum_bud::ContentId(m_arr))
         } else {
             None
         };

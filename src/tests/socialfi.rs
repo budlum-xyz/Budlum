@@ -21,9 +21,9 @@ use crate::core::transaction::{Transaction, TransactionType};
 use crate::crypto::primitives::KeyPair;
 use crate::domain::storage_deal::StorageEconomicsParams;
 use crate::domain::storage_params::StorageDomainParams;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use crate::storage::db::Storage;
-use crate::storage::manifest::ContentManifest;
+use budlum_bud::ContentManifest;
 use std::sync::Arc;
 use tempfile::tempdir;
 

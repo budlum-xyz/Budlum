@@ -277,7 +277,7 @@ pub enum ChainCommand {
     },
     BnsResolveContent {
         name: String,
-        response: oneshot::Sender<Option<crate::storage::content_id::ContentId>>,
+        response: oneshot::Sender<Option<budlum_bud::ContentId>>,
     },
     BnsResolveSubdomain {
         parent: String,
@@ -1375,7 +1375,7 @@ impl ChainHandle {
     pub async fn bns_resolve_content(
         &self,
         name: String,
-    ) -> Option<crate::storage::content_id::ContentId> {
+    ) -> Option<budlum_bud::ContentId> {
         let (tx, rx) = oneshot::channel();
         let _ = self
             .tx
@@ -1603,7 +1603,7 @@ impl ChainActor {
                 ChainCommand::StoragePrune(cid) => {
                     // Manual prune trigger from CLI/RPC
                     let now_epoch = self.blockchain.state.epoch_index;
-                    let cid_obj = crate::storage::content_id::ContentId(cid);
+                    let cid_obj = budlum_bud::ContentId(cid);
                     let pruned_deals = self
                         .blockchain
                         .state

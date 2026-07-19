@@ -1,5 +1,5 @@
 use crate::chain::chain_actor::ChainHandle;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use crate::storage::db::Storage;
 
 /// Phase 6 §6.1: B.U.D. Universal Gateway.

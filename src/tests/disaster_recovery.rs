@@ -18,7 +18,7 @@ mod tests {
         let db_path_str = db_path.to_str().unwrap();
 
         let alice = Address::from([0xAA; 32]);
-        let cid = crate::storage::content_id::ContentId([0x42; 32]);
+        let cid = budlum_bud::ContentId([0x42; 32]);
 
         // 1. Initial Setup and State Creation
         {
@@ -87,7 +87,7 @@ mod tests {
         let db_path_str = db_path.to_str().unwrap();
 
         let alice = Address::from([0xAA; 32]);
-        let cid = crate::storage::content_id::ContentId([0xEE; 32]);
+        let cid = budlum_bud::ContentId([0xEE; 32]);
 
         // 1. Create NFT
         {

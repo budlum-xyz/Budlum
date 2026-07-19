@@ -117,7 +117,7 @@ async fn test_sub_registry_recovery() {
         .to_string();
 
     let alice = Address::from([0x01; 32]);
-    let cid = crate::storage::content_id::ContentId([0xCC; 32]);
+    let cid = budlum_bud::ContentId([0xCC; 32]);
 
     let bns_name = "recovery.bud".to_string();
 

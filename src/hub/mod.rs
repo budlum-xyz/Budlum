@@ -28,7 +28,7 @@ impl HubRegistry {
         developer: Address,
         category: AppCategory,
         website_url: String,
-        manifest_id: Option<crate::storage::content_id::ContentId>,
+        manifest_id: Option<budlum_bud::ContentId>,
         epoch: u64,
     ) -> u64 {
         let id = self.next_app_id;
@@ -52,7 +52,7 @@ impl HubRegistry {
         id: u64,
         caller: &Address,
         new_url: Option<String>,
-        new_manifest: Option<crate::storage::content_id::ContentId>,
+        new_manifest: Option<budlum_bud::ContentId>,
     ) -> Result<(), HubError> {
         let app = self.apps.get_mut(&id).ok_or(HubError::NotFound)?;
         if &app.developer != caller {

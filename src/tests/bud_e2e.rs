@@ -21,8 +21,8 @@ use crate::domain::storage_deal::{
     StorageRegistry,
 };
 use crate::domain::storage_params::StorageDomainParams;
-use crate::storage::content_id::ContentId;
-use crate::storage::manifest::ContentManifest;
+use budlum_bud::ContentId;
+use budlum_bud::ContentManifest;
 
 // --- Ortak test yardımcıları --------------------------------------------
 

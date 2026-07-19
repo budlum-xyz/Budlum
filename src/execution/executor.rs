@@ -286,7 +286,7 @@ impl Executor {
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::BnsSetContent => {
-                let (name, cid): (String, crate::storage::content_id::ContentId) =
+                let (name, cid): (String, budlum_bud::ContentId) =
                     bincode::deserialize(&tx.data)
                         .map_err(|e| BudlumError::validation("bns_invalid_data", e.to_string()))?;
 
@@ -331,7 +331,7 @@ impl Executor {
                 sender.nonce = sender.nonce.saturating_add(1);
             }
             TransactionType::NftMint => {
-                let (cid, author): (crate::storage::content_id::ContentId, Option<String>) =
+                let (cid, author): (budlum_bud::ContentId, Option<String>) =
                     bincode::deserialize(&tx.data)
                         .map_err(|e| BudlumError::validation("nft_invalid_data", e.to_string()))?;
 

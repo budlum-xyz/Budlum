@@ -1,6 +1,6 @@
 use crate::bns::types::{BnsError, BnsResolved, NameRecord};
 use crate::core::address::Address;
-use crate::storage::content_id::ContentId;
+use budlum_bud::ContentId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

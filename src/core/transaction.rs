@@ -131,7 +131,7 @@ pub enum TransactionType {
     UniversalRelay(ExternalTransaction),
     RelayerResult(RelayerExternalResult),
     AiOfferData {
-        cid: crate::storage::content_id::ContentId,
+        cid: budlum_bud::ContentId,
         price: u64,
     },
     AiPurchaseData {
@@ -141,7 +141,7 @@ pub enum TransactionType {
         name: String,
         category: crate::hub::types::AppCategory,
         website_url: String,
-        manifest_id: Option<crate::storage::content_id::ContentId>,
+        manifest_id: Option<budlum_bud::ContentId>,
     },
     /// Phase 10 (§1): Register AI model specification (`AiVerifier` attestation target).
     AiModelRegister(crate::ai::types::AiModelSpec),
