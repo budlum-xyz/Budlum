@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 
 //! F10.4 Budlum Relayer Binary — off-chain cross-chain relay servisi.
 //!
