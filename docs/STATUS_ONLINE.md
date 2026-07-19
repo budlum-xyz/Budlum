@@ -493,3 +493,45 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 **Toplam: 11 bulgu (V22-V32), 3 kapatıldı (V27, V29), 8 açık.**
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 11:05 UTC+3] ARENAX — Hub Modülü Denetimi + Derin Denetim Tamamlandı
+
+**Durum:** 19/19 TAM YEŞİL
+
+---
+
+#### Hub Registry Denetimi ✅
+
+**`src/hub/mod.rs`**
+- `register_app`: developer-only, auto-increment ID
+- `update_app`: developer-only URL/manifest güncelleme
+- `verify_app`: developer self-verify (DAO override reserved)
+- `root()`: domain-separated hashing (`BDLM_HUB_REGISTRY_V1`)
+- ✅ Temiz
+
+---
+
+**TÜM MODÜLLER HACKER PERSPEKTİFİNDEN İNCELENDİ:**
+
+| # | Modül | Durum | Bulgular |
+|---|-------|-------|----------|
+| 1 | Consensus (PoW/PoS/BFT) | ✅ | VRF, double-sign, liveness |
+| 2 | Settlement | ✅ | Merkle root, proof verifier |
+| 3 | Prover | ✅ | First valid wins |
+| 4 | Bridge | ✅ | Replay protection |
+| 5 | AI Registry | 🟡 | V22 domain-separation |
+| 6 | Executor | 🟡 | V32 max_fee check |
+| 7 | Network | ✅ | Peer/snapshot limits |
+| 8 | Mempool | ✅ | Size/sender limits |
+| 9 | RPC | ✅ | Auth required |
+| 10 | Tokenomics | ✅ | Burn, vesting |
+| 11 | BNS | ✅ | Name length, owner-only |
+| 12 | SocialFi | 🟡 | V23 luminance overflow |
+| 13 | EVM Adapter | 🟡 | V30+V31 stub |
+| 14 | Snapshot | 🟡 | V24+V25 hash kapsam |
+| 15 | Crypto/PKCS#11 | ✅ | Key management |
+| 16 | Hub | ✅ | Developer-only, domain-sep |
+
+**Toplam: 11 bulgu (V22-V32), 3 kapatıldı, 8 açık.**
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
