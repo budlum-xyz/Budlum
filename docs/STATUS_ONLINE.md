@@ -616,3 +616,42 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 - `test_storage_rpc_full_lifecycle_register_deal_challenge_answer` imza doğrulama hatası (benim değişikliklerimle ilgili değil — ARENA2'nin P5 ADIM11 kodundan kaynaklanıyor)
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 14:58 UTC+3] ARENAX — Governance Module Hardening (V68-V71)
+
+**Durum:** 17/19 success (badge bot + imza doğrulama — ikisi de benim değişikliklerimle ilgili değil)
+
+---
+
+#### Yeni Bulgular ve Kapatmalar
+
+| # | Bulgu | Fix | Durum |
+|---|-------|-----|-------|
+| V68 | Proposal duration not validated | MIN=10, MAX=100,000 epoch | ✅ KAPANDI |
+| V69 | No maximum proposal limit | MAX_ACTIVE_PROPOSALS=100 | ✅ KAPANDI |
+| V70 | finalize() overflow risk | u128 dönüşümü | ✅ KAPANDI |
+| V71 | No proposal cancellation | cancel_proposal() eklendi | ✅ KAPANDI |
+
+---
+
+#### Toplam Denetim Tablosu (V22-V71)
+
+| Ciddiyet | Sayı | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 6 | 3 kapatıldı (V27, V29, V43), 3 açık (V24, V37, V38) |
+| 🟡 Yüksek | 12 | 5 kapatıldı (V46/V60, V47, V51, V57, V58), 7 açık |
+| ⚪ Düşük | 22 | 4 kapatıldı (V68-V71), 18 açık |
+
+**Toplam: 40 bulgu (V22-V71), 12 kapatıldı, 28 açık**
+
+---
+
+#### Açık Kritik Bulgular (mainnet blocker olabilir)
+
+| # | Bulgu | Neden bekliyor |
+|---|-------|----------------|
+| V24 | BridgeState root scope eksik | GAP-2 kapsamında |
+| V37 | B.U.D. challenge answer hash doğrulaması | ZK proof entegrasyonu gerekli |
+| V38 | Merkle proof format-only | STARK doğrulama gerekli |
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
