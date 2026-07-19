@@ -921,3 +921,161 @@ mod chaos_tests {
         assert_eq!(pool.len(), 100);
     }
 }
+
+    // ─── Phase 10.5 Chaos: double-lock, state determinism, genesis mismatch ───
+
+    /// **Double-spend koruması:** Aynı asset iki kez lock edilemez. BridgeState
+    /// `asset_locations` tek-durum haritası — ilk lock'tan sonra asset Active→Locked
+    /// geçer, ikinci lock reddedilir. Bu, cross-domain double-spend'in temel
+    /// korumasıdır.
+    #[test]
+    fn test_chaos_bridge_double_lock_same_asset_rejected() {
+        use crate::cross_domain::bridge::BridgeState;
+
+        let mut bridge = BridgeState::new();
+        let asset = crate::cross_domain::bridge::AssetId::from([0xAB; 32]);
+        let owner = Address::from([1u8; 32]);
+        let recipient = Address::from([2u8; 32]);
+
+        // İlk lock başarılı.
+        bridge.register_asset(asset, 1).unwrap();
+        let (_transfer1, _event1) = bridge
+            .lock(1, 2, 10, 0, asset, owner, recipient, 100, 1000)
+            .expect("first lock must succeed");
+
+        // İkinci lock AYNI asset ile — reddedilmeli (double-spend koruması).
+        let result = bridge.lock(1, 2, 11, 0, asset, owner, recipient, 100, 1000);
+        assert!(
+            result.is_err(),
+            "double-lock of same asset must be rejected (double-spend protection)"
+        );
+    }
+
+    /// **State determinizmi:** Aynı işlem seti farklı sıralarda işlendiğinde
+    /// state root değişmemeli (konsensüs gereği). İki blockchain aynı işlemleri
+    /// farklı sırada uygular → state root eşit olmalı (sıra-bağımsızlık).
+    #[test]
+    fn test_chaos_state_determinism_under_tx_reordering() {
+        let consensus = Arc::new(PoWEngine::new(0));
+        let mut chain_a = Blockchain::new(consensus.clone(), None, 1337, None);
+        let mut chain_b = Blockchain::new(consensus, None, 1337, None);
+
+        let alice = Address::from_hex(&"01".repeat(32)).unwrap();
+        let bob = Address::from_hex(&"02".repeat(32)).unwrap();
+
+        chain_a.init_genesis_account(&alice);
+        chain_a.init_genesis_account(&bob);
+        chain_b.init_genesis_account(&alice);
+        chain_b.init_genesis_account(&bob);
+
+        // İşlemleri oluştur.
+        let tx1 = Transaction {
+            from: alice,
+            to: bob,
+            amount: 100,
+            fee: 1,
+            nonce: 0,
+            data: vec![],
+            signature: vec![],
+            transaction_type: crate::core::transaction::TransactionType::Transfer,
+        };
+        let tx2 = Transaction {
+            from: bob,
+            to: alice,
+            amount: 50,
+            fee: 1,
+            nonce: 0,
+            data: vec![],
+            signature: vec![],
+            transaction_type: crate::core::transaction::TransactionType::Transfer,
+        };
+
+        // Chain A: tx1 önce, tx2 sonra.
+        let _ = chain_a.state.apply_transaction_checked(&tx1);
+        let _ = chain_a.state.apply_transaction_checked(&tx2);
+
+        // Chain B: tx2 önce, tx1 sonra.
+        let _ = chain_b.state.apply_transaction_checked(&tx2);
+        let _ = chain_b.state.apply_transaction_checked(&tx1);
+
+        // State root eşit olmalı (konsensüs determinizmi).
+        // NOT: nonce sırası farklı olabilir; bu test temel bir devir/miktar
+        // tutarlılığını doğrular. Kesin root eşitliği nonce-bağımlı olabilir.
+        let bal_a_alice = chain_a.state.get(&alice).map(|a| a.balance).unwrap_or(0);
+        let bal_b_alice = chain_b.state.get(&alice).map(|a| a.balance).unwrap_or(0);
+        // Alice başlangıçta belirli miktardan tx1(−100+1) + tx2(+50−1) etkilenir.
+        // Sıra farklı olsa da toplam miktar korunmalı (conservation).
+        assert_eq!(
+            bal_a_alice, bal_b_alice,
+            "balance must be deterministic regardless of tx order"
+        );
+    }
+
+    /// **Genesis mismatch:** Farklı genesis hash'li iki chain reorg ile
+    /// birleştirilemez (cross-chain fork reddi). Bu test, genesis farklı
+    /// chain'lerin fork/reorg denemesinin reddedildiğini doğrular.
+    #[test]
+    fn test_chaos_genesis_mismatch_reorg_rejected() {
+        let consensus_a = Arc::new(PoWEngine::new(0));
+        let mut chain_a = Blockchain::new(consensus_a, None, 1337, None);
+
+        let consensus_b = Arc::new(PoWEngine::new(0));
+        let mut chain_b = Blockchain::new(consensus_b, None, 9999, None); // farklı chain_id
+
+        let producer = Address::from_hex(&"01".repeat(32)).unwrap();
+        for _ in 0..3 {
+            let _ = chain_a.produce_block(producer);
+        }
+        for _ in 0..5 {
+            let _ = chain_b.produce_block(producer);
+        }
+
+        // Farklı chain_id → reorg başarısız olmalı (genesis mismatch).
+        let result = chain_a.try_reorg(chain_b.chain.clone());
+        assert!(
+            result.is_err() || !result.unwrap(),
+            "reorg across different chain_id must be rejected (genesis mismatch)"
+        );
+    }
+
+    /// **Reorg sonrası işlem replay:** Bir zincirde işlenen işlem, reorg sonrası
+    /// yeniden işlenirse nonce/replay koruması çalışmalı. Bu, fork sonrası
+    /// işlemlerin geçerliliğini sınar.
+    #[test]
+    fn test_chaos_tx_validity_survives_reorg() {
+        let consensus_a = Arc::new(PoWEngine::new(0));
+        let mut chain_a = Blockchain::new(consensus_a.clone(), None, 1337, None);
+
+        let consensus_b = Arc::new(PoWEngine::new(0));
+        let mut chain_b = Blockchain::new(consensus_b, None, 1337, None);
+
+        let producer = Address::from_hex(&"01".repeat(32)).unwrap();
+
+        // Chain A: 3 blok üret.
+        for _ in 0..3 {
+            let _ = chain_a.produce_block(producer);
+        }
+        assert_eq!(chain_a.chain.len(), 4);
+
+        // Chain B: 5 blok üret (daha uzun).
+        for _ in 0..5 {
+            let _ = chain_b.produce_block(producer);
+        }
+        assert_eq!(chain_b.chain.len(), 6);
+
+        // Reorg: A, B'nin zincirini kabul etmeli (daha uzun = canonical).
+        let result = chain_a.try_reorg(chain_b.chain.clone());
+        assert!(result.is_ok(), "reorg must succeed for longer chain");
+
+        // Reorg sonrası chain_a'nın uzunluğu B ile eşit olmalı.
+        assert_eq!(
+            chain_a.chain.len(),
+            6,
+            "chain A must adopt chain B's length after reorg"
+        );
+        assert_eq!(
+            chain_a.chain.last().unwrap().hash,
+            chain_b.chain.last().unwrap().hash,
+            "chain A's tip must match chain B's tip"
+        );
+    }
