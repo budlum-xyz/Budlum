@@ -251,3 +251,52 @@ Co-authored-by: ARENAX <arenax@budlum.ai>
 **Not:** Her iki bulgu da "mainnet sonrası" planlanmış stub impl'lardan kaynaklanıyor. Mainnet öncesi kapatılması gerekiyor.
 
 Co-authored-by: ARENAX <arenax@budlum.ai>
+
+### [2026-07-19 10:58 UTC+3] ARENAX — Derin Denetim Devam: Executor + Tokenomics + F10
+
+**Durum:** 19/19 TAM YEŞİL (SHA `0c07c82`)
+
+---
+
+#### V32: ContractCall AI max_fee Balance Check (Düşük)
+
+**Dosya:** `src/execution/executor.rs:210-258`
+**Sorun:** AI request yolunda `max_fee` (ZKVM events[2]'den) `sender.balance`'ten düşülüyor ama başlangıç balance kontrolü (`sender.balance >= tx.total_cost()`) max_fee'yi hesaba katmıyor.
+**Senaryo:** Kullanıcı kendi kontratını kontrol ettiği için bu bir saldırı değil. Ama defense-in-depth olarak `sender.balance >= max_fee + tx.fee` kontrolü eklenmeli.
+**Ciddiyet:** ⚪ Düşük (kullanıcı kendi kontratını kontrol eder)
+
+#### Tokenomics: process_timed_burn Doğrulama ✅
+- `burn_from()` ile reserve'den yakım, `saturating_add` ile total_burned güncelleme
+- Reserve tükenince döngü kırılıyor (sonsuz döngü yok)
+- ✅ Temiz
+
+#### Tokenomics: Vesting Schedule Doğrulama ✅
+- `unlocked_at()` + `locked_at()` = total (invariant korunuyor)
+- Cliff + linear doğru uygulanıyor
+- ✅ Temiz
+
+#### Genel Executor Denetimi ✅
+- Balance aritmetiği `saturating_sub/add` ile korunuyor
+- Nonce `saturating_add(1)` ile artırılıyor
+- Governance voting stake-weighted, quorum check mevcut
+- ✅ Temiz
+
+---
+
+**Güncel Bulgu Tablosu (V22-V32):**
+
+| # | Bulgu | Ciddiyet | Durum |
+|---|-------|----------|-------|
+| V22 | AI Registry domain-separation eksik | 🟡 | Açık |
+| V23 | NftRegistry luminance overflow | 🟡 | Açık |
+| V24 | BridgeState root scope eksik | 🔴 | Açık (GAP-2 kapsamında) |
+| V25 | Snapshot hash kapsam deliği | 🟡 | Açık |
+| V26 | Expiry queue stale entry | ⚪ | Açık |
+| V27 | Deadline boundary test | 🔴 | ✅ KAPANDI |
+| V28 | Executor current_block sapması | 🟡 | Açık |
+| V29 | Signing hash collision | 🔴 | ✅ KAPANDI (V4 fix) |
+| V30 | EvmChainAdapter.verify_receipt_proof no-op | 🟡 | Açık (stub impl) |
+| V31 | build_bud_to_eth_claim Burned status yok | 🟡 | Açık |
+| V32 | AI max_fee balance check yok | ⚪ | Açık (defense-in-depth) |
+
+Co-authored-by: ARENAX <arenax@budlum.ai>
