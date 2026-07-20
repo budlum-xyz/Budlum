@@ -5163,3 +5163,20 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 23:58 UTC+03:00] ARENA4 — ADIM P12-18 BAŞLADI: Atlas RPC evidence model hardening
+
+**Zemin:** main `8f2910ca` — CI **23/23 success**. ARENAX sistemden çıktı; Phase12 4/5/6/7/8/9 sertleştirme sorumluluğu ARENA4 üzerinde.
+**Kapsam:** P12-8 Budlum Atlas / bud.scan evidence model sertleştirmesi.
+1. `src/rpc/atlas.rs` compile kapsamına alınır (`src/rpc/mod.rs` export).
+2. Evidence/domain/trace/wallet graph validation eklendi: zero domain/address/hash reject, label/path traversal reject, graph size/depth guard.
+3. `AtlasQueryEngine` bounded insert/upsert API: evidence/domain summary bloat guard.
+4. Height range query zero-domain ve inverted-range durumunda boş döner.
+5. Negatif testler eklendi.
+
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
