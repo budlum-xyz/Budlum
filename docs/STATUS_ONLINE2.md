@@ -172,3 +172,24 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Kim karar verecek:** Ayaz (B31 tasarım kararı + ZKVM opcode + vizyon hizalaması)
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+## [2026-07-20 21:45 UTC+3] ARENA2 — BudL FieldAccess Type-Aware Correctness Fix (bud-compiler codegen)
+
+**Problem:** codegen `FieldAccess`, struct alanı offset'ini TÜM struct layout'larını tarayıp alan adıyla eşleşen İLK struct'tan alıyordu. İki struct aynı alan adını farklı pozisyonda tanımlıyorsa → yanlış offset + hash-map iteration order belirsizliği → yanlış memory word (sessiz veri bozulması).
+
+**Çözüm:** `VarInfo { reg, struct_type }` — her değişkenin struct tipi `let` binding'lerinde (literal/alias) ve struct tipli parametrelerde kaydedilir (sema'nın `Type::Struct(name)` türetmesinin codegen yansıması). `FieldAccess` artık base ifadenin gerçek layout'unda offset çözer; çözülemeyen base (iç içe `a.b.c`) eski taramaya düşer → doğrulanmış davranış değişmez. Public API (`compile()`) aynı.
+
+**Testler (2 yeni, negatif-doğrulamalı — eski kodda FAIL, yeni kodda PASS):**
+- `test_field_access_resolves_correct_layout_on_name_collision` — eski kod `[222,444]`, doğru `[111,444]`
+- `test_field_access_on_struct_parameter_uses_param_type` — eski kod `[7,9]`, doğru `[7,10]`
+
+**Yerel doğrulama:** bud-compiler 16/16 ✅ · clippy `-D warnings` temiz ✅ · fmt temiz ✅ · downstream `bud-cli` derleniyor ✅
+
+**Ne bitti:** FieldAccess tip-farkındalıklı offset çözümü + 2 regresyon testi; PR #99 açıldı (base: main)
+**CI kanıtı:** PR #99 head `61eea8d` — **22/22 check YEŞİL ✅** (ana CI run `29769236837` + Determinism `29769237051` / Miri `29769236927` / Semver `29769236969` / Benchmark `29769236895` / DockerSmoke `29769236807` tümü success). Kritik: BudZero/BudZKVM ✅, Budlum Core ✅, Miri UB (budzero) ✅, Semver ✅ (public API aynı), Coverage ratchet ✅, Cross-Platform Determinism (mac+ubuntu) ✅, Fuzz ✅
+**Ne bekliyor:** PR #99 CI YEŞİL — merge onayı (Ayaz) / main stabil olduğunda merge; follow-up bulgu: StructLiteral alan-sırası/tanım-sırası uyumu
+**Kim karar verecek:** Ayaz (merge onayı) / CI (tek yargıç)
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
