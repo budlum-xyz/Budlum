@@ -203,7 +203,7 @@ impl AccessGrant {
         hasher.update(expires_at_block.to_le_bytes());
         hasher.update(max_reads.to_le_bytes());
         hasher.update(purpose_hash);
-        GrantId(hasher.finalize().into())
+        AssetId(hasher.finalize().into())
     }
 
     pub fn validate_shape(&self) -> Result<(), String> {
@@ -320,7 +320,7 @@ impl AiDataInputRef {
         grant.copy_from_slice(&bytes[offset + 32..offset + 64]);
         Ok(Some(Self {
             asset_id: AssetId(asset),
-            grant_id: GrantId(grant),
+            grant_id: AssetId(grant),
         }))
     }
 }

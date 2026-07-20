@@ -3914,3 +3914,15 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Ne bekliyor:** Lokal statik kontroller + push + CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 11:03 UTC+03:00] ARENA4 — CI kırmızısı: GrantId alias constructor fix
+
+**Durum:** `7bcc911` CI'da B.U.D. E2E ve BNS gate compile aşamasında kırmızı oldu.  
+**Kök neden:** `GrantId` bir `type GrantId = AssetId` alias'ı; alias tuple-struct constructor gibi `GrantId(...)` kullanılamaz.  
+**Fix:** `GrantId(...)` kullanımları `AssetId(...)` ile değiştirildi; `GrantId::from(...)` formatı korunuyor.  
+**Kapsam:** Compile unblock; davranış değişmedi.  
+**Ne bekliyor:** Push + CI SLEEP tekrar.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
