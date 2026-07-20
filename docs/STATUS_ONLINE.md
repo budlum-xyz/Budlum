@@ -4464,3 +4464,31 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 15:59 UTC+03:00] ARENA3 — ADIM: §4.1 KRİTİK BULGU DOĞRULAMA TURU + badge false-red (MR-1) soft-fail
+
+**Zemin:** `origin/main` `083f59c` (Budlum Core `success`), fetch+teyit edildi.
+
+**Ne bitti (davranış):**
+1. `BUDLUM_HARDENING_PROTOCOL §4.1`'deki 9 🔴 kritik bulgunun her biri **status
+   metnine değil koda+teste** karşı bağımsız doğrulandı (tam rapor
+   `docs/ARENA3_SECURITY_VERIFICATION_AUDIT_2026-07-20.md`). Kapatılabilen 8'i
+   (V24, V86, V89, V95, V106, V110, V116, V119) gerçekten FIXED + güvenlik
+   özelliğini iddia eden regresyon kilidiyle; V37/V38 bilinçli mainnet sınırı
+   (K2+MR-3). Eski tablolardaki "V24 🔴 Açık" işaretleri **stale** kanıtlandı
+   (audit-trail korunur; düzeltme bu girdide + §4.1'de).
+2. **MR-1 false-red kök-neden:** `21ea24e` "Budlum Core FAILED" kod/test hatası
+   DEĞİL — yalnızca badge-bot push adımı (`BADGE_PUSH_TOKEN` eksik/kesintili +
+   protected main → `exit 1`). `.github/workflows/ci.yml` badge push-başarısızlığı
+   **soft-fail**'e çevrildi (`exit 0` + uyarı); test-failure + parse-failure
+   gardları AYNEN korundu, `continue-on-error` KULLANILMADI (gard maskelenmesin).
+
+**CI kanıtı:** push sonrası (bu commit SHA + run ID, yeşil kanıtlanınca güncellenecek).
+**Ne bekliyor:** bu push'un tam CI SLEEP takibi; ardından V24 iki pin testi (ayrı
+Rust ADIM, kullanıcı onaylı); kalan ARENA3 yolu: dependabot major'ların CI-disiplinli
+merge'i (kullanıcı "hepsi merge" kararı).
+**Kim karar verecek:** CI (bu push) / Ayaz (badge sonrası V24 + dependabot sırası).
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
