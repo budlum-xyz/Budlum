@@ -24,6 +24,7 @@ pub mod liveness;
 pub mod params;
 pub mod permissionless;
 pub mod poa_membership;
+pub mod poa_onboarding;
 pub mod role;
 
 pub use invalid_vote::InvalidVoteTracker;
