@@ -47,7 +47,10 @@ fn dao_encryption_policy_update_changes_state_root_without_decrypt_authority() {
         100
     );
     let after = state.calculate_state_root();
-    assert_ne!(before, after, "encryption policy must be state-root visible");
+    assert_ne!(
+        before, after,
+        "encryption policy must be state-root visible"
+    );
 
     let json = serde_json::to_string(state.marketplace.get_encryption_policy(1).unwrap()).unwrap();
     assert!(!json.contains("decrypt"));

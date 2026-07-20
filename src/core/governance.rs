@@ -337,12 +337,7 @@ mod tests {
             active: true,
         };
         let err = gov
-            .create_proposal(
-                proposer,
-                ProposalType::SetEncryptionPolicy(invalid),
-                0,
-                10,
-            )
+            .create_proposal(proposer, ProposalType::SetEncryptionPolicy(invalid), 0, 10)
             .unwrap_err();
         assert!(err.contains("max_grant_duration"));
     }
@@ -372,5 +367,4 @@ mod tests {
         let actions = gov.execute_passed_proposals();
         assert_eq!(actions, vec![GovernanceAction::SetEncryptionPolicy(policy)]);
     }
-
 }

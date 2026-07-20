@@ -18,7 +18,6 @@ use super::{AssetId, GrantId, Signature64};
 /// sayılır ve strict AccessGrant kontrolünden geçmek zorundadır.
 pub const POLLEN_AI_INPUT_REF_PREFIX: &[u8] = b"BDLM_POLLEN_AI_INPUT_REF_V1";
 
-
 /// DAO-managed encryption policy. DAO can tune protocol parameters, but it
 /// cannot decrypt data, grant read access, or override owner signatures.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
