@@ -109,7 +109,10 @@ pub fn build_passport_profile(
     let storage_root = resolved.storage_root;
     let manifest_id = content_id.or(storage_root.map(ContentId));
 
-    let assets_owned = data_assets.iter().filter(|asset| owned_by(&owner, asset)).count();
+    let assets_owned = data_assets
+        .iter()
+        .filter(|asset| owned_by(&owner, asset))
+        .count();
     let grants_as_owner = access_grants
         .iter()
         .filter(|grant| grant.owner == owner)
@@ -165,7 +168,10 @@ pub fn build_passport_profile(
         source: "B.U.D. manifest registry".into(),
         root: manifest_summary.as_ref().map(|m| m.manifest_id.clone()),
         warning: if manifest_summary.is_some() && manifest.is_none() {
-            Some("Manifest commitment exists but full manifest bytes are not available in this node".into())
+            Some(
+                "Manifest commitment exists but full manifest bytes are not available in this node"
+                    .into(),
+            )
         } else {
             None
         },
@@ -175,7 +181,10 @@ pub fn build_passport_profile(
         status: EvidenceStatus::Verified,
         source: "Pollen registry root".into(),
         root: None,
-        warning: Some("Counts are registry-derived; individual data bytes are never exposed by this endpoint".into()),
+        warning: Some(
+            "Counts are registry-derived; individual data bytes are never exposed by this endpoint"
+                .into(),
+        ),
     });
 
     DwebPassportProfile {
@@ -227,7 +236,8 @@ mod tests {
             is_expired: false,
         };
         let asset = DataAsset::new(owner, manifest_id, [7u8; 32], true);
-        let profile = build_passport_profile("ayaz.bud".into(), Some(resolved), None, &[asset], &[], &[]);
+        let profile =
+            build_passport_profile("ayaz.bud".into(), Some(resolved), None, &[asset], &[], &[]);
         assert!(profile.exists);
         assert_eq!(profile.pollen.assets_owned, 1);
         assert!(profile.evidence.iter().any(|card| card.subject == "pollen"));

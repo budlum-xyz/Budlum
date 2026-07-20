@@ -2535,9 +2535,10 @@ impl BudlumApiServer for RpcServer {
         name: String,
     ) -> Result<serde_json::Value, ErrorObjectOwned> {
         let resolved = self.chain.bns_resolve_full(name.clone()).await;
-        let manifest_id = resolved
-            .as_ref()
-            .and_then(|r| r.content_id.or(r.storage_root.map(crate::storage::ContentId)));
+        let manifest_id = resolved.as_ref().and_then(|r| {
+            r.content_id
+                .or(r.storage_root.map(crate::storage::ContentId))
+        });
         let manifest = if let Some(id) = manifest_id {
             let reg = self.storage.lock().map_err(|e| {
                 ErrorObjectOwned::owned(

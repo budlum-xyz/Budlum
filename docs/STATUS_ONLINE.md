@@ -4521,3 +4521,15 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 16:24 UTC+03:00] ARENA4 — P12-6 CI kırmızısı: rustfmt passport diff fix
+
+**Durum:** main `79cdc16` CI'da `Budlum Core` Format adımında kırmızı oldu.  
+**Kök neden:** `src/gateway/passport.rs`, `src/rpc/api.rs`, `src/rpc/server.rs` rustfmt beklenen biçimde değildi.  
+**Fix:** CI rustfmt diff'leri uygulandı.  
+**Kapsam:** Format-only CI unblock.  
+**Ne bekliyor:** Push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
