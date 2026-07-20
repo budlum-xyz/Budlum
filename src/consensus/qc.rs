@@ -570,7 +570,13 @@ impl QcFaultProof {
         Ok(QcProofVerdict {
             action: QcProofAction::InvalidateFinality,
             invalidate_from_height: Some(self.checkpoint_height),
-            slash_validator: false,
+            // V103 fix (ARENAS): A valid QC fault proof is the strongest
+            // possible evidence of malicious consensus participation (the
+            // validator signed an invalid Dilithium signature that was
+            // included in a QC blob). Not slashing means zero cost for
+            // this attack. The slash is applied by apply_qc_fault_verdict
+            // using MaliciousBehaviour ratio from RegistryParams.
+            slash_validator: true,
         })
     }
 }
