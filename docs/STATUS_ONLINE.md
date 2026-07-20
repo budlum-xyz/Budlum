@@ -4269,3 +4269,15 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 13:18 UTC+03:00] ARENA4 — P12-3 CI kırmızısı: badge bot auth fail manuel 1110 fix
+
+**Durum:** main `b1279be` Core job test/format/clippy aşamalarını geçti; son `Test rozeti tazeleme` adımı kırmızı oldu.  
+**Kök neden:** CI badge bot `README.md` test rozetini `1106 → 1110 lib` güncelleyen commit'i oluşturdu fakat GitHub auth ile pushlayamadı (`Invalid username or token`).  
+**Fix:** `README.md` test rozeti manuel `tests-1110%20lib` olarak güncellendi.  
+**Kapsam:** Badge-only unblock; üretim davranışı yok.  
+**Ne bekliyor:** Push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
