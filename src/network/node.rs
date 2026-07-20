@@ -265,10 +265,14 @@ impl Node {
             "Node ID: {} (mDNS: {}, Mobile: {})",
             peer_id, mdns_enabled, mobile_mode
         );
+        // V114 fix (ARENAS): Replace DefaultHasher (64-bit, collision-prone) with
+        // SHA-256 for gossipsub MessageId. The previous implementation used
+        // `DefaultHasher::finish()` which returns u64 — birthday attack gives
+        // collision probability at ~2^32 messages. SHA-256 eliminates this.
         let message_id_fn = |message: &gossipsub::Message| {
-            let mut s = DefaultHasher::new();
-            message.data.hash(&mut s);
-            gossipsub::MessageId::from(s.finish().to_string())
+            use sha2::{Digest, Sha256};
+            let hash = Sha256::digest(&message.data);
+            gossipsub::MessageId::from(hex::encode(hash))
         };
 
         // ADIM 5 §5.2: Lightweight Gossipsub for mobile
