@@ -2871,3 +2871,80 @@ Co-authored-by: ARENAS <arenas@budlum.ai>
 **Lokal:** 1034 passed / 0 failed / clippy -D warnings OK.
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### V121 (⚪ Dusuk) — PeerManager: Rate Limit Asiminda Yanlis Ceza Kategorisi
+
+**Dosya:** `src/network/peer_manager.rs` check_rate_limit() (satir ~151)
+**Ciddiyet:** ⚪ Dusuk
+**Kategori:** Dogruluk / Peer scoring
+
+**Aciklama:**
+`check_rate_limit` metodu, bir peer mesaj limitini astiginda `OVERSIZED_MESSAGE_PENALTY` veriyor:
+
+```rust
+if !score.consume_token_with_rate(refill) {
+    score.score = (score.score + OVERSIZED_MESSAGE_PENALTY).max(MIN_SCORE);
+    ...
+}
+```
+
+Ancak rate limit asimi ile "oversized message" tamamen farkli seyler:
+- Rate limit asimi: cok fazla mesaj gondermek (spam)
+- Oversized message: tek bir mesajin boyutunun siniri asmasi
+
+Bu yanlis kategorilendirme peer scoring'i bozar. Rate limit asimi icin ayri bir `RATE_LIMIT_PENALTY` sabiti olmali.
+
+---
+
+### V122 (⚪ Dusuk) — burn_from: Sessiz Kismi Yakma (Insufficient Balance)
+
+**Dosya:** `src/core/account.rs` burn_from() (satir ~969)
+**Ciddiyet:** ⚪ Dusuk
+**Kategori:** Ekonomik tutarlilik
+
+**Aciklama:**
+`burn_from` metodu, istenen yakma miktarini bakiyeden fazla olursa sessizce bakiye kadar yakiyor:
+
+```rust
+pub fn burn_from(&mut self, address: &Address, amount: u64) -> u64 {
+    let burned = amount.min(account.balance);
+    account.balance -= burned;
+    burned
+}
+```
+
+Eger burn_reserve_address'te 50 BUD varsa ve yillik burn 100 BUD istenirse, sadece 50 BUD yakilir. Cagiran 100 beklerken 50 alir — sessiz kayip.
+
+Tasarim karari olabilir (insufficient balance = burn what you can), ama timed burn gibi kritik ekonomik islemlerde uyari verilmeli.
+
+---
+
+### V107 Guncelleme — ARENA3 Fix Onaylandi (d056222)
+
+ARENA3, bridge lock'ta `mark_processed` cagirisini kaldirarak V107'yi kismen onardi. Oncesi:
+- Lock sirasinda `bridge_state.replay.mark_processed()` cagriliyordu → sonraki mint "already processed" hatasiyla basarisiz oluyordu
+- Simdi: Lock sirasinda sadece `message_registry.insert()` yapiliyor, replay protection mint/unlock aninda isletiliyor
+
+Bu fix bridge lock → mint akisini duzeltti. Ancak V107'nin orijinal bulgusu (lock sirasinda owner bakiye debit ediliyor mu?) hala gecerli — lock islemi gercekten fonlari ayiriyor mu yoksa sadece bir kayit mi?
+
+---
+
+**Guncel Toplam Denetim Tablosu:**
+
+| Ciddiyet | Sayi | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 14 | 5 kapatildi, 9 acik (V24, V37, V38, V86, V89, V95*, V106*, V110, V116, V119) |
+| 🟡 Yuksek | 28 | 5 kapatildi, 23 acik |
+| ⚪ Dusuk | 46 | 4 kapatildi, 42 acik |
+
+*V95 ve V106 onarildi (push edildi, CI bekleniyor)
+
+**Toplam: 88 bulgu (V22-V122), 15 kapatildi, 73 acik**
+
+**Ne bitti:** ADIM 7 (tamamlandi) — settlement/global_block.rs, settlement/proof_verifier.rs, evm/header.rs, evm/receipt.rs, evm/rlp.rs, storage/db.rs (tam), core/account.rs, crypto/primitives.rs, network/peer_manager.rs, tokenomics/mod.rs, cli/commands.rs, main.rs denetlendi. 2 yeni dusuk bulgu (V121 rate limit penalty, V122 burn_from partial). V107 ARENA3 fix ile kismen onarildi.
+**Ne bekliyor:** CI onayi + V119 sync-committee onarimi + V116 AiAgentPayment proto + V110 VerifyInference + tum acik kritikler.
+**Kim karar verecek:** Ayaz (V119 + V116 + V110 + V89) + CI
+
+Co-authored-by: ARENAS <arenas@budlum.ai>
