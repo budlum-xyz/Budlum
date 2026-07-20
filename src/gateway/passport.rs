@@ -8,6 +8,7 @@ use crate::core::address::Address;
 use crate::pollen::{AccessGrant, DataAsset, SaleAuthorization};
 use crate::storage::{ContentId, ContentManifest};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EvidenceStatus {
@@ -55,6 +56,112 @@ pub struct DwebPassportProfile {
     pub manifest: Option<PassportManifestSummary>,
     pub pollen: PollenLineageSummary,
     pub evidence: Vec<EvidenceCard>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PassportProofItem {
+    pub subject: String,
+    pub status: EvidenceStatus,
+    pub source: String,
+    pub root: Option<String>,
+    /// Hash of the warning text, not the warning text itself. The public proof
+    /// bundle therefore remains evidence-only and does not leak raw content.
+    pub warning_hash: Option<[u8; 32]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PassportProofBundle {
+    pub name: String,
+    pub exists: bool,
+    pub owner: Option<Address>,
+    pub generated_at_block: u64,
+    pub evidence_count: u32,
+    pub bundle_root: [u8; 32],
+    pub items: Vec<PassportProofItem>,
+}
+
+fn update_str(hasher: &mut Sha256, value: &str) {
+    hasher.update((value.len() as u64).to_le_bytes());
+    hasher.update(value.as_bytes());
+}
+
+fn status_tag(status: &EvidenceStatus) -> u8 {
+    match status {
+        EvidenceStatus::Verified => 1,
+        EvidenceStatus::Pending => 2,
+        EvidenceStatus::Unavailable => 3,
+        EvidenceStatus::Unverified => 4,
+    }
+}
+
+fn warning_hash(warning: &Option<String>) -> Option<[u8; 32]> {
+    warning.as_ref().map(|value| {
+        let mut hasher = Sha256::new();
+        hasher.update(b"BDLM_PASSPORT_WARNING_V1");
+        update_str(&mut hasher, value);
+        hasher.finalize().into()
+    })
+}
+
+pub fn build_passport_proof_bundle(
+    profile: &DwebPassportProfile,
+    generated_at_block: u64,
+) -> PassportProofBundle {
+    let items: Vec<PassportProofItem> = profile
+        .evidence
+        .iter()
+        .map(|card| PassportProofItem {
+            subject: card.subject.clone(),
+            status: card.status.clone(),
+            source: card.source.clone(),
+            root: card.root.clone(),
+            warning_hash: warning_hash(&card.warning),
+        })
+        .collect();
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"BDLM_DWEB_PASSPORT_PROOF_BUNDLE_V1");
+    update_str(&mut hasher, &profile.name);
+    hasher.update([u8::from(profile.exists)]);
+    match profile.owner {
+        Some(owner) => {
+            hasher.update([1]);
+            hasher.update(owner.as_bytes());
+        }
+        None => hasher.update([0]),
+    }
+    hasher.update(generated_at_block.to_le_bytes());
+    hasher.update((items.len() as u32).to_le_bytes());
+    for item in &items {
+        update_str(&mut hasher, &item.subject);
+        hasher.update([status_tag(&item.status)]);
+        update_str(&mut hasher, &item.source);
+        match &item.root {
+            Some(root) => {
+                hasher.update([1]);
+                update_str(&mut hasher, root);
+            }
+            None => hasher.update([0]),
+        }
+        match item.warning_hash {
+            Some(hash) => {
+                hasher.update([1]);
+                hasher.update(hash);
+            }
+            None => hasher.update([0]),
+        }
+    }
+    let bundle_root = hasher.finalize().into();
+
+    PassportProofBundle {
+        name: profile.name.clone(),
+        exists: profile.exists,
+        owner: profile.owner,
+        generated_at_block,
+        evidence_count: items.len() as u32,
+        bundle_root,
+        items,
+    }
 }
 
 fn hex32(bytes: &[u8; 32]) -> String {
@@ -245,4 +352,31 @@ mod tests {
         assert!(!json.contains("private_key"));
         assert!(!json.contains("plaintext"));
     }
+
+    #[test]
+    fn proof_bundle_hashes_warnings_without_plaintext() {
+        let profile = build_passport_profile("missing.bud".into(), None, None, &[], &[], &[]);
+        let bundle = build_passport_proof_bundle(&profile, 77);
+        assert_eq!(bundle.evidence_count, profile.evidence.len() as u32);
+        assert!(bundle.items.iter().any(|item| item.warning_hash.is_some()));
+        let json = serde_json::to_string(&bundle).unwrap();
+        assert!(!json.contains("Name not found"));
+        assert!(!json.contains("plaintext"));
+    }
+
+    #[test]
+    fn proof_bundle_root_changes_when_evidence_changes() {
+        let mut profile = build_passport_profile("missing.bud".into(), None, None, &[], &[], &[]);
+        let first = build_passport_proof_bundle(&profile, 77);
+        profile.evidence.push(EvidenceCard {
+            subject: "extra".into(),
+            status: EvidenceStatus::Pending,
+            source: "test".into(),
+            root: Some("0x01".into()),
+            warning: None,
+        });
+        let second = build_passport_proof_bundle(&profile, 77);
+        assert_ne!(first.bundle_root, second.bundle_root);
+    }
+
 }

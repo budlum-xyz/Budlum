@@ -120,7 +120,8 @@ Not: Son main push sonrası CI final durumu ARENA1 tarafından tekrar doğrulanm
 | P12-10 | Governance / Constitution Engine | P1 | Uygulandı / CI yeşil |
 | P12-11 | Proof Verification Market / LUM hazırlığı | P2 | Uygulandı / CI yeşil |
 | P12-12 | Developer OS / BudL SDK | P2 | Uygulandı / CI yeşil |
-| P12-13 | Pollen sale settlement primitives | P1 | Bu ADIM başladı |
+| P12-13 | Pollen sale settlement primitives | P1 | Uygulandı / CI yeşil |
+| P12-14 | D-Web Passport proof bundle | P1 | Bu ADIM başladı |
 
 ---
 
@@ -607,6 +608,22 @@ Pollen satışında DataAsset sahipliği devredilmeden, seller authorization üz
 ### Güvenlik sınırı
 
 Bu ADIM gerçek ödeme settlement'ı veya kriptografik imza doğrulama adapter'ı değildir. Seller imza sentinel'i yine reddedilir; payment adapter ileride ayrı transaction/RPC/crypto katmanıyla bağlanacaktır.
+
+---
+
+## 13B. P12-14 — D-Web Passport proof bundle
+
+### Amaç
+
+D-Web Passport profil endpoint'i kanıt iddialarını evidence-card olarak gösteriyordu. Bu ADIM, budlum.xyz / bud.scan tarafının tüketebileceği deterministic proof bundle root üretir; public bundle warning/plaintext metni yerine hash taşır.
+
+### Kapsam
+
+- `PassportProofItem`: subject/status/source/root + warning hash.
+- `PassportProofBundle`: profile name, owner, block, evidence count, bundle root, items.
+- `build_passport_proof_bundle(profile, generated_at_block)`.
+- Bundle root evidence listesine ve warning hash'lerine bağlanır.
+- Public bundle plaintext veya private-key alanı taşımaz.
 
 ---
 

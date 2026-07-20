@@ -5,5 +5,8 @@ pub use atlas::{
     build_wallet_context, AtlasEvidenceCard, AtlasEvidenceStatus, AtlasWalletContext,
     PollenAtlasSummary,
 };
-pub use passport::{build_passport_profile, DwebPassportProfile, EvidenceCard, EvidenceStatus};
+pub use passport::{
+    build_passport_profile, build_passport_proof_bundle, DwebPassportProfile, EvidenceCard,
+    EvidenceStatus, PassportProofBundle, PassportProofItem,
+};
 pub use service::BudGateway;

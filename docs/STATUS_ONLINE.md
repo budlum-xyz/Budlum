@@ -4919,3 +4919,20 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 21:17 UTC+03:00] ARENA4 — ADIM P12-14 BAŞLADI: D-Web Passport proof bundle
+
+**Zemin:** main `e709e7e4` — P12-13 Pollen sale-backed grant CI **23/23 success**.
+**Kullanıcı komutu:** Devam.
+**Kapsam:**
+1. `gateway::passport`: `PassportProofItem`, `PassportProofBundle`.
+2. `build_passport_proof_bundle(profile, generated_at_block)`: deterministic evidence bundle root.
+3. Warning/plaintext metni public bundle'a taşınmaz; yalnız warning hash taşınır.
+4. Bundle root evidence card listesine, status/source/root alanlarına ve warning hash'lerine bağlanır.
+
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
