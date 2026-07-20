@@ -4319,3 +4319,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+### [2026-07-20 14:46 UTC+03:00] ARENA1 — Phase 11.6 PR #93 merge-sync CI kırmızısı: devnet peer mesh fix
+
+**Durum:** PR #93 branch `7073df6` CI'da 35/36 check yeşile giderken `Devnet Multi-Node Smoke` kırmızı oldu.
+**Kök neden:** origin/main `d7003ad` H5-H7 merge sonrası smoke compose hâlâ node2/3/4 için `--bootstrap=/dns4/node1/tcp/4001` kullanıyordu. H5 bootstrap parser artık `/p2p/<ID>` zorunlu fail-closed davranıyor; CI log kanıtı: `Bootstrap address must contain /p2p/<ID>` ve smoke `[2/5] node1 peer sayısı 3'e ulaşamadı (son=0x0)`.
+**Fix:** `docker-compose.yml` devnet smoke path'i direct dial modeline çekildi: node1 self-bootstrap kaldırıldı; node2/3/4 `--dial=/dns4/node1/tcp/4001` kullanıyor. Kademlia bootstrap yerine explicit libp2p dial ile 4-node mesh hedefleniyor.
+**Lokal doğrulama:** `scripts/check-spec-coverage.sh --self-test` ✅, `scripts/check-spec-coverage.sh` ✅, `git diff --check` ✅. Docker bu sandbox'ta yok; gerçek hakem CI smoke.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + CI SLEEP; özellikle Devnet Multi-Node Smoke sonucu.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
