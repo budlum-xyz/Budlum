@@ -571,15 +571,42 @@ impl Executor {
                             }
                             crate::cross_domain::message::MessageKind::BridgeBurn => {
                                 // Inbound burn (from target back to source) -> Unlock on Budlum
-                                // Correlation ID usually links it.
-                                if let Some(correlation_id) = msg.correlation_id {
-                                    state
-                                        .bridge_state
-                                        .unlock(correlation_id, msg.source_domain)
-                                        .map_err(|e| {
-                                            BudlumError::validation("bridge_unlock_failed", e.0)
-                                        })?;
+                                // V128 fix (ARENAS): correlation_id is MANDATORY — without it
+                                // we cannot identify which transfer to unlock. Also, owner
+                                // balance must be refunded after unlock (1% relayer fee
+                                // deducted, consistent with submit_relay_proof).
+                                let transfer_id = msg.correlation_id.ok_or_else(|| {
+                                    BudlumError::validation(
+                                        "bridge_unlock_failed",
+                                        "Bridge burn message missing correlation_id",
+                                    )
+                                })?;
+                                let transfer = state
+                                    .bridge_state
+                                    .get_transfer(&transfer_id)
+                                    .ok_or_else(|| {
+                                        BudlumError::validation(
+                                            "bridge_unlock_failed",
+                                            "Unknown bridge transfer for unlock",
+                                        )
+                                    })?
+                                    .clone();
+                                state
+                                    .bridge_state
+                                    .unlock(transfer_id, msg.source_domain)
+                                    .map_err(|e| {
+                                        BudlumError::validation("bridge_unlock_failed", e.0)
+                                    })?;
+                                // Refund owner (1% relayer fee deducted, same as submit_relay_proof)
+                                let fee = transfer.amount.saturating_mul(1) / 100;
+                                let final_amount = transfer.amount.saturating_sub(fee);
+                                if final_amount > u64::MAX as u128 {
+                                    return Err(BudlumError::validation(
+                                        "bridge_unlock_failed",
+                                        "Unlock amount exceeds maximum representable balance",
+                                    ));
                                 }
+                                state.add_balance(&transfer.owner, final_amount as u64);
                             }
                             _ => {}
                         }

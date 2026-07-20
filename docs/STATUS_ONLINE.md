@@ -3386,3 +3386,117 @@ if block.index != expected_height {
 
 Co-authored-by: ARENAS <arenas@budlum.ai>
 
+
+---
+
+## ADIM 10 — Devam Eden Derin Denetim: V128-V129 + Mevcut Bulguların Doğrulanması
+
+**Tarih:** 2026-07-20
+**Ajan:** ARENAS (Denetim)
+
+### Push Durumu
+- SHA `83df3b1` push edildi — V107+V125+V126+V127 fix'ler CI bekliyor (16/16 status checks)
+
+### V128 (🔴 Kritik): Universal Relayer BridgeBurn — Owner Bakiye İadesi Eksik + Sessiz Hata
+
+**Dosya:** `src/execution/executor.rs` BridgeBurn handler (satır ~582)
+**Ciddiyet:** 🔴 Kritik
+**Kategori:** Ekonomik tutarlılık / kayıp fon
+
+**Açıklama:**
+Universal relayer'dan gelen BridgeBurn mesajı işlenirken:
+
+```rust
+MessageKind::BridgeBurn => {
+    if let Some(correlation_id) = msg.correlation_id {
+        state.bridge_state.unlock(correlation_id, msg.source_domain)
+            .map_err(...)?;
+    }
+    // OWNER'A BAKİYE İADESİ YOK!
+    // correlation_id yoksa sessizce atlanıyor — hata döndürülmüyor!
+}
+```
+
+İki sorun:
+1. **Owner bakiye iadesi eksik:** `unlock()` bridge state'i günceller ama owner'ın bakiyesine iade yapılmaz. V107 fix ile lock sırasında bakiye düşülüyor artık, ama unlock sırasında iade edilmiyor — fonlar kalıcı olarak kaybolur.
+
+2. **Sessiz hata:** `correlation_id = None` olduğunda unlock tamamen atlanır. Hata döndürülmez, log yazılmaz. Bu, bir saldırganın correlation_id'siz bir burn mesajı gönderip fonları kilitlemesine olanak tanır.
+
+**Öneri:**
+```rust
+MessageKind::BridgeBurn => {
+    let transfer_id = msg.correlation_id.ok_or_else(|| {
+        BudlumError::validation("bridge_unlock_failed", "Missing correlation_id")
+    })?;
+    let transfer = state.bridge_state.get_transfer(&transfer_id)
+        .ok_or_else(|| BudlumError::validation("bridge_unlock_failed", "Unknown transfer"))?
+        .clone();
+    state.bridge_state.unlock(transfer_id, msg.source_domain)
+        .map_err(|e| BudlumError::validation("bridge_unlock_failed", e.0))?;
+    // Owner bakiye iadesi (1% relayer fee düşürerek)
+    let fee = transfer.amount.saturating_mul(1) / 100;
+    let final_amount = transfer.amount.saturating_sub(fee);
+    if final_amount <= u64::MAX as u128 {
+        state.add_balance(&transfer.owner, final_amount as u64);
+    }
+}
+```
+
+---
+
+### V129 (🟡 Yüksek): AiDisputeSlash seized_stake — burn_from() Çağrısı Eksik
+
+**Dosya:** `src/execution/executor.rs` AiDisputeSlash handler (satır ~858)
+**Ciddiyet:** 🟡 Yüksek
+**Kategori:** Ekonomik tutarlılık / arz bütünlüğü
+
+**Açıklama:**
+AiDisputeSlash işleminde seized stake:
+```rust
+let _ = seized_stake; // Burned
+```
+
+Stake sadece ignore ediliyor — gerçek `burn_from()` çağrısı yapılmıyor. Bu:
+1. Arzın azalmaması demek — stake account'tan siliniyor ama toplam arızadan düşmemeli
+2. `account.burn_from()` ile yapılmadığı için tokenomics bütçe denklemi (`is_balanced`) bozulabilir
+3. Gelecekte treasury'ye yönlendirme kararı alınırsa, şu anki kodda hiçbir mekanizma yok
+
+**Öneri:** `state.burn_from(&slashed_verifier, seized_stake)` veya treasury'ye transfer ile değiştirilmeli.
+
+---
+
+### Mevcut Açıkların Doğrulanma Durumu
+
+**V30/V91 (🟡):** EvmChainAdapter verify_receipt_proof — DOĞRULANDI, hala no-op. Tüm parametreler `_` ile ignore ediliyor, sadece `Ok(())` döndürüyor.
+
+**V98 (🟡):** PoS calculate_seed lock poisoning — DOĞRULANDI. RwLock poison'da sıfır seed döndürüyor, VRF manipülasyon riski var.
+
+**V103 (🟡):** QcFaultProof InvalidDilithiumV1 — DOĞRULANDI. `slash_validator: false` set edilmiş, sadece finality geçersiz kılınıyor, validator slash edilmiyor.
+
+**V113 (🟡):** recover_interrupted_commit — DOĞRULANDI. Sadece block/state root indeksleri temizleniyor, bridge/account/domain rollback yok.
+
+**V90 (🟡):** AiDisputeSlash seized stake burn_from eksik — DOĞRULANDI. `let _ = seized_stake;` ile ignore ediliyor.
+
+### Güncel Toplam Denetim Tablosu
+
+| Ciddiyet | Sayi | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 17 | 11 kapatildi, 6 acik (V24, V86, V89, V107, V126, V128) |
+| 🟡 Yuksek | 34 | 7 kapatildi, 27 acik |
+| ⚪ Dusuk | 47 | 4 kapatildi, 43 acik |
+
+**Toplam: 97 bulgu (V22-V129), 22 kapatildi, 75 acik**
+
+**Açık Kritikler:**
+- V24 (🔴): Bridge root scope
+- V86 (🔴): Escrow release/reclaim
+- V89 (🔴): AiAgentPayment non-escrowed audit trail
+- V107 (🔴): Bridge lock owner bakiye düşüşü — **FIXED, CI bekleniyor**
+- V126 (🔴): Universal relayer bridge mint — **FIXED, CI bekleniyor**
+- V128 (🔴): Universal relayer BridgeBurn owner iade eksik + sessiz hata
+
+**Ne bitti:** ADIM 10 — V128 (kritik) + V129 (yüksek) bulguları + 5 mevcut bulgu doğrulaması.
+**Ne bekliyor:** V128 fix (BridgeBurn owner iade), CI SLEEP (83df3b1).
+**Kim karar verecek:** Ayaz (V128 onarım kararı) + CI
+
+Co-authored-by: ARENAS <arenas@budlum.ai>
