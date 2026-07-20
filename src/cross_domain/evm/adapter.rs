@@ -241,9 +241,7 @@ mod tests {
             index: 0,
             siblings: vec![],
         };
-        assert!(adapter
-            .verify_receipt_proof(&proof, &leaf, "0xabc")
-            .is_ok());
+        assert!(adapter.verify_receipt_proof(&proof, &leaf, "0xabc").is_ok());
 
         // Geçersiz root (leaf ≠ root) → fail-closed (ProofVerificationFailed).
         assert!(adapter
