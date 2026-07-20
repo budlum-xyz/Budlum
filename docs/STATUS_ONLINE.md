@@ -2948,3 +2948,96 @@ Bu fix bridge lock → mint akisini duzeltti. Ancak V107'nin orijinal bulgusu (l
 **Kim karar verecek:** Ayaz (V119 + V116 + V110 + V89) + CI
 
 Co-authored-by: ARENAS <arenas@budlum.ai>
+
+---
+
+### V123 (⚪ Dusuk) — Hub Self-Verify: Developer Kendi Uygulamasini Dogrulayabilir
+
+**Dosya:** `src/hub/mod.rs` verify_app() (satir ~72)
+**Ciddiyet:** ⚪ Dusuk
+**Kategori:** Yetkilendirme / Tasarım karari
+
+**Aciklama:**
+Hub modulunde `verify_app` fonksiyonu, uygulama sahibinin (developer) kendi uygulamasini dogrulamasina izin veriyor. Bu "self-verify" modeli, herhangi bir 3. parti dogrulama mekanizmasi olmadan bir uygulamanin "verified" badge almasina neden olur.
+
+Kodda yorum var: "Future: DAO governance can verify any app via authorized_verifiers set." — ama su an self-verify tek yol.
+
+**Sonuc:** Herkes sahte/low-quality uygulama kaydedip self-verify yapabilir. "Verified" badge'in guvenilirligi sifir.
+
+**Oneri:** DAO governance veya topluluk oylama mekanizmasi eklenene kadar, `verify_app` sadece operator/admin tarafindan cagrilabilmeli, veya `verified` flag'i UI'da gosterilmemeli.
+
+---
+
+### V124 (🟡 Yuksek) — Bridge Relay Fee Truncation: fee as u64 Kontrol Eksik
+
+**Dosya:** `src/chain/blockchain.rs` submit_relay_proof() (satir ~1906, ~1955)
+**Ciddiyet:** 🟡 Yuksek
+**Kategori:** Ekonomik tutarlilik / u128 → u64 truncation
+
+**Aciklama:**
+Bridge relay proof islenirken, hem BridgeLock hem BridgeBurn handler'larinda fee hesaplanip `as u64` ile cast ediliyor:
+
+```rust
+let fee = transfer.amount.saturating_mul(1) / 100;
+let final_amount = transfer.amount.saturating_sub(fee);
+
+// Phase 9 Security: Prevent u128 -> u64 truncation
+if final_amount > u64::MAX as u128 {
+    return Err(...);
+}
+
+self.state.add_balance(&transfer.recipient, final_amount as u64);
+self.state.add_balance(&relayer, fee as u64);  // fee truncation kontrolu YOK!
+```
+
+`final_amount` icin u64 overflow kontrolu var, ama `fee` icin yok. Eger `transfer.amount` yeterince buyukse, `fee` u64::MAX'i asar ve `fee as u64` sessizce truncate olur. Relayer eksik odeme alir, fark kaybolur.
+
+**Pratik etki:** Su anki arz (100M BUD = 10^14 base units) ile fee max 10^12 — u64'e sigar. Ama gelecekte buyuk u128 degerler gelirse sorun olur.
+
+**Oneri:** `fee > u64::MAX as u128` kontrolu de eklenmeli. Veya `amount` baslangicta u64 bound'u ile kontrol edilmeli.
+
+---
+
+**Denetim Kapsami Guncellemesi:**
+
+Bu ADIM'da tam denetlenen moduller (ek):
+- `src/settlement/global_block.rs` (236 satir) — saglam, domain-separation tag V3
+- `src/settlement/proof_verifier.rs` (226 satir) — saglam, Merkle proof dogrulama
+- `src/cross_domain/evm/header.rs` (258 satir) — saglam, chain link + N-conf
+- `src/cross_domain/evm/receipt.rs` (326 satir) — saglam, typed+legacy receipt decode
+- `src/cross_domain/evm/rlp.rs` (457 satir) — saglam, canonical form + DoS derinlik
+- `src/core/account.rs` (1562 satir) — burn_from partial burn (V122)
+- `src/crypto/primitives.rs` (681 satir) — saglam, BLS/Ed25519/Dilithium
+- `src/tokenomics/mod.rs` (515 satir) — saglam, is_balanced check
+- `src/hub/mod.rs` (102 satir) — self-verify (V123)
+- `src/bns/registry.rs` (231 satir) — saglam
+- `src/pollen/mod.rs` (286 satir) — saglam
+- `src/socialfi/mod.rs` (159 satir) — saglam
+- `src/cli/commands.rs` (1057 satir) — saglam
+- `src/main.rs` (1137 satir) — CLI expect'ler kabul edilebilir
+- `src/network/peer_manager.rs` (555 satir) — rate limit penalty (V121)
+
+**Guncel Toplam Denetim Tablosu:**
+
+| Ciddiyet | Sayi | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 14 | 5 kapatildi, 9 acik (V24, V37, V38, V86, V89, V95*, V106*, V110, V116, V119) |
+| 🟡 Yuksek | 29 | 5 kapatildi, 24 acik |
+| ⚪ Dusuk | 47 | 4 kapatildi, 43 acik |
+
+*V95 ve V106 onarildi (push edildi, CI bekleniyor)
+
+**Toplam: 90 bulgu (V22-V124), 15 kapatildi, 75 acik**
+
+**Toplam Denetlenen Satir:** ~54,500+ (tum src/ modulleri + budzero/ alt-projesi)
+
+**Kalan Denetlenmemis Kritik Alanlar:**
+1. `blockchain.rs` — 4757 satir, kısmen denetlendi (V95/V106 fix'ler icin okundu, submit_relay_proof V124 bulgu)
+2. `chain_actor.rs` — 2687 satir, message-passing layer, kısmen tarandı
+3. `rpc/server.rs` — 3416 satir, V102/V105 bulguları icin okundu, kalan metodlar
+
+**Ne bitti:** ADIM 7 (tamamlandi) — Tum kucuk/orta moduller denetlendi. 4 yeni bulgu (V121-V124). V124 bridge fee truncation (yuksek).
+**Ne bekliyor:** CI onayi + V119 sync-committee + V116 AiAgentPayment proto + V110 VerifyInference + buyuk dosyalarin kalan kısımları.
+**Kim karar verecek:** Ayaz (kritik onarim kararlari) + CI
+
+Co-authored-by: ARENAS <arenas@budlum.ai>
