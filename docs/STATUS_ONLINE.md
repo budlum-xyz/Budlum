@@ -4854,3 +4854,23 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 20:40 UTC+03:00] ARENA4 — ADIM P12-12 BAŞLADI: Developer OS / BudL SDK skeleton
+
+**Zemin:** main `0cd672a9` — P12-11 Proof Verification Market CI **23/23 success**.
+**Kullanıcı kararı:** R10 / Developer OS / BudL SDK onaylandı; ARENA2 ters sıradan BudL hardening başlattığı için commit'leri ayrıca kontrol edildi.
+**ARENA2 kontrolü:** `origin/arena2/budl-hardening-v2` incelendi; BudL compiler hardening future compiler-layer referansı olarak not edildi, bu ADIM'de doğrudan merge edilmedi.
+
+**Kapsam:**
+1. `src/developer_os.rs`: deterministic `DeveloperOsManifest` + project id.
+2. Local devnet topology, BudL package fixture, proof fixture, Pollen fixture, relayer policy fixture, SDK feature flags.
+3. Offline default: external network access yok; `budlumdevnet` bağımlılığı yok.
+4. Safety fixtures: verified proof zero proof hash ile kabul edilmez; Pollen fixture AI grant bypass modelleyemez; project labels path traversal reddeder.
+5. `docs/DEVELOPER_OS_BUDL_SDK.md`: ilk SDK skeleton belgesi.
+
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>

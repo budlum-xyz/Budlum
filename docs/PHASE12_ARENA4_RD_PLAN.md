@@ -118,8 +118,8 @@ Not: Son main push sonrası CI final durumu ARENA1 tarafından tekrar doğrulanm
 | P12-8 | Budlum Atlas / bud.scan Evidence UI | P1 | Bu ADIM başladı |
 | P12-9 | Mobile Self | P1 | Uygulandı / CI yeşil |
 | P12-10 | Governance / Constitution Engine | P1 | Uygulandı / CI yeşil |
-| P12-11 | Proof Verification Market / LUM hazırlığı | P2 | Bu ADIM başladı |
-| P12-12 | Developer OS / BudL SDK | P2 | Onaylandı |
+| P12-11 | Proof Verification Market / LUM hazırlığı | P2 | Uygulandı / CI yeşil |
+| P12-12 | Developer OS / BudL SDK | P2 | Bu ADIM başladı |
 
 ---
 
@@ -571,6 +571,20 @@ Budlum geliştiricisi için lokal devnet, BudL contract, proof fixtures, wallet 
 - Pollen/AI grant fixture üretir.
 - Wallet signing V4 formatıyla uyumludur.
 - CI template sunulur.
+
+### P12-12 ilk uygulama kapsamı
+
+- `src/developer_os.rs`: deterministic `DeveloperOsManifest`.
+- Local devnet topology, BudL package fixture, proof fixture, Pollen fixture, relayer policy fixture ve SDK feature flags.
+- Offline default: `external_network_access = false`.
+- BudL source hash ve project label validation; path traversal reddi.
+- Pollen fixture AI grant bypass modelleyemez.
+- Verified proof fixture zero proof hash ile kabul edilmez.
+- `docs/DEVELOPER_OS_BUDL_SDK.md`: ilk Developer OS / SDK skeleton belgesi.
+
+### ARENA2 koordinasyon notu
+
+ARENA2 `origin/arena2/budl-hardening-v2` branch'i P12-12 öncesi incelendi. BudL compiler hardening çalışması future compiler-layer sertleştirme için referans olarak tutuldu; bu ADIM'de doğrudan merge edilmedi.
 
 ---
 
