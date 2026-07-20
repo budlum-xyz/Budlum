@@ -98,21 +98,28 @@ impl ChainAdapter for EvmChainAdapter {
     /// burada sadece MPT + receipt decode + deposit log match.
     fn verify_receipt_proof(
         &self,
-        proof: &MerkleProof,
-        external_state_root: &Hash32,
-        expected_tx_hash: &str,
+        _proof: &MerkleProof,
+        _external_state_root: &Hash32,
+        _expected_tx_hash: &str,
     ) -> Result<(), AdapterError> {
-        // MPT verify: receiptsRoot → receipt bytes. F10.1.
-        // MerkleProof.leaf = receipt bytes (relayer tarafından paketlenmiş).
-        let receipt_bytes = &proof.leaf;
-        // NOTE: F10.1 mpt::verify proof_nodes + key bekler; bu trait MerkleProof
-        // (event-tree deseni) kullanır. Gerçek on-chain verify `verify_evm_receipt`
-        // üzerinden (verify.rs) — EvmDepositProof paketi. Bu metod minimal
-        // adapter entry-point; orchestrator verify.rs'te.
-        let _ = receipt_bytes;
-        let _ = external_state_root;
-        let _ = expected_tx_hash;
-        Ok(())
+        // V30 mainnet-seal (fail-closed): on-chain EVM receipt verification is
+        // NOT wired through this trait method. The real verification lives in
+        // `verify_evm_receipt` (verify.rs), which must be called by the
+        // consensus/bridge path with a full `EvmDepositProof` (sync-committee
+        // + header chain + MPT + receipt decode + deposit-log match).
+        //
+        // This stub previously returned `Ok(())` unconditionally — a fail-open
+        // vulnerability: any caller relying on this trait method would accept
+        // a forged receipt. It is now sealed CLOSED: until the on-chain path
+        // delegates to `verify_evm_receipt`, this method MUST reject. EVM
+        // bridging is intentionally disabled at this entry-point for mainnet.
+        Err(AdapterError::ProofVerificationFailed(
+            "V30 mainnet-seal: EVM on-chain receipt verification is not wired \
+             through ChainAdapter::verify_receipt_proof; route via \
+             verify_evm_receipt (verify.rs) with a full EvmDepositProof. \
+             Bridging is disabled at this entry-point until then."
+                .to_string(),
+        ))
     }
 
     /// Off-chain (relayer binary): signed EVM tx → Ethereum RPC broadcast.
@@ -222,8 +229,10 @@ mod tests {
     }
 
     #[test]
-    fn verify_receipt_proof_minimal_ok() {
-        // Minimal adapter entry-point (verify_evm_receipt orchestrator ana yol).
+    fn verify_receipt_proof_fail_closed() {
+        // V30 mainnet-seal: on-chain receipt verify is NOT wired through this
+        // trait method (real path = verify_evm_receipt in verify.rs). Until
+        // then the stub MUST reject — fail-closed, never fail-open.
         let adapter = EvmChainAdapter::test_default();
         let leaf = crate::core::hash::hash_fields_bytes(&[b"test"]);
         let proof = MerkleProof {
@@ -231,9 +240,19 @@ mod tests {
             index: 0,
             siblings: vec![],
         };
-        // Stub minimal — gerçek verify verify_evm_receipt ile.
-        assert!(adapter
-            .verify_receipt_proof(&proof, &[0u8; 32], "0xabc")
-            .is_ok());
+        let res = adapter.verify_receipt_proof(&proof, &[0u8; 32], "0xabc");
+        assert!(
+            res.is_err(),
+            "verify_receipt_proof must be fail-closed (V30) until on-chain verify is wired"
+        );
+        match res {
+            Err(AdapterError::ProofVerificationFailed(msg)) => {
+                assert!(
+                    msg.contains("V30"),
+                    "error message should reference the V30 seal: {msg}"
+                );
+            }
+            other => panic!("expected ProofVerificationFailed, got {other:?}"),
+        }
     }
 }
