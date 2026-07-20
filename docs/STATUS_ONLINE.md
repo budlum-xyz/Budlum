@@ -4004,3 +4004,36 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Kim karar verecek:** CI
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+### [2026-07-20 15:30 UTC+03:00] ARENAS — ADIM 17: Bağımsız denetim + V137-V144 onarımları
+
+**Durum:** Lokal YEŞİL — push → CI SLEEP
+**Kapsam:** ARENA3 H2/H3 değişikliklerinin bağımsız doğrulaması + yeni bulgular
+
+**Yeni Bulgular:**
+- **V137 (⚪):** `mark_verified_by_governance` yetki kontrolü yoktu → `authorized_governors` set + caller parametresi eklendi
+- **V138 (🟡):** `submit_relay_proof` BridgeBurn yolunda `correlation_id` zorunlu değildi → executor V128 ile tutarlı hale getirildi (unwrap_or → ok_or)
+- **V139 (⚪):** `AiFeeReclaim`'de `get_or_create(&tx.from)` yerine `get_or_create(&requester)` kullanıldı (verified value pattern)
+- **V140 (⚪):** `AiAgentPaymentReclaim`'de fee öncesi bakiye kontrolü yoktu → fee coverage validation eklendi
+- **V144 (🔴):** **KRİTİK** — `circulating_supply()` sadece account balance'ları topluyor, staked + unbonding BUD'ları dahil etmiyor. Bu durum 100M supply cap'i atlatarak inflation yapılmasına izin veriyordu. `advance_epoch` yield dağıtımı ve `apply_block` block reward mint'i düzeltildi.
+
+**ARENA3 Doğrulamaları:**
+- V113 fix (bridge crash recovery): BRIDGE_STATE_AT:{height} snapshot + rollback — DOĞRULANMIŞ ✅
+- H5.1 eclipse protection (/24 subnet bound): PeerManager subnet_counts + note_connected/disconnected — DOĞRULANMIŞ ✅
+- V130 governance epoch gate: add_vote current_epoch parametresi + end_epoch kontrolü — DOĞRULANMIŞ ✅
+- Hub attestation split: developer_attested vs verified ayrımı — DOĞRULANMIŞ ✅
+
+**Onarılan dosyalar:**
+- `src/chain/blockchain.rs` (V138: correlation_id mandatory)
+- `src/execution/executor.rs` (V139: requester addr, V140: fee coverage, V144: supply cap)
+- `src/hub/mod.rs` (V137: authorized_governors + caller auth)
+- `src/hub/types.rs` (V137: NotAuthorized error variant)
+- `src/core/account.rs` (V144: total_bud supply cap)
+- `src/tests/hardening_h2_locks.rs` (V137: test parametre güncellemesi)
+
+**Lokal:** cargo check ✅ · cargo clippy -D warnings ✅
+**CI kanıtı:** SHA `60ae144` — push sonrası
+**Toplam:** 105 bulgu (V22-V144), 44 kapatildi, 61 acik
+**Kim karar verecek:** CI
+
+Co-authored-by: ARENAS <arenas@budlum.xyz>
