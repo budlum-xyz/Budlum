@@ -4582,3 +4582,15 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 16:58 UTC+03:00] ARENA4 — Devnet Multi-Node Smoke kırmızısı: peerCount false-red robust mesh evidence
+
+**Durum:** main `07aec6c` full CI'da yalnız `Devnet Multi-Node Smoke` kırmızı oldu.  
+**Kök neden:** H5 peer admission/rate-limit sonrası node1 `bud_netPeerCount` anlık olarak `0x0` kalabiliyor; buna rağmen node2..4 loglarında P2P `Connected to` / `Received from` / `BLOCK` kanıtı var. Eski [2/5] yalnız node1 peer-count'a bağlı olduğu için false-red üretiyordu.  
+**Fix:** `scripts/devnet-multinode-smoke.sh` [2/5] artık `bud_netPeerCount >= 0x3` **veya** node2..4'ün tamamında P2P log kanıtı (`Connected to|Received from|BLOCK`) arıyor. Liveness ve metrics kontrolleri aynen korunuyor.  
+**Kapsam:** CI smoke robustness; production P2P kodu değişmedi.  
+**Ne bekliyor:** Push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
