@@ -105,6 +105,8 @@ pub mod target_700;
 #[cfg(test)]
 pub mod bridge_negatives;
 pub mod domain_edge_cases;
+#[cfg(test)]
+pub mod encryption_dao;
 // Phase 11.3 Görev 4: PoA katılımcı onboarding yaşam-döngüsü + whitelist
 // zorunluluğu + KYC expiry test matrisi. İzolasyon mührü poa_isolation.rs'de.
 pub mod poa_onboarding_matrix;

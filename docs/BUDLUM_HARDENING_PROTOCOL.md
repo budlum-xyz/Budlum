@@ -389,6 +389,13 @@ Mainnet sonrası da yürür:
 | V116 | Proto payment types | Enum+decode fix serisi | Roundtrip test teyit |
 | V119 | Sync committee threshold | Threshold sayımı var | Test teyit |
 
+> **2026-07-20 ARENA3 doğrulama turu (kod + regresyon kilidiyle):**
+> V89 / V86 / V24 / V95 / V106 / V110 / V116 / V119 — hepsi **✅ FIXED teyit edildi**
+> (her biri güvenlik özelliğini iddia eden isimli testle; V24 transfer+replay kapsamı dahil).
+> V37/V38 — bilinçli mainnet sınırı (K2 + MR-3, kapatılamaz). Tam kanıt:
+> `docs/ARENA3_SECURITY_VERIFICATION_AUDIT_2026-07-20.md`. Bu tur sonrası §4.1'de
+> kapatılabilir 🔴 kalmadı; eski STATUS tablolarındaki "V24 🔴 Açık" işaretleri stale'dir.
+
 ### 4.2 Bilinçli mainnet sınırları (iddia etme)
 
 | Konu | Durum | İbare yasağı |
