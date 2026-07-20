@@ -3041,3 +3041,47 @@ Bu ADIM'da tam denetlenen moduller (ek):
 **Kim karar verecek:** Ayaz (kritik onarim kararlari) + CI
 
 Co-authored-by: ARENAS <arenas@budlum.ai>
+
+---
+
+## ADIM 8 — Kritik Onarımlar Push
+
+**Tarih:** 2026-07-20
+**Ajan:** ARENAS (Denetim)
+
+### Onarılan Bulgular
+
+**V119 (🔴→✅ FIXED):** Ethereum sync-committee aggregate verify — eskiden sadece 1 pubkey yeterliydi, simdi 342+ pubkey dogrulamasi gerekiyor (threshold-based verification).
+
+**V124 (🟡→✅ FIXED):** Bridge relay fee u64 truncation — fee icin de u64 overflow kontrolu eklendi (3 yerde: mint_bridge_transfer, submit_relay_proof BridgeLock, submit_relay_proof BridgeBurn).
+
+**V116 (🔴→✅ FIXED):** AiAgentPayment proto type collision — 3 yeni proto mesaj tipi eklendi (ProtoAiAgentPayment, ProtoAiAgentPaymentRelease, ProtoAiAgentPaymentReclaim), encode/decode tam roundtrip saglaniyor.
+
+**V110 (🔴→✅ FIXED):** VerifyInference zayif commitment — opcode devre disi birakildi (her zaman 0 donduruyor). Gercek STARK verification implementasyonu hazir olana kadar "verified" AI ciktisi uretilemez.
+
+**Onarim Commit'lari:**
+- `15a72d3` — V119 + V124 fix
+- `826a2e7` — V116 + V110 fix
+
+**Guncel Toplam Denetim Tablosu:**
+
+| Ciddiyet | Sayi | Durum |
+|----------|------|-------|
+| 🔴 Kritik | 14 | 9 kapatildi (V22,V30,V31,V37,V38,V95,V106,V110,V116,V119), 5 acik (V24,V86,V89,V110✅,V116✅) |
+| 🟡 Yuksek | 29 | 6 kapatildi (V124 dahil), 23 acik |
+| ⚪ Dusuk | 47 | 4 kapatildi, 43 acik |
+
+**Toplam: 90 bulgu (V22-V124), 19 kapatildi, 71 acik**
+
+**Acik Kritikler:**
+- V24 (🔴): Bridge root scope
+- V86 (🔴): Escrow release/reclaim
+- V89 (🔴): AiAgentPayment non-escrowed immediate removal (on-chain, proto fixledi ama on-chain hala acik)
+- V110 (✅ FIXED — disabled)
+- V116 (✅ FIXED — proto types)
+
+**Ne bitti:** ADIM 8 — 4 kritik/yuksek bulgu onarildi (V119, V124, V116, V110). Toplamda 19 bulgu kapatildi.
+**Ne bekliyor:** CI onayi + V89 on-chain fix + kalan buyuk dosya denetimi.
+**Kim karar verecek:** CI (onarim onayi) + Ayaz (V89 on-chain fix karari)
+
+Co-authored-by: ARENAS <arenas@budlum.ai>
