@@ -4426,3 +4426,17 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 15:25 UTC+03:00] ARENA1 — PR #93 main merge sonrası Coverage kırmızısı: genesis hash re-anchor
+
+**Durum:** PR #93 squash-merge edildi (`cff0f24`), main CI SLEEP sırasında `Coverage` kırmızı oldu.
+**Kök neden:** `cargo llvm-cov nextest --lib` içinde `test_mainnet_genesis_hash_matches_documented_constant` fail etti. CI actual hash `fd5f7cb272e01333517d9f85b7e1052b89489a80dd497b2655c3dea99d53add4`, dokümante/test sabiti eski `91cf1268a381d6ae1a2050174a060c207687cb2764111718ddb7fb6a8737bbc8`. Aradaki main commitleri DAO-managed Pollen encryption policy state root'unu değiştirdi; genesis hash sabiti yeniden anchorlanmalı.
+**Fix:** `src/chain/genesis.rs` test sabiti, `config/mainnet.toml` genesis hash yorumu ve `docs/operations/PRODUCTION_RUNBOOK.md` §8.2 mainnet hash tablosu CI actual değerine güncellendi.
+**Lokal doğrulama:** `scripts/check-spec-coverage.sh --self-test` ✅, `scripts/check-spec-coverage.sh` ✅, `git diff --check` ✅. Rust toolchain bu sandbox'ta yok; genesis hash hakemi CI.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + full main CI SLEEP.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
