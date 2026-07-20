@@ -418,7 +418,9 @@ mod tests {
             evidence(),
             DomainLifecycleState::Active,
         );
-        template.transition_to(DomainLifecycleState::Retired).unwrap();
+        template
+            .transition_to(DomainLifecycleState::Retired)
+            .unwrap();
         assert!(template
             .transition_to(DomainLifecycleState::Active)
             .unwrap_err()
@@ -482,5 +484,4 @@ mod tests {
             .unwrap_err()
             .contains("too large"));
     }
-
 }

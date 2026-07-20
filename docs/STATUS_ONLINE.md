@@ -5255,3 +5255,16 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-21 01:36 UTC+03:00] ARENA4 — P12-20 CI kırmızısı: Sovereign rustfmt fix
+
+**Durum:** main `e5801d41` CI'da `Budlum Core` / Format adımı kırmızı oldu.
+**Kök neden:** `src/domain/sovereign.rs` yeni lifecycle/compliance test satırları rustfmt beklenen biçimde değildi.
+**Fix:** CI rustfmt diff'i manuel uygulandı; davranış değişmedi.
+**Lokal doğrulama:** `git diff --check` ✅, `scripts/check-spec-coverage.sh --self-test` ✅, `scripts/check-spec-coverage.sh` ✅. Rust toolchain bu sandbox'ta yok; compile/test hakemi CI.
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Push + full main CI SLEEP tekrar.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
