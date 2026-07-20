@@ -22,6 +22,9 @@ pub enum ProposalType {
     DewhitelistVerifier {
         address: Address,
     },
+    /// Phase 12: DAO-managed encryption parameters for Pollen/B.U.D.
+    /// This is parameter-only governance: no decrypt/key/read override exists.
+    SetEncryptionPolicy(crate::pollen::EncryptionPolicy),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -131,6 +134,10 @@ impl GovernanceState {
         current_epoch: u64,
         duration: u64,
     ) -> Result<u64, String> {
+        if let ProposalType::SetEncryptionPolicy(policy) = &p_type {
+            policy.validate()?;
+        }
+
         // V68: Validate proposal duration
         const MIN_PROPOSAL_DURATION: u64 = 10; // Minimum 10 epochs
         const MAX_PROPOSAL_DURATION: u64 = 100_000; // Maximum 100,000 epochs
@@ -210,6 +217,9 @@ impl GovernanceState {
                 ProposalType::DewhitelistVerifier { address } => {
                     Some(GovernanceAction::DewhitelistVerifier(*address))
                 }
+                ProposalType::SetEncryptionPolicy(policy) => {
+                    Some(GovernanceAction::SetEncryptionPolicy(policy.clone()))
+                }
                 _ => None, // Other proposal types: no auto-execution yet
             };
             if let Some(a) = action {
@@ -227,6 +237,7 @@ impl GovernanceState {
 pub enum GovernanceAction {
     WhitelistVerifier(Address),
     DewhitelistVerifier(Address),
+    SetEncryptionPolicy(crate::pollen::EncryptionPolicy),
 }
 
 #[cfg(test)]
@@ -312,4 +323,54 @@ mod tests {
             "ChangeBaseFee should not produce governance actions"
         );
     }
+
+    #[test]
+    fn governance_rejects_invalid_encryption_policy_proposal() {
+        let mut gov = GovernanceState::default();
+        let proposer = Address::from([0x01; 32]);
+        let invalid = crate::pollen::EncryptionPolicy {
+            version: 1,
+            hpke_suite_id: 0x20,
+            min_public_key_bytes: 32,
+            max_grant_duration_blocks: 0,
+            deprecated_after_block: None,
+            active: true,
+        };
+        let err = gov
+            .create_proposal(
+                proposer,
+                ProposalType::SetEncryptionPolicy(invalid),
+                0,
+                10,
+            )
+            .unwrap_err();
+        assert!(err.contains("max_grant_duration"));
+    }
+
+    #[test]
+    fn governance_executes_encryption_policy_action() {
+        let mut gov = GovernanceState::default();
+        let proposer = Address::from([0x01; 32]);
+        let policy = crate::pollen::EncryptionPolicy {
+            version: 1,
+            hpke_suite_id: 0x20,
+            min_public_key_bytes: 32,
+            max_grant_duration_blocks: 100,
+            deprecated_after_block: None,
+            active: true,
+        };
+        gov.create_proposal(
+            proposer,
+            ProposalType::SetEncryptionPolicy(policy.clone()),
+            0,
+            10,
+        )
+        .unwrap();
+        let proposal = gov.find_proposal_mut(0).unwrap();
+        proposal.add_vote(proposer, 100_000, true, 0).unwrap();
+        proposal.status = ProposalStatus::Passed;
+        let actions = gov.execute_passed_proposals();
+        assert_eq!(actions, vec![GovernanceAction::SetEncryptionPolicy(policy)]);
+    }
+
 }

@@ -1169,6 +1169,14 @@ impl Executor {
                 crate::core::governance::GovernanceAction::DewhitelistVerifier(addr) => {
                     state.ai_registry.dewhitelist_verifier(&addr);
                 }
+                crate::core::governance::GovernanceAction::SetEncryptionPolicy(policy) => {
+                    // P12-4: DAO parameter-only update. This cannot grant decrypt
+                    // authority or bypass user-owned AccessGrant checks.
+                    state
+                        .marketplace
+                        .set_encryption_policy(policy)
+                        .map_err(|e| BudlumError::validation("pollen_encryption_policy", e))?;
+                }
             }
         }
 

@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::{
-    AccessGrant, AiDataInputRef, AssetId, DataAsset, DataAssetStatus, GrantId, SaleAuthorization,
-    SaleAuthorizationId,
+    AccessGrant, AiDataInputRef, AssetId, DataAsset, DataAssetStatus, EncryptionPolicy, GrantId,
+    SaleAuthorization, SaleAuthorizationId,
 };
 
 /// Phase 5 §5.5: AI Data Marketplace — Economic layer for user-to-AI data sales.
@@ -41,6 +41,10 @@ pub struct MarketplaceRegistry {
     /// bounded pollen sale terms without transferring DataAsset ownership.
     #[serde(default)]
     pub sale_authorizations: BTreeMap<SaleAuthorizationId, SaleAuthorization>,
+    /// DAO-managed encryption policy parameters. These are protocol settings,
+    /// not decrypt keys or read-grant bypasses.
+    #[serde(default)]
+    pub encryption_policies: BTreeMap<u32, EncryptionPolicy>,
 }
 
 impl MarketplaceRegistry {
@@ -143,6 +147,23 @@ impl MarketplaceRegistry {
         }
         grant.status = super::AccessGrantStatus::Revoked;
         Ok(())
+    }
+
+    pub fn set_encryption_policy(&mut self, policy: EncryptionPolicy) -> Result<(), String> {
+        policy.validate()?;
+        self.encryption_policies.insert(policy.version, policy);
+        Ok(())
+    }
+
+    pub fn get_encryption_policy(&self, version: u32) -> Option<&EncryptionPolicy> {
+        self.encryption_policies.get(&version)
+    }
+
+    pub fn active_encryption_policies(&self) -> Vec<&EncryptionPolicy> {
+        self.encryption_policies
+            .values()
+            .filter(|policy| policy.active)
+            .collect()
     }
 
     pub fn create_sale_authorization(
@@ -260,6 +281,11 @@ impl MarketplaceRegistry {
             hasher.update(authorization_id.0);
             hasher.update(authorization.calculate_leaf());
         }
+        for (version, policy) in &self.encryption_policies {
+            hasher.update(b"encryption_policy");
+            hasher.update(version.to_le_bytes());
+            hasher.update(policy.calculate_leaf());
+        }
         hasher.finalize().into()
     }
 }
@@ -312,7 +338,19 @@ mod tests {
         registry
             .create_sale_authorization(signed_sale_authorization(&asset))
             .unwrap();
-        assert_ne!(root2, registry.root());
+        let root3 = registry.root();
+        assert_ne!(root2, root3);
+        registry
+            .set_encryption_policy(EncryptionPolicy {
+                version: 1,
+                hpke_suite_id: 0x20,
+                min_public_key_bytes: 32,
+                max_grant_duration_blocks: 100,
+                deprecated_after_block: None,
+                active: true,
+            })
+            .unwrap();
+        assert_ne!(root3, registry.root());
     }
 
     #[test]
@@ -394,6 +432,25 @@ mod tests {
             .create_sale_authorization(authorization)
             .unwrap_err();
         assert!(err.contains("seller must match"));
+    }
+
+    #[test]
+    fn encryption_policy_is_dao_parameter_not_decrypt_authority() {
+        let mut registry = MarketplaceRegistry::new();
+        registry
+            .set_encryption_policy(EncryptionPolicy {
+                version: 1,
+                hpke_suite_id: 0x20,
+                min_public_key_bytes: 32,
+                max_grant_duration_blocks: 100,
+                deprecated_after_block: None,
+                active: true,
+            })
+            .unwrap();
+        assert_eq!(registry.active_encryption_policies().len(), 1);
+        let json = serde_json::to_string(&registry).unwrap();
+        assert!(!json.contains("decrypt"));
+        assert!(!json.contains("private_key"));
     }
 
     #[test]

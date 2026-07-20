@@ -1259,6 +1259,8 @@ impl AccountState {
             final_hasher.update(b"ai_v1");
             final_hasher.update(self.ai_registry.state_root());
         }
+        final_hasher.update(b"pollen_v1");
+        final_hasher.update(self.marketplace.root());
         final_hasher.update(self.global_header_summary);
         final_hasher.update(b"gov_disabled"); // governance version/enabled flags
 

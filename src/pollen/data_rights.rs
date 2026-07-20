@@ -18,6 +18,60 @@ use super::{AssetId, GrantId, Signature64};
 /// sayılır ve strict AccessGrant kontrolünden geçmek zorundadır.
 pub const POLLEN_AI_INPUT_REF_PREFIX: &[u8] = b"BDLM_POLLEN_AI_INPUT_REF_V1";
 
+
+/// DAO-managed encryption policy. DAO can tune protocol parameters, but it
+/// cannot decrypt data, grant read access, or override owner signatures.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EncryptionPolicy {
+    pub version: u32,
+    pub hpke_suite_id: u16,
+    pub min_public_key_bytes: u16,
+    pub max_grant_duration_blocks: u64,
+    pub deprecated_after_block: Option<u64>,
+    pub active: bool,
+}
+
+impl EncryptionPolicy {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.version == 0 {
+            return Err("EncryptionPolicy version must be >= 1".into());
+        }
+        if self.hpke_suite_id == 0 {
+            return Err("EncryptionPolicy hpke_suite_id must be non-zero".into());
+        }
+        if self.min_public_key_bytes < 32 {
+            return Err("EncryptionPolicy min_public_key_bytes must be >= 32".into());
+        }
+        if self.max_grant_duration_blocks == 0 {
+            return Err("EncryptionPolicy max_grant_duration_blocks must be >= 1".into());
+        }
+        if let Some(deprecated) = self.deprecated_after_block {
+            if deprecated == 0 {
+                return Err("EncryptionPolicy deprecated_after_block cannot be zero".into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn calculate_leaf(&self) -> [u8; 32] {
+        let mut hasher = Sha256::new();
+        hasher.update(b"BDLM_POLLEN_ENCRYPTION_POLICY_V1");
+        hasher.update(self.version.to_le_bytes());
+        hasher.update(self.hpke_suite_id.to_le_bytes());
+        hasher.update(self.min_public_key_bytes.to_le_bytes());
+        hasher.update(self.max_grant_duration_blocks.to_le_bytes());
+        match self.deprecated_after_block {
+            Some(block) => {
+                hasher.update([1u8]);
+                hasher.update(block.to_le_bytes());
+            }
+            None => hasher.update([0u8]),
+        }
+        hasher.update([u8::from(self.active)]);
+        hasher.finalize().into()
+    }
+}
+
 /// SaleAuthorization kimliği = canonical seller authorization hash.
 pub type SaleAuthorizationId = AssetId;
 
@@ -560,6 +614,36 @@ mod tests {
         auth.record_issued_grant().unwrap();
         auth.record_issued_grant().unwrap();
         assert!(!auth.can_issue(10));
+    }
+
+    #[test]
+    fn encryption_policy_validates_without_decrypt_authority() {
+        let policy = EncryptionPolicy {
+            version: 1,
+            hpke_suite_id: 0x20,
+            min_public_key_bytes: 32,
+            max_grant_duration_blocks: 100,
+            deprecated_after_block: None,
+            active: true,
+        };
+        assert!(policy.validate().is_ok());
+        let json = serde_json::to_string(&policy).unwrap();
+        assert!(!json.contains("decrypt"));
+        assert!(!json.contains("private"));
+        assert!(!json.contains("override"));
+    }
+
+    #[test]
+    fn encryption_policy_rejects_zero_duration() {
+        let policy = EncryptionPolicy {
+            version: 1,
+            hpke_suite_id: 0x20,
+            min_public_key_bytes: 32,
+            max_grant_duration_blocks: 0,
+            deprecated_after_block: None,
+            active: true,
+        };
+        assert!(policy.validate().unwrap_err().contains("duration"));
     }
 
     #[test]

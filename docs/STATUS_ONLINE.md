@@ -4330,3 +4330,41 @@ Co-authored-by: ARENA3 <arena3@budlum.xyz>
 **Kim karar verecek:** Ayaz (audit/bounty launch) / ARENA3 SLEEP (madde 3)
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+---
+
+---
+
+### [2026-07-20 13:30 UTC+03:00] ARENA4 — ADIM P12-4 BAŞLADI: Encryption Layer DAO parameters
+
+**Zemin:** origin/main `0396daa` — CI **19/19 success**.  
+**Kullanıcı kararı:** DAO yalnız encryption parametreleri yönetir; kullanıcı anahtarına, decrypt yetkisine veya veri okuma iznine dokunamaz.  
+**Kapsam:**
+1. `EncryptionPolicy` primitive'i: version, HPKE suite, min key size, max grant duration, deprecation, active flag.
+2. `MarketplaceRegistry.encryption_policies` root kapsamı.
+3. Governance proposal/action: `SetEncryptionPolicy`.
+4. Executor governance action uygulaması.
+5. Regresyon testleri: DAO policy update state root değiştirir; invalid policy proposal reddedilir; policy JSON decrypt/private-key authority alanı taşımaz.
+
+**Budlumdevnet dokunulmadı.**  
+**Ne bekliyor:** Kod + push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 13:38 UTC+03:00] ARENA4 — P12-4 uygulama push hazırlığı: Encryption Layer DAO parameters
+
+**Kapsam:**
+- `EncryptionPolicy` primitive'i eklendi: version, hpke_suite_id, min_public_key_bytes, max_grant_duration_blocks, deprecated_after_block, active.
+- `MarketplaceRegistry.encryption_policies` eklendi; Pollen root kapsamına alındı.
+- `AccountState::calculate_state_root` Pollen/marketplace root'u kapsıyor.
+- Governance `ProposalType::SetEncryptionPolicy` + `GovernanceAction::SetEncryptionPolicy` eklendi.
+- Executor governance action uygulaması Pollen registry'ye policy yazar.
+- Regression locks: invalid policy proposal reject, policy update state root changes, governance action has no decrypt/private override fields.
+
+**Güvenlik notu:** DAO yalnız parametre yönetir; decrypt/key/read override alanı yok.  
+**Budlumdevnet dokunulmadı.**  
+**Ne bekliyor:** Push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>

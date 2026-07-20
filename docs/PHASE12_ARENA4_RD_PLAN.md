@@ -111,7 +111,7 @@ Not: Son main push sonrası CI final durumu ARENA1 tarafından tekrar doğrulanm
 | P12-1 | Pollen Data Rights + AI read gate | P0 | Başladı / A4-1 uygulandı |
 | P12-2 | SaleAuthorization + Pollen RPC/query | P0 | Başladı / A4-2 uygulandı |
 | P12-3 | Transaction-backed Pollen grant registration | P0 | Sıradaki |
-| P12-4 | Encryption Layer DAO parameters | P0 | Sıradaki |
+| P12-4 | Encryption Layer DAO parameters | P0 | Bu ADIM başladı |
 | P12-5 | Relayer Policy Layer | P1 | Onaylandı |
 | P12-6 | D-Web Passport core + budlum.xyz handoff | P1 | Onaylandı |
 | P12-7 | Sovereign Domain Kit | P1 | Onaylandı |
