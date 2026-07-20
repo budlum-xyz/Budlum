@@ -238,12 +238,24 @@ impl Metrics {
         registry
             .register(Box::new(rpc_requests_total.clone()))
             .expect("metric");
-        registry.register(Box::new(bridge_transfers_total.clone())).expect("metric");
-        registry.register(Box::new(bridge_amount_locked.clone())).expect("metric");
-        registry.register(Box::new(ai_requests_total.clone())).expect("metric");
-        registry.register(Box::new(ai_outcomes_finalized.clone())).expect("metric");
-        registry.register(Box::new(bns_names_registered.clone())).expect("metric");
-        registry.register(Box::new(slashing_events_total.clone())).expect("metric");
+        registry
+            .register(Box::new(bridge_transfers_total.clone()))
+            .expect("metric");
+        registry
+            .register(Box::new(bridge_amount_locked.clone()))
+            .expect("metric");
+        registry
+            .register(Box::new(ai_requests_total.clone()))
+            .expect("metric");
+        registry
+            .register(Box::new(ai_outcomes_finalized.clone()))
+            .expect("metric");
+        registry
+            .register(Box::new(bns_names_registered.clone()))
+            .expect("metric");
+        registry
+            .register(Box::new(slashing_events_total.clone()))
+            .expect("metric");
         registry
             .register(Box::new(rpc_rate_limited_total.clone()))
             .expect("metric");
