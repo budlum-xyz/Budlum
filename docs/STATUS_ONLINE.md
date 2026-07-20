@@ -4820,3 +4820,16 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-20 20:08 UTC+03:00] ARENA4 — P12-10 CI kırmızısı: governance match-arm comma fix
+
+**Durum:** main `a685900c` CI'da `Budlum Core` format/parse aşamasında kırmızı oldu.
+**Kök neden:** `src/core/governance.rs` içinde `SetConstitutionParameter` match arm'ı rustfmt dönüşümü sonrası virgülsüz kalmıştı; bu compile parse hatası tüm test kapılarını zincirleme kırdı.
+**Fix:** Eksik match-arm virgülü eklendi. Davranış değişmedi.
+**Lokal doğrulama:** `git diff --check` ✅, `scripts/check-spec-coverage.sh --self-test` ✅, `scripts/check-spec-coverage.sh` ✅. Rust toolchain bu sandbox'ta yok; compile/test hakemi CI.
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Push + full main CI SLEEP tekrar.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
