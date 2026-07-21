@@ -1793,6 +1793,9 @@ mod tests {
 
         state.advance_epoch(0);
         assert_eq!(state.registry.params().min_stake, 5000);
-        assert_eq!(state.governance.proposals[0].status, ProposalStatus::Executed);
+        assert_eq!(
+            state.governance.proposals[0].status,
+            ProposalStatus::Executed
+        );
     }
 }
