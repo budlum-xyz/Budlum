@@ -155,6 +155,33 @@ pub fn field_inverse_goldilocks(val: u64) -> u64 {
     res as u64
 }
 
+/// The Goldilocks prime `P = 2^64 - 2^32 + 1`. This is the field the
+/// STARK AIR (`plonky3_air`) constrains execution over.
+pub const GOLDILOCKS_P: u64 = 18446744069414584321;
+
+/// Goldilocks field addition (`(a + b) mod P`).
+///
+/// The VM **must** compute arithmetic in the same field the AIR
+/// constrains, otherwise a generated STARK proof attests to a different
+/// computation than the VM actually executed (a soundness break). The
+/// AIR's Add/Sub/Mul constraints are field operations mod `P`, so the VM
+/// uses these field helpers instead of wrapping-`u64` arithmetic. The
+/// result is always canonical (`< P`).
+pub fn field_add_goldilocks(a: u64, b: u64) -> u64 {
+    ((a as u128 + b as u128) % GOLDILOCKS_P as u128) as u64
+}
+
+/// Goldilocks field subtraction (`(a - b) mod P`).
+pub fn field_sub_goldilocks(a: u64, b: u64) -> u64 {
+    ((a as u128 + GOLDILOCKS_P as u128 - (b as u128 % GOLDILOCKS_P as u128)) % GOLDILOCKS_P as u128)
+        as u64
+}
+
+/// Goldilocks field multiplication (`(a * b) mod P`).
+pub fn field_mul_goldilocks(a: u64, b: u64) -> u64 {
+    ((a as u128 * b as u128) % GOLDILOCKS_P as u128) as u64
+}
+
 impl Vm {
     pub fn new(memory_size: usize) -> Self {
         Self::with_gas_limit(memory_size, 1_000_000)
@@ -251,19 +278,23 @@ impl Vm {
                 (0, cur_pc)
             }
             Opcode::Add => {
-                let result = src1_val.wrapping_add(src2_val);
+                // Goldilocks field add — must match the AIR's
+                // `rd = rs1 + rs2` field constraint (see GOLDILOCKS_P).
+                let result = field_add_goldilocks(src1_val, src2_val);
                 self.registers[dst_idx as usize] = result;
                 self.pc += 1;
                 (result, cur_pc + 1)
             }
             Opcode::Sub => {
-                let result = src1_val.wrapping_sub(src2_val);
+                // Goldilocks field sub — matches the AIR field constraint.
+                let result = field_sub_goldilocks(src1_val, src2_val);
                 self.registers[dst_idx as usize] = result;
                 self.pc += 1;
                 (result, cur_pc + 1)
             }
             Opcode::Mul => {
-                let result = src1_val.wrapping_mul(src2_val);
+                // Goldilocks field mul — matches the AIR field constraint.
+                let result = field_mul_goldilocks(src1_val, src2_val);
                 self.registers[dst_idx as usize] = result;
                 self.pc += 1;
                 (result, cur_pc + 1)
@@ -1160,6 +1191,63 @@ mod tests {
         let receipt2 = vm2.run_receipt(&program_store_oob);
         assert!(!receipt2.success);
         assert_eq!(receipt2.error, Some(VmError::InvalidMemoryAccess));
+    }
+
+    /// Arithmetic is Goldilocks-field (mod P), not wrapping-u64, so the VM
+    /// matches the STARK AIR's field constraints. `(P-1) + 1 == 0` in the
+    /// field, whereas wrapping-u64 would give `P`. (Soundness: the VM and
+    /// the AIR must compute the same operation.)
+    #[test]
+    fn add_is_goldilocks_field_not_wrapping() {
+        let program = vec![
+            inst(Opcode::Add, 3, 1, 2, 0),
+            inst(Opcode::Halt, 0, 0, 0, 0),
+        ];
+        let mut vm = Vm::new(64);
+        vm.registers[1] = GOLDILOCKS_P - 1;
+        vm.registers[2] = 1;
+        let receipt = vm.run_receipt(&program);
+        assert!(receipt.success);
+        assert_eq!(vm.registers[3], 0, "field add must reduce at P, not 2^64");
+    }
+
+    /// Field subtraction: `0 - 1 == P - 1` (mod P), not `u64::MAX`.
+    #[test]
+    fn sub_is_goldilocks_field_not_wrapping() {
+        let program = vec![
+            inst(Opcode::Sub, 3, 1, 2, 0),
+            inst(Opcode::Halt, 0, 0, 0, 0),
+        ];
+        let mut vm = Vm::new(64);
+        vm.registers[1] = 0;
+        vm.registers[2] = 1;
+        let receipt = vm.run_receipt(&program);
+        assert!(receipt.success);
+        assert_eq!(
+            vm.registers[3],
+            GOLDILOCKS_P - 1,
+            "field sub: 0 - 1 == P - 1"
+        );
+    }
+
+    /// Field multiplication near the prime: `(P-1) * 2 == P - 2` (mod P),
+    /// i.e. `(-1) * 2 == -2`, not the wrapping-u64 product.
+    #[test]
+    fn mul_is_goldilocks_field_not_wrapping() {
+        let program = vec![
+            inst(Opcode::Mul, 3, 1, 2, 0),
+            inst(Opcode::Halt, 0, 0, 0, 0),
+        ];
+        let mut vm = Vm::new(64);
+        vm.registers[1] = GOLDILOCKS_P - 1; // == -1 mod P
+        vm.registers[2] = 2;
+        let receipt = vm.run_receipt(&program);
+        assert!(receipt.success);
+        assert_eq!(
+            vm.registers[3],
+            GOLDILOCKS_P - 2,
+            "field mul: -1 * 2 == P - 2"
+        );
     }
 
     /// Phase 0.312 (security audit Z-B): `VerifyMerkle` must produce

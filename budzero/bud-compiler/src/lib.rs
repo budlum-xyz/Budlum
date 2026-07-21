@@ -180,13 +180,15 @@ mod tests {
 
     #[test]
     fn test_large_integer_literal_compilation() {
-        // 0xFFFFFFFFFFFFFFFF is u64::MAX
+        // The VM/AIR operate over the Goldilocks field, so the largest
+        // valid literal is P-1 = 18446744069414584320 (values >= P are
+        // rejected — see test_integer_literal_exceeding_field_modulus).
         let source = r#"
             contract LargeIntTest {
                 pub fn main() {
-                    let max_u64 = 0xFFFFFFFFFFFFFFFF;
-                    let large_val = 1152921504606846975; // 2^60 - 1
-                    emit Result(max_u64, large_val);
+                    let max_field = 18446744069414584320; // P - 1
+                    let large_val = 1152921504606846975;   // 2^60 - 1
+                    emit Result(max_field, large_val);
                 }
             }
         "#;
@@ -197,8 +199,37 @@ mod tests {
         vm.run(&bytecode).expect("VM should run");
 
         assert_eq!(vm.events.len(), 2);
-        assert_eq!(vm.events[0], u64::MAX);
-        assert_eq!(vm.events[1], 1152921504606846975);
+        assert_eq!(vm.events[0], 18446744069414584320); // P - 1
+        assert_eq!(vm.events[1], 1152921504606846975); // 2^60 - 1
+    }
+
+    /// An integer literal >= the Goldilocks modulus P is rejected at
+    /// compile time: it is not a canonical field element, and field
+    /// arithmetic would otherwise silently reduce it mod P (a hidden,
+    /// surprising value).
+    #[test]
+    fn test_integer_literal_exceeding_field_modulus_rejected() {
+        // 0xFFFFFFFFFFFFFFFF is u64::MAX, which is >= P.
+        let source = r#"
+            contract TooLargeLiteral {
+                pub fn main() {
+                    let x = 0xFFFFFFFFFFFFFFFF;
+                    emit Result(x);
+                }
+            }
+        "#;
+
+        let res = compile(source, IsaProfile::Production);
+        assert!(res.is_err(), "literal >= P must be rejected");
+        match res.unwrap_err() {
+            CompileError::CodegenError(msg) => {
+                assert!(
+                    msg.contains("exceeds the Goldilocks field modulus"),
+                    "got: {msg}"
+                );
+            }
+            other => panic!("expected CodegenError, got: {other:?}"),
+        }
     }
 
     #[test]

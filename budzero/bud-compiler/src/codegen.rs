@@ -548,6 +548,23 @@ impl Codegen {
         match expr {
             Expr::Int(val) => {
                 let v = *val;
+                // The VM and STARK AIR operate over the Goldilocks field
+                // (mod P = 2^64 - 2^32 + 1), so every value must be a
+                // canonical field element (< P). A literal >= P is not
+                // representable as itself — field arithmetic would silently
+                // reduce it to `v mod P` — so reject it at compile time
+                // instead, making the out-of-range value explicit.
+                const GOLDILOCKS_P: u64 = 18446744069414584321;
+                if v >= GOLDILOCKS_P {
+                    if self.error.is_none() {
+                        self.error = Some(CompileError::CodegenError(format!(
+                            "integer literal {} exceeds the Goldilocks field modulus (max {})",
+                            v,
+                            GOLDILOCKS_P - 1
+                        )));
+                    }
+                    return 0;
+                }
                 if v <= i32::MAX as u64 {
                     let reg = self.alloc_reg();
                     self.emit(Opcode::Load, reg, 0, 0, v as i32);
