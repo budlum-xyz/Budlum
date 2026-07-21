@@ -10,6 +10,8 @@ required_tests=(
   phase11_10_lifecycle_challenge_can_miss_or_slash
   phase11_10_lifecycle_rejects_skip_open_to_settled
   phase11_10_lifecycle_terminal_states_are_final
+  phase11_10_registry_lifecycle_projection_tracks_challenge_and_slash
+  phase11_10_registry_lifecycle_projection_tracks_expiry
 )
 
 fail() {

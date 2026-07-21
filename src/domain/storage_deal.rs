@@ -717,6 +717,36 @@ impl StorageRegistry {
         self.results.get(&challenge_id)
     }
 
+    /// Phase 11.10: read-only projection into the spec lifecycle state machine.
+    ///
+    /// This does not mutate existing deal/challenge accounting. It lets RPC,
+    /// tests, and later pruning/archive logic reason about the richer lifecycle
+    /// vocabulary without changing the currently stable `DealStatus` storage
+    /// format in one step.
+    pub fn lifecycle_state(
+        &self,
+        deal_id: u64,
+    ) -> Option<crate::storage::StorageLifecycleState> {
+        let deal = self.deals.get(&deal_id)?;
+        match deal.status {
+            DealStatus::Slashed => Some(crate::storage::StorageLifecycleState::Slashed),
+            DealStatus::Expired => Some(crate::storage::StorageLifecycleState::Expired),
+            DealStatus::Active => {
+                let has_open_challenge = self
+                    .challenges
+                    .values()
+                    .any(|c| c.deal_id == deal_id && !self.results.contains_key(&c.challenge_id));
+                if has_open_challenge {
+                    Some(crate::storage::StorageLifecycleState::Challenged)
+                } else if deal.merkle_proof.is_some() || deal.storage_root.is_some() {
+                    Some(crate::storage::StorageLifecycleState::Proving)
+                } else {
+                    Some(crate::storage::StorageLifecycleState::Open)
+                }
+            }
+        }
+    }
+
     pub fn deals_for_shard(
         &self,
         manifest_id: &ContentId,
@@ -1288,6 +1318,43 @@ mod tests {
         assert_eq!(pruned, 0);
     }
     /// REGRESSION V133: max concurrent open challenges per deal.
+    #[test]
+    fn phase11_10_registry_lifecycle_projection_tracks_challenge_and_slash() {
+        let m = good_manifest();
+        let mut reg = StorageRegistry::new();
+        let (deal_id, _) = open_one(&mut reg, &m);
+        assert_eq!(
+            reg.lifecycle_state(deal_id),
+            Some(crate::storage::StorageLifecycleState::Proving)
+        );
+
+        let challenge_id = reg
+            .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
+            .unwrap();
+        assert_eq!(
+            reg.lifecycle_state(deal_id),
+            Some(crate::storage::StorageLifecycleState::Challenged)
+        );
+
+        reg.finalize_missed_challenge(challenge_id, 150).unwrap();
+        assert_eq!(
+            reg.lifecycle_state(deal_id),
+            Some(crate::storage::StorageLifecycleState::Slashed)
+        );
+    }
+
+    #[test]
+    fn phase11_10_registry_lifecycle_projection_tracks_expiry() {
+        let m = good_manifest();
+        let mut reg = StorageRegistry::new();
+        let (deal_id, _) = open_one(&mut reg, &m);
+        reg.expire_deal(deal_id, 200).unwrap();
+        assert_eq!(
+            reg.lifecycle_state(deal_id),
+            Some(crate::storage::StorageLifecycleState::Expired)
+        );
+    }
+
     #[test]
     fn v133_max_open_challenges_per_deal() {
         let m = good_manifest();
