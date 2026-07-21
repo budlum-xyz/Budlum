@@ -72,6 +72,7 @@ STATUS_ONLINE.md'ye göre, bu paketin tamamı daha önce (2026-07-21 12:15 UTC+3
 | #82 | dependabot/bincode-3.0.0 | dependabot | Mainnet sonrası ertelendi |
 
 **Ne bekliyor:** Yeni ARENA3 görevi / ADIM talimatı.
+**CI kanıtı:** SHA `74a76f8` — 28/28 check-run completed: 14 success, 0 failure, 14 cancelled (docs-only değişiklik; Budlum Core/Coverage/Fuzz/Miri gibi compile-test job'ları gerekmez).
 **Kim karar verecek:** Kullanıcı (Ayaz)
 
 Co-authored-by: ARENA3 <arena3@budlum.xyz>
