@@ -5329,3 +5329,17 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-21 10:58 UTC+03:00] ARENA1 — Phase 11.12 ADIM 1 PUSH HAZIR: rate-limit penalty separation
+
+**Kapsam:** Main pipeline üzerinde Phase 11.12/H5.4 küçük sertleştirme.
+**Ne eklendi:** `RATE_LIMIT_PENALTY` ayrı sabiti; `check_rate_limit` artık oversized-message cezası yerine rate-limit ceza kategorisini kullanıyor. Magnitude aynı tutuldu; davranış sürprizi yok, telemetry/audit semantiği düzeldi.
+**Regresyon kilidi:** `phase11_12_rate_limit_exhaustion_uses_dedicated_penalty`.
+**Lokal doğrulama:** `git diff --check` ✅. Rust toolchain yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + pipeline CI takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>

@@ -5,6 +5,7 @@ use tracing::warn;
 pub const INVALID_BLOCK_PENALTY: i32 = -10;
 pub const INVALID_TX_PENALTY: i32 = -5;
 pub const OVERSIZED_MESSAGE_PENALTY: i32 = -3;
+pub const RATE_LIMIT_PENALTY: i32 = -3;
 pub const TIMEOUT_PENALTY: i32 = -15;
 pub const SLOW_SYNC_PENALTY: i32 = -5;
 pub const INVALID_HANDSHAKE_PENALTY: i32 = -20;
@@ -225,7 +226,7 @@ impl PeerManager {
         let refill = self.msg_refill_rate;
         let score = self.get_or_create(peer_id);
         if !score.consume_token_with_rate(refill) {
-            score.score = (score.score + OVERSIZED_MESSAGE_PENALTY).max(MIN_SCORE);
+            score.score = (score.score + RATE_LIMIT_PENALTY).max(MIN_SCORE);
             if score.score <= BAN_THRESHOLD {
                 let until = Instant::now() + BAN_DURATION;
                 score.banned_until = Some(until);
@@ -620,6 +621,23 @@ mod tests {
         // Default burst is MAX_MSG_BURST = 20.
         assert_eq!(allowed, MAX_MSG_BURST as u32);
         assert!(!manager.check_rate_limit(&peer));
+    }
+
+    /// Phase 11.12 / H5.4: rate-limit exhaustion uses its own penalty category,
+    /// not the oversized-message category. Magnitude stays calibrated equal to
+    /// the old value; the separation prevents audit/telemetry misclassification.
+    #[test]
+    fn phase11_12_rate_limit_exhaustion_uses_dedicated_penalty() {
+        let mut manager = PeerManager::new();
+        manager.msg_refill_rate = 0.0;
+        let peer = test_peer_id();
+        for _ in 0..MAX_MSG_BURST as u32 {
+            assert!(manager.check_rate_limit(&peer));
+        }
+        let before = manager.get_score(&peer);
+        assert!(!manager.check_rate_limit(&peer));
+        assert_eq!(manager.get_score(&peer), before + RATE_LIMIT_PENALTY);
+        assert_eq!(RATE_LIMIT_PENALTY, OVERSIZED_MESSAGE_PENALTY);
     }
 
     /// H5.1: eclipse protection — /24 subnet connection bound.
