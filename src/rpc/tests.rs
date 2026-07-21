@@ -543,6 +543,7 @@ mod rpc_tests {
                 responder: op,
                 response_epoch: 18,
                 responder_signature: Some(answer_sig),
+                proof_bytes: None,
             })
             .await
             .unwrap();

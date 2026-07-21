@@ -150,7 +150,7 @@ fn e2e_three_actor_manifest_to_challenge_flow() {
     // yapı kontrol eder (interim sınırlama, plan §2.5).
     let dummy_hash = ContentId::of_subrange(b"x", 0, 0);
     let result = reg
-        .answer_challenge(challenge_id, dummy_hash, operator_a, 175)
+        .answer_challenge(challenge_id, dummy_hash, operator_a, 175, None)
         .expect("A answer");
     assert_eq!(result.outcome, ChallengeOutcome::Answered);
     assert_eq!(result.slashed_bond, 0);
@@ -444,7 +444,7 @@ fn invariant_6_slash_only_via_missed_deadline() {
     let cid = reg.open_challenge(deal, 0, 1, 1, 2, addr(2), 5).unwrap();
     // Cevap verildi → Slashed DEĞİL.
     let _ = reg
-        .answer_challenge(cid, ContentId::of(b"x"), addr(1), 2)
+        .answer_challenge(cid, ContentId::of(b"x"), addr(1), 2, Some(b"test-mock-proof"))
         .unwrap();
     assert_eq!(reg.get_deal(deal).unwrap().status, DealStatus::Active);
     // Süresi dolmuş bir başka challenge açmaya çalışmadan önce

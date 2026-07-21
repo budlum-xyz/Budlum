@@ -1784,6 +1784,7 @@ impl BudlumApiServer for RpcServer {
                 response._range_hash,
                 responder,
                 response.response_epoch,
+                response.proof_bytes.as_deref(),
             )
             .map_err(|e| {
                 ErrorObjectOwned::owned(-32602, format!("Invalid response: {e}"), None::<()>)

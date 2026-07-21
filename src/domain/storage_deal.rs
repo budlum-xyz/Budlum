@@ -35,6 +35,7 @@ use crate::domain::Hash32;
 use crate::storage::content_id::ContentId;
 use crate::storage::manifest::ContentManifest;
 use serde::{Deserialize, Serialize};
+use bud_proof::ProverAdapter;
 
 /// RPC-facing DTO for `bud_storageOpenChallenge`.
 ///
@@ -190,6 +191,9 @@ pub struct RetrievalResponse {
     /// challenge_id, range_hash, responder, response_epoch])`. 64 bytes.
     #[serde(default)]
     pub responder_signature: Option<Vec<u8>>,
+    /// ZK proof bytes (ProofEnvelope) certifying the correct challenge answer (V37 & V38)
+    #[serde(default)]
+    pub proof_bytes: Option<Vec<u8>>,
 }
 
 /// The outcome of a finalized challenge. `Missed` is the only path that
@@ -545,6 +549,7 @@ impl StorageRegistry {
         range_hash: ContentId,
         responder: Address,
         response_epoch: u64,
+        proof_bytes: Option<&[u8]>,
     ) -> Result<ChallengeResult, StorageError> {
         // V58: Reject empty/zero range_hash — operator must provide a real hash
         if range_hash == ContentId([0u8; 32]) {
@@ -580,15 +585,18 @@ impl StorageRegistry {
             });
         }
 
-        // The chain does not hold the shard bytes, so we cannot itself
-        // compute the expected range hash from `shard_bytes`. The
-        // `StorageRegistry` therefore accepts ANY `range_hash` at this
-        // layer and tags the result `Answered` if the response arrived
-        // on time. Off-chain verifiers and the next audit pass
-        // (Phase 0.40) can re-validate `range_hash` against the public
-        // `RetrievalResponse`. This keeps the on-chain surface small
-        // and explicit: a `Mismatched` outcome is reserved for the
-        // future when shard bytes (or a ZK proof) are on-chain.
+        // === B.U.D. Faz 3 / Phase 11.2 (V37 & V38): full STARK proof verification ===
+        if deal.storage_root.is_some() {
+            if let Some(proof) = proof_bytes {
+                let root = deal.storage_root.unwrap();
+                Self::verify_answer_challenge_zk_proof(&root, &range_hash, proof)?;
+            } else {
+                return Err(StorageError::InvalidMerkleProof(
+                    "ZK proof (ProofEnvelope) is mandatory for storage challenge verification (V37 & V38)".into(),
+                ));
+            }
+        }
+
         let result = ChallengeResult {
             challenge_id,
             deal_id: deal.deal_id,
@@ -598,6 +606,76 @@ impl StorageRegistry {
         };
         self.results.insert(challenge_id, result.clone());
         Ok(result)
+    }
+
+    /// B.U.D. Faz 3 / Phase 11.2 (V37 & V38): verify answer challenge ZK proof.
+    /// Verifies the 64-depth VerifyMerkle STARK proof.
+    pub fn verify_answer_challenge_zk_proof(
+        storage_root: &Hash32,
+        range_hash: &ContentId,
+        proof_bytes: &[u8],
+    ) -> Result<(), StorageError> {
+        // For testing/mocking to keep tests fast:
+        if cfg!(test) && proof_bytes == b"test-mock-proof" {
+            return Ok(());
+        }
+
+        // 1. Deserialize envelope
+        let envelope = bincode::deserialize::<bud_proof::ProofEnvelope>(proof_bytes)
+            .map_err(|e| StorageError::InvalidMerkleProof(format!("failed to deserialize ProofEnvelope: {e}")))?;
+
+        // 2. Setup the expected program (VerifyMerkle + Halt)
+        use bud_isa::{Instruction, Opcode};
+        let program = vec![
+            Instruction {
+                opcode: Opcode::VerifyMerkle,
+                rd: 1,
+                rs1: 2,
+                rs2: 3,
+                imm: 256,
+            }
+            .encode(),
+            Instruction {
+                opcode: Opcode::Halt,
+                rd: 0,
+                rs1: 0,
+                rs2: 0,
+                imm: 0,
+            }
+            .encode(),
+        ];
+
+        // 3. Compute program hash using sha3 Keccak256
+        let mut program_bytes = Vec::with_capacity(16);
+        for &inst in &program {
+            program_bytes.extend_from_slice(&inst.to_le_bytes());
+        }
+        use sha3::{Digest, Keccak256};
+        let mut hasher = Keccak256::new();
+        hasher.update(&program_bytes);
+        let program_hash: [u8; 32] = hasher.finalize().into();
+
+        // 4. Setup ExecutionPublicInputs
+        let expected_inputs = bud_proof::ExecutionPublicInputs {
+            chain_id: crate::core::transaction::DEFAULT_CHAIN_ID,
+            program_hash,
+            initial_state_root: *storage_root,
+            final_state_root: range_hash.0,
+            sender: 0,
+            nonce: 0,
+            block_height: 0,
+            gas_limit: 1_000_000,
+            gas_used: 0,
+            exit_code: 0,
+            trace_len: 66,
+            event_digest: [0u8; 32],
+        };
+
+        // 5. Verify via Plonky3 STARK verifier
+        bud_proof::DefaultAdapter::verify(&envelope, &expected_inputs, &program)
+            .map_err(|e| StorageError::InvalidMerkleProof(format!("STARK proof verification failed: {e:?}")))?;
+
+        Ok(())
     }
 
     /// Finalize a challenge whose deadline has elapsed without a
@@ -1083,7 +1161,7 @@ mod tests {
             .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
             .unwrap();
         let res = reg
-            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 115)
+            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 115, None)
             .unwrap();
         assert_eq!(res.outcome, ChallengeOutcome::Answered);
         assert_eq!(res.slashed_bond, 0);
@@ -1099,7 +1177,7 @@ mod tests {
             .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
             .unwrap();
         let err = reg
-            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 200)
+            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 200, None)
             .unwrap_err();
         assert!(matches!(err, StorageError::DeadlineElapsed { .. }));
     }
@@ -1113,7 +1191,7 @@ mod tests {
             .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
             .unwrap();
         let err = reg
-            .answer_challenge(cid, ContentId([1u8; 32]), opener(), 115)
+            .answer_challenge(cid, ContentId([1u8; 32]), opener(), 115, None)
             .unwrap_err();
         assert!(matches!(err, StorageError::NotTheOperator { .. }));
     }
@@ -1154,7 +1232,7 @@ mod tests {
         let cid = reg
             .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
             .unwrap();
-        reg.answer_challenge(cid, ContentId([1u8; 32]), operator(), 115)
+        reg.answer_challenge(cid, ContentId([1u8; 32]), operator(), 115, None)
             .unwrap();
         let err = reg.finalize_missed_challenge(cid, 200).unwrap_err();
         assert!(matches!(err, StorageError::ChallengeAlreadyResolved(_)));
@@ -1370,6 +1448,73 @@ mod tests {
         assert!(
             matches!(err, StorageError::TooManyOpenChallenges { .. }),
             "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_phase11_2_answer_challenge_with_zk_proof_happy_path() {
+        let m = good_manifest();
+        let mut reg = StorageRegistry::new();
+        // Open a production deal with a storage_root
+        let deal_id = reg
+            .open_deal(
+                42,
+                &m,
+                m.shards[0].shard_id,
+                operator(),
+                1,
+                100,
+                200,
+                good_econ(),
+                &params(),
+                Some(valid_merkle_proof()),
+                Some([0x42u8; 32]),
+            )
+            .unwrap();
+
+        let cid = reg
+            .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
+            .unwrap();
+
+        // Providing the correct test-mock-proof should verify successfully
+        let res = reg
+            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 115, Some(b"test-mock-proof"))
+            .unwrap();
+        assert_eq!(res.outcome, ChallengeOutcome::Answered);
+    }
+
+    #[test]
+    fn test_phase11_2_answer_challenge_missing_zk_proof_rejected() {
+        let m = good_manifest();
+        let mut reg = StorageRegistry::new();
+        // Open a production deal with a storage_root
+        let deal_id = reg
+            .open_deal(
+                42,
+                &m,
+                m.shards[0].shard_id,
+                operator(),
+                1,
+                100,
+                200,
+                good_econ(),
+                &params(),
+                Some(valid_merkle_proof()),
+                Some([0x42u8; 32]),
+            )
+            .unwrap();
+
+        let cid = reg
+            .open_challenge(deal_id, 0, 4, 110, 120, opener(), 50)
+            .unwrap();
+
+        // Omitting proof_bytes on a production deal (storage_root present) must fail
+        let err = reg
+            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 115, None)
+            .unwrap_err();
+        assert!(
+            matches!(err, StorageError::InvalidMerkleProof(ref reason) if reason.contains("mandatory")),
+            "expected mandatory proof error, got {err:?}"
         );
     }
 }
