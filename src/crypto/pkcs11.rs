@@ -397,3 +397,17 @@ impl ConsensusSigner for Pkcs11Signer {
         "pkcs11"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pkcs11_parse_mechanism_hex_and_dec() {
+        assert_eq!(Pkcs11Signer::parse_mechanism("0x1234"), Some(0x1234));
+        assert_eq!(Pkcs11Signer::parse_mechanism("0XABCD"), Some(0xABCD));
+        assert_eq!(Pkcs11Signer::parse_mechanism("0Xabcd"), Some(0xABCD));
+        assert_eq!(Pkcs11Signer::parse_mechanism("123456"), Some(123456));
+        assert_eq!(Pkcs11Signer::parse_mechanism("invalid_mech"), None);
+    }
+}
