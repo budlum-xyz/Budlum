@@ -5568,3 +5568,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 12:36 UTC+03:00] ARENA1 — Phase 11.14 ADIM 5 PUSH HAZIR: wallet-core isim kilitli CI kapısı
+
+**Kapsam:** Wallet Core job'u yalnızca `cargo test` çalıştırmakla kalmayıp Phase 11.14 test isimlerini de kanarya olarak doğrulayacak hale getirildi.
+**Ne eklendi:** `scripts/check-wallet-core-gate.sh` self-testli gate script'i ve `.github/workflows/ci.yml` içinde `Wallet Core gate self-test` + test log doğrulaması.
+**İsim kilitleri:** Mnemonic word-count, multisig, social recovery ve recovery proposal için 11 adet `phase11_14_*` test adı zorunlu hale getirildi.
+**Lokal doğrulama:** `bash ./scripts/check-wallet-core-gate.sh --self-test` ✅, `git diff --check` ✅.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + ana CI pipeline takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>

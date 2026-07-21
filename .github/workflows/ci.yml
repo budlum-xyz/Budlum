@@ -336,8 +336,13 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: wallet-core
+      - name: Wallet Core gate self-test
+        run: bash ./scripts/check-wallet-core-gate.sh --self-test
       - name: wallet-core tests
-        run: cargo test --manifest-path wallet-core/Cargo.toml
+        run: |
+          set -euo pipefail
+          cargo test --manifest-path wallet-core/Cargo.toml 2>&1 | tee /tmp/wallet-core-gate.txt
+          bash ./scripts/check-wallet-core-gate.sh /tmp/wallet-core-gate.txt
 
   # ============================ Phase 10 / Bolum 4 (BNS gate) ============================
   bns-gate:
