@@ -1016,4 +1016,60 @@ mod tests {
             res.err()
         );
     }
+
+    // === COMPARISON RETURN TYPE ================================================
+
+    /// A comparison result is typed as Bool, so it can be used directly as
+    /// a boolean condition (and emitted as a 0/1 flag).
+    #[test]
+    fn test_comparison_result_is_bool_condition() {
+        let source = r#"
+            contract CmpBool {
+                pub fn main() {
+                    let a = 1;
+                    let b = 2;
+                    let flag = a == b;
+                    if (flag) {
+                        emit Result(1);
+                    }
+                }
+            }
+        "#;
+
+        let res = compile(source, IsaProfile::Production);
+        assert!(
+            res.is_ok(),
+            "comparison result as bool condition should compile: {:?}",
+            res.err()
+        );
+    }
+
+    /// A comparison result is Bool, not the operand type — using it in u64
+    /// arithmetic is now a type mismatch (the behavior change from typing
+    /// comparisons as Bool).
+    #[test]
+    fn test_comparison_result_rejected_in_arithmetic() {
+        let source = r#"
+            contract CmpArith {
+                pub fn main() {
+                    let a = 1;
+                    let b = 2;
+                    let x = (a == b) * 2;
+                    emit Result(x);
+                }
+            }
+        "#;
+
+        let res = compile(source, IsaProfile::Production);
+        assert!(
+            res.is_err(),
+            "comparison result used in arithmetic must be a type mismatch"
+        );
+        match res.unwrap_err() {
+            CompileError::SemanticError(msg) => {
+                assert!(msg.contains("mismatch"), "got: {msg}");
+            }
+            other => panic!("expected SemanticError, got: {other:?}"),
+        }
+    }
 }

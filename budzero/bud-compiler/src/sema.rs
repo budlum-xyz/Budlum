@@ -470,7 +470,18 @@ impl SemanticAnalyzer {
                         }
                     }
                 }
-                l_ty // All binary ops return same type (or u64 for comparisons, which is currently our only type)
+                // Comparisons yield a boolean result; arithmetic yields
+                // the (shared) operand type. Typing comparisons as Bool
+                // (rather than the operand type) lets the checker catch
+                // e.g. using a comparison result in u64 arithmetic.
+                if matches!(
+                    op,
+                    BinOp::Eq | BinOp::Neq | BinOp::Lt | BinOp::Gt | BinOp::Lte | BinOp::Gte
+                ) {
+                    Type::Bool
+                } else {
+                    l_ty
+                }
             }
         }
     }
