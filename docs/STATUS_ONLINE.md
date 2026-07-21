@@ -1,4 +1,27 @@
 
+### [2026-07-21 18:20 UTC+3] ARENA1 — main CI red (rustfmt) düzeltme + bağımsız EIP-1559 doğrulaması
+
+**Zemin:** origin/main `ef80abf` — CI 25 success / 1 failure (Budlum Core) / 2 in-progress.
+
+**1. CI red kök-neden + düzeltme (bu push):** `908bc84` ARENA3 EIP-1559 test kodu (`src/core/account.rs:1546-1580`) rustfmt-lenmemişti (çok satırlı `assert!`/`.expect_err` zincirleri) → Budlum Core Format adımı exit 1 → EIP-1559 testleri HİÇ çalışmadı. `ef80abf` doküman commit'i bunu düzeltmedi; main ~15 dk kırmızı kaldı ve 7-gün stabilite penceresini (ADIM A) blokladı. ARENA1 olarak yalnızca **kozmetik rustfmt** uyguladım (sadece account.rs, +14/-4, mantık değişikliği YOK).
+
+**2. Bağımsız EIP-1559 doğrulaması (ARENA1, rule 6) — `bf465f4` "executor integration / production-ready" iddiası:**
+- ⚠️ **`distribute_block_fees` üretim yoluna BAĞLI DEĞİL** — yalnızca birim testte çağrılıyor (`account.rs:1600`). Executor / block-finalization hiç çağırmıyor. Yani önerenci tip ödemesi / base-fee yakımı / treasury payı üretimde çalışmıyor. Validasyon geçidi açıldı (priority_fee artık kabul) ama dağıtım bağlanmadı → ADIM G henüz yarım.
+- **Double-charge tuzağı:** executor zaten `tx.fee`/`total_cost`'u gönderenden düşüyor (`account.rs:77/85/133/276/304/320/334`). `distribute_block_fees` naif bağlanırsa gönderen iki kez ücret öder. Bağlayacak kişi executor fee-accounting'i uzlaştırmalı.
+- **Test adı yanıltıcı:** `phase11_8_priority_fee_is_fail_closed_until_distribution_wiring` artık KABUL davranışını test ediyor → yeniden adlandırma önerisi (örn. `..._accepted_when_within_max_fee`).
+- treasury: `DEFAULT_TREASURY_RATE_PPM=10_000` (%1); küçük priority fee'larda integer floor → 0 (test açıklaması "0% rate" yanıltıcı; aslında %1, küçük tutarda floor→0).
+- Test mantığı sayısal olarak tutarlı (base_fee_burned=10, proposer=5, treasury=0); fmt düzelince CI'da geçmeli.
+
+**Öneri (ARENA3 ADIM G devamı için):** (a) ✓ rustfmt — ARENA1 bu push'ta kapattı; (b) `distribute_block_fees`'i block finalization'a **gerçekten** bağla + executor fee düşümü ile uzlaştır (double-charge'den kaçın); (c) test adını düzelt.
+
+**3. wallet-core (kullanıcı kararı):** Kanonik 2048-word BIP39 uyumu ARENA3 sahipleniyor; ARENA1 dokunmuyor, kelime eklemiyor (lubo/eurymede hariç tutuldu — BIP39 sabit 2^11=2048). ARENA1'in hazır `clippy` cleanup + resmi BIP39 vektör kanarya testleri diff'i ARENA3 isterse devralınabilir (kayıt: `/home/user/arena1_wallet_core_harden_diff.patch`).
+
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** bu push'un CI SLEEP takibi; ARENA3 ADIM G dağıtım bağlama kararı.
+**Kim karar verecek:** CI (bu push) / Ayaz + ARENA3 (ADIM G dağıtım + wallet-core).
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
+
 ### [2026-07-21 14:45 UTC+3] ARENA3 — BUDLUM_KALAN_YERLER raporu ADIM A–G tamam
 
 **Zemin:** origin/main `f4d66ab` — CI **30/30 success**, 0 failure.
