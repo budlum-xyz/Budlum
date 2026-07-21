@@ -106,6 +106,34 @@ impl ConsensusDomainRegistry {
         Ok(())
     }
 
+    /// Phase 11.8 lifecycle guard: use this for governance/operator-driven
+    /// transitions. `set_status` remains for migration/tests, while this helper
+    /// prevents accidental Active→Retired jumps and makes Retired terminal.
+    pub fn transition_status_checked(
+        &mut self,
+        id: DomainId,
+        next: DomainStatus,
+    ) -> Result<(), String> {
+        let domain = self
+            .domains
+            .get_mut(&id)
+            .ok_or_else(|| format!("Unknown domain {id}"))?;
+        let current = domain.status;
+        let allowed = matches!(
+            (current, next),
+            (DomainStatus::Active, DomainStatus::Frozen)
+                | (DomainStatus::Frozen, DomainStatus::Active)
+                | (DomainStatus::Frozen, DomainStatus::Retired)
+        );
+        if !allowed {
+            return Err(format!(
+                "Illegal domain lifecycle transition for {id}: {current:?} -> {next:?}"
+            ));
+        }
+        domain.status = next;
+        Ok(())
+    }
+
     pub fn active_domains(&self) -> impl Iterator<Item = &ConsensusDomain> {
         self.domains
             .values()
@@ -236,5 +264,39 @@ mod tests {
         let mut registry = ConsensusDomainRegistry::new();
         registry.register(domain.clone()).unwrap();
         assert!(registry.register(domain).is_err());
+    }
+
+    #[test]
+    fn phase11_8_domain_lifecycle_requires_freeze_before_retire() {
+        let domain = default_domain(7, ConsensusKind::PoS, 1337, "pos", 0);
+        let mut registry = ConsensusDomainRegistry::new();
+        registry.register(domain).unwrap();
+        assert!(registry
+            .transition_status_checked(7, DomainStatus::Retired)
+            .unwrap_err()
+            .contains("Illegal domain lifecycle transition"));
+        registry
+            .transition_status_checked(7, DomainStatus::Frozen)
+            .unwrap();
+        registry
+            .transition_status_checked(7, DomainStatus::Retired)
+            .unwrap();
+    }
+
+    #[test]
+    fn phase11_8_retired_domain_is_terminal() {
+        let domain = default_domain(8, ConsensusKind::Bft, 1337, "bft", 0);
+        let mut registry = ConsensusDomainRegistry::new();
+        registry.register(domain).unwrap();
+        registry
+            .transition_status_checked(8, DomainStatus::Frozen)
+            .unwrap();
+        registry
+            .transition_status_checked(8, DomainStatus::Retired)
+            .unwrap();
+        assert!(registry
+            .transition_status_checked(8, DomainStatus::Active)
+            .unwrap_err()
+            .contains("Illegal domain lifecycle transition"));
     }
 }

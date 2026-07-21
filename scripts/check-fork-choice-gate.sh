@@ -8,6 +8,8 @@ required_tests=(
   phase11_8_poa_requires_authority_quorum
   phase11_8_lifecycle_transitions_are_explicit
   phase11_8_mixed_domain_candidates_rejected
+  phase11_8_domain_lifecycle_requires_freeze_before_retire
+  phase11_8_retired_domain_is_terminal
 )
 
 fail() {
