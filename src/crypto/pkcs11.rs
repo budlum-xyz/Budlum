@@ -152,7 +152,21 @@ impl Pkcs11Signer {
     fn vendor_mechanism(id: u64) -> Result<cryptoki::mechanism::Mechanism<'static>, CryptoError> {
         use cryptoki::mechanism::vendor_defined::VendorDefinedMechanism;
         use cryptoki::mechanism::MechanismType;
-        let mech_type = MechanismType::new_vendor_defined(id).map_err(|e| {
+        // ADIM-1 CI (ARENA2, 2026-07-21): Cross-platform determinism matrisinin
+        // ilk Windows koşusu bu satırı yakaladı (E0308). `CK_MECHANISM_TYPE`
+        // cryptoki-sys'te Windows'ta u32 (CK_ULONG, LLP64 ABI), Unix'te u64
+        // (LP64) — ve cryptoki_sys dışa açık olmadığından tür isimlendirilemez.
+        // Platform eşlemesi cryptoki-sys'in kendi tanımıyla aynı tutulur;
+        // 32-bit'e sığmayan vendor id fail-closed hata verir (sessiz kırpma yok).
+        #[cfg(windows)]
+        let mech_id = u32::try_from(id).map_err(|_| {
+            CryptoError::Signing(format!(
+                "PKCS#11 vendor mechanism id 0x{id:08X} 32-bit CK_ULONG (Windows ABI) araliginin disinda"
+            ))
+        })?;
+        #[cfg(not(windows))]
+        let mech_id = id;
+        let mech_type = MechanismType::new_vendor_defined(mech_id).map_err(|e| {
             CryptoError::Signing(format!(
                 "PKCS#11 vendor mechanism id 0x{id:08X} CKM_VENDOR_DEFINED tabaninin altinda: {e}"
             ))

@@ -59,10 +59,23 @@ jobs:
       - name: Semver gate — budlum-core vs baseline
         env:
           SEMVER_BEFORE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # İlk koşu kök-nedeni: rustdoc-json üretimi tüm bağımlılık grafiğini
+          # derlerken runner'da öldü (hata gövdesi log'a düşmeden kesildi —
+          # klasik OOM deseni). Paralellik kısılır ve debuginfo kapatılır;
+          # hata tekrarlarsa memory snapshot ile kanıtlanır.
+          CARGO_BUILD_JOBS: "2"
+          RUSTFLAGS: "-C debuginfo=0"
         run: |
+          set +e
           if [ -z "${SEMVER_BEFORE}" ] || [ "${SEMVER_BEFORE}" = "0000000000000000000000000000000000000000" ]; then
             echo "BASE YOK (ilk push/şüpheli state) — gate atlanmaz, bilgi logu ile PASS."
             echo "NOT: budlum-core crates.io'da yayınlı değil; base mecburidir."
             exit 0
           fi
           bash ./current/scripts/check-semver.sh ./current ./baseline
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::gate exit=$rc — runner memory snapshot (OOM kanıtı için):"
+            free -m || true
+          fi
+          exit "$rc"
