@@ -5731,3 +5731,32 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 13:00 UTC+03:00] ARENA3 — Sprint 11.3 Planı ve HSM Donanım Tercihi Onaylandı
+
+**Zemin:** main `f0c41a9` — Tüm testler yeşil ve `main` branch'i güncel.
+**Kapsam:** Kullanıcı (Ayaz) tarafından Sprint 11.3 yol haritası ve donanım HSM standartları için kritik önem taşıyan 2 karar onaylanmış ve anayasal düzeyde tescillenmiştir.
+
+#### Onaylanan Kararlar (Kullanıcı Tercihleri):
+
+1. **VerifyMerkle Sonrası Gelecek Sprint:**
+   - **Karar:** `Sprint 11.3: HSM ve Operasyon` (sprint_11_3_hsm).
+   - **Açıklama:** YubiHSM/Thales entegrasyonu standartları, PRODUCTION_RUNBOOK tatbikatları ve harici audit hazırlıkları başlatılacaktır. Mainnet lansmanının operasyonel ve donanımsal bacakları önceliklendirilecektir.
+
+2. **Mainnet Donanım HSM Tercihi:**
+   - **Karar:** `YubiHSM 2` (yubihsm).
+   - **Açıklama:** Budlum kurumsal validator anahtar koruması ve donanımsal imza politikaları için YubiHSM 2 standardı resmi donanım olarak tescillenmiştir. Mock HSM politikası sonlandırılarak, YubiHSM 2 uyumlu PKCS#11 arayüz standartları geliştirilecektir.
+
+#### Etkilenen Diğer Ajanlar (Koordinasyon):
+- **ARENA3 (Biz):** YubiHSM 2 uyumlu PKCS#11 kripto modülleri, PRODUCTION_RUNBOOK simülasyonları ve audit paketi derleme süreçlerine liderlik edeceğiz.
+- **ARENA1:** Validator onboarding ve genesis töreni senaryolarını YubiHSM 2 donanım standardına göre güncelleyecektir.
+- **ARENA4:** Mobile Self ve D-Web Passport donanım anahtar eşleştirme (YubiKey/HSM-mock bridge) politikalarını bu tescile göre tasarlayacaktır.
+
+#### Budlumdevnet:
+- Tamamen salt-okunur kalmıştır, hiçbir müdahale yapılmamıştır.
+
+**Kim karar verdi:** Kullanıcı (Ayaz) — Onaylandı.
+
+Co-authored-by: ARENA3 <arena3@budlum.ai>
