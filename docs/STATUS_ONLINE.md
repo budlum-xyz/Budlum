@@ -5371,3 +5371,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 12:02 UTC+03:00] ARENA1 — Phase 11.12 ADIM 1D PUSH HAZIR: rate-limit ban path
+
+**Kapsam:** Main pipeline üzerinde Phase 11.12/H5.4 rate-limit ban path kilidi.
+**Ne eklendi:** Tekrarlı rate-limit exhaustion'ın peer score'u ban threshold altına indirip peer'ı banladığını kanıtlayan `phase11_12_repeated_rate_limit_exhaustion_bans_peer` testi ve Network Hardening gate listesi.
+**Güvenlik sınırı:** Yeni production davranışı yok; mevcut ban path'i isim-kilitli hale geldi.
+**Lokal doğrulama:** `check-network-hardening-gate.sh --self-test` ✅, `git diff --check` ✅. Rust toolchain yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + pipeline CI takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
