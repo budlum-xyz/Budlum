@@ -12,6 +12,12 @@ required_tests=(
   h5_5_max_message_size_rejected
   h5_1_eclipse_bound_still_active
   h5_6_multinode_smoke_artifacts_present
+  phase11_12_chaos_network_partition_isolates_groups
+  phase11_12_chaos_byzantine_block_rejected
+  phase11_12_chaos_eclipse_single_peer_isolation
+  phase11_12_chaos_sybil_subnet_bound_rejects_excess
+  phase11_12_chaos_ban_ttl_allows_reconnect_after_expiry
+  phase11_12_chaos_reputation_fuzz_decay
 )
 
 fail() {
