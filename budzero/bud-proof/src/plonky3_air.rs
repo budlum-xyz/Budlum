@@ -340,6 +340,13 @@ impl<AB: PermutationAirBuilder> Air<AB> for BudAir {
             rd_val_new.clone() * rs2_val.clone()
                 - rs1_val.clone() * (one.clone() - div_zero.clone()),
         );
+        // Soundness: the VM defines division by zero as result 0, but the
+        // equation above is vacuous when rs2 = 0 (both sides are 0), so a
+        // malicious prover could otherwise pick an arbitrary quotient. Pin
+        // rd to 0 in the div-by-zero case to match the VM.
+        builder
+            .when(is_div.clone() * div_zero.clone())
+            .assert_zero(rd_val_new.clone());
 
         // Soundness: Inversion field-native with zero flag
         let inv_zero: AB::Expr = cur[COL_INV_ZERO].into();
@@ -350,6 +357,13 @@ impl<AB: PermutationAirBuilder> Air<AB> for BudAir {
         builder
             .when(is_inv.clone())
             .assert_zero(rs1_val.clone() * rd_val_new.clone() + inv_zero.clone() - one.clone());
+        // Soundness: the VM defines the inverse of zero as 0, but the
+        // equation above is vacuous when rs1 = 0, so pin rd to 0 in the
+        // inverse-of-zero case to match the VM (otherwise a malicious
+        // prover could pick an arbitrary result).
+        builder
+            .when(is_inv.clone() * inv_zero.clone())
+            .assert_zero(rd_val_new.clone());
 
         // Soundness: Eq / Neq inverse witness constraints
         let eq_diff = rs1_val.clone() - rs2_val.clone();

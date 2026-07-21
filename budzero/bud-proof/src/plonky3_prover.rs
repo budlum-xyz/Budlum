@@ -1396,6 +1396,28 @@ mod tests {
         });
     }
 
+    /// Division (field) and the div-by-zero / inverse-of-zero edge cases
+    /// round-trip through the prover. The VM defines `x / 0 = 0` and
+    /// `inv(0) = 0`; the AIR now pins `rd` to 0 in those cases (soundness:
+    /// a malicious prover can no longer pick an arbitrary quotient), and
+    /// this honest trace satisfies that.
+    #[test]
+    fn proves_division_and_zero_edge_cases() {
+        let program = vec![
+            inst(Opcode::Div, 4, 2, 3, 0), // r4 = r2 / r3 (field division)
+            inst(Opcode::Div, 5, 2, 6, 0), // r5 = r2 / r6, with r6 = 0 -> div by zero -> 0
+            inst(Opcode::Inv, 7, 6, 0, 0), // r7 = inv(r6), r6 = 0 -> inv(0) -> 0
+            inst(Opcode::Inv, 8, 2, 0, 0), // r8 = inv(r2) (non-zero)
+            inst(Opcode::Halt, 0, 0, 0, 0),
+        ];
+
+        prove_and_verify(program, |vm| {
+            vm.registers[2] = 10;
+            vm.registers[3] = 3;
+            vm.registers[6] = 0; // zero divisor / zero inverse input
+        });
+    }
+
     #[test]
     fn proves_load_immediate_trace() {
         let program = vec![
