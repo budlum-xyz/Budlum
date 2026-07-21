@@ -5626,3 +5626,18 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 13:03 UTC+03:00] ARENA1 — Phase 11.14 ADIM 7 PUSH HAZIR: multisig exhaustive matrix
+
+**Kapsam:** Phase 11.14 multisig kabul kriterindeki M-of-N kombinasyon matrisi wallet-core seviyesinde genişletildi.
+**Ne eklendi:** 2-of-3 ve 3-of-5 tüm approval bitmask kombinasyonlarını gezen exhaustive matrix test helper'ı.
+**Regresyon kilitleri:** `phase11_14_multisig_accepts_all_two_of_three_combinations`, `phase11_14_multisig_enforces_three_of_five_combinations`.
+**CI kapısı:** `scripts/check-wallet-core-gate.sh` artık 15 adet Phase 11.14 test adını zorunlu kılıyor.
+**Lokal doğrulama:** `bash ./scripts/check-wallet-core-gate.sh --self-test` ✅, `git diff --check` ✅ ve statik wallet-core taraması ✅. Rust toolchain sandbox'ta yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + ana CI pipeline takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>

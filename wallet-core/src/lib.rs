@@ -665,6 +665,60 @@ mod tests {
         assert!(!policy.verify_threshold(msg, &approvals));
     }
 
+    fn multisig_approvals_for_mask(
+        wallets: &[Wallet],
+        message: &[u8],
+        mask: usize,
+    ) -> Vec<MultisigApproval> {
+        wallets
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| (mask & (1usize << idx)) != 0)
+            .map(|(_, wallet)| MultisigApproval {
+                public_key: wallet.public_key(),
+                signature: wallet.sign(message),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn phase11_14_multisig_accepts_all_two_of_three_combinations() {
+        let wallets = (0u8..3)
+            .map(|i| Wallet::from_entropy(&[10u8 + i; 16]).unwrap())
+            .collect::<Vec<_>>();
+        let policy = MultisigPolicy::new(wallets.iter().map(Wallet::public_key).collect(), 2)
+            .unwrap();
+        let msg = b"two of three exhaustive matrix";
+
+        for mask in 0..(1usize << wallets.len()) {
+            let approvals = multisig_approvals_for_mask(&wallets, msg, mask);
+            assert_eq!(
+                policy.verify_threshold(msg, &approvals),
+                mask.count_ones() as usize >= 2,
+                "2-of-3 mask {mask:03b}"
+            );
+        }
+    }
+
+    #[test]
+    fn phase11_14_multisig_enforces_three_of_five_combinations() {
+        let wallets = (0u8..5)
+            .map(|i| Wallet::from_entropy(&[20u8 + i; 16]).unwrap())
+            .collect::<Vec<_>>();
+        let policy = MultisigPolicy::new(wallets.iter().map(Wallet::public_key).collect(), 3)
+            .unwrap();
+        let msg = b"three of five exhaustive matrix";
+
+        for mask in 0..(1usize << wallets.len()) {
+            let approvals = multisig_approvals_for_mask(&wallets, msg, mask);
+            assert_eq!(
+                policy.verify_threshold(msg, &approvals),
+                mask.count_ones() as usize >= 3,
+                "3-of-5 mask {mask:05b}"
+            );
+        }
+    }
+
     #[test]
     fn phase11_14_social_recovery_policy_validates_threshold_and_timelock() {
         let g1 = Wallet::from_entropy(&[1u8; 16]).unwrap();
