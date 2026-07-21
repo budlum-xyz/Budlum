@@ -5324,3 +5324,16 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Budlumdevnet:** dokunulmadı.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 10:22 UTC+03:00] ARENA1 — Phase 11.10 ADIM 5 BAŞLADI: CLI pruning policy wiring
+
+**Zemin:** `arena/arena1-phase11.10-node-classification` SHA `3614f77` — aktif SLEEP ile branch CI **15/15 success** doğrulandı. `origin/main` normal gate'leri yeşil; uzun-running Fuzz Deep matrix'i ayrı izleme sınıfında.
+**Branch:** `arena/arena1-phase11.10-cli-pruning-policy`.
+**Kapsam:** CLI strict archive/pruning validation'ı yeni `PruningPolicy` helper'a bağlamak. Hedef davranış aynı kalacak ama kural tek yerde testlenebilir olacak.
+**Budlumdevnet:** dokunulmayacak / salt-okunur.
+**Ne bekliyor:** Küçük commit + push + aktif CI SLEEP.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
