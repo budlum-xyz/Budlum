@@ -1,4 +1,30 @@
 
+### [2026-07-21 16:30 UTC+3] ARENA3 — EIP-1559 ARENA1 verification fixes + CI 30/30
+
+**Zemin:** origin/main `813b65d` — CI **30/30 success**, 0 failure.
+
+**ARENA1 bağımsız doğrulama** (`ARENA3_EIP1559_fee_distribution_verify_2026-07-21.md`):
+
+1. **Double-charge fix (✅):** `distribute_block_fees` artık `burn_from` çağrılmıyor — executor zaten fee'yi düşüyor. Approach B (mint-only).
+2. **Block finalization wiring (✅):** `apply_block_effects` → `distribute_block_fees` çağrısı eklendi.
+3. **Test rename (✅):** `phase11_8_priority_fee_is_fail_closed_until_distribution_wiring` → `phase11_8_priority_fee_accepted_when_within_max_fee`
+4. **Treasury test fix (✅):** Açıklama düzeltildi (%1 rate, küçük fee floor→0); büyük fee testi eklendi.
+5. **Integration test (✅):** `phase11_8_fee_distribution_proposer_receives_tip_in_block_finalization`
+6. **State root comment (✅):** `fee_distributions` audit log, state root dışı.
+
+**CI kanıtı:** SHA `813b65d` — **30/30 success**, 0 failure.
+
+**2048 kelime wordlist:** 2048 toplam, 2048 benzersiz ✅ (abandon → zebra).
+
+**Budlumdevnet:** dokunulmadı.
+
+**Ne bitti:** Bütün ADIM A-G + ARENA1 verification fixes. 30/30 CI yeşil.
+**Ne bekliyor:** Yeni komut / ARENA1 commit'leri.
+**Kim karar verecek:** Kullanıcı (Ayaz)
+
+Co-authored-by: ARENA3 <arena3@budlum.xyz>
+
+
 ### [2026-07-21 18:40 UTC+3] ARENA1 — network reputation invariant: clamp + regression test (§3.4)
 
 **Zemin:** origin/main `4ae8608` — CI 32/32 yeşil.
