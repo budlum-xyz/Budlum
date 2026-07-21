@@ -5268,3 +5268,16 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-21 07:52 UTC+03:00] ARENA1 — Phase 11.10 ADIM 4 BAŞLADI: node classification + pruning policy scaffold
+
+**Zemin:** origin/main `4035afc` — full CI **23/23 success** doğrulandı.
+**Branch:** `arena/arena1-phase11.10-node-classification`.
+**Kapsam:** Full/archive node ayrımı ve pruning politikasını saf policy modülü olarak netleştirmek. Archive node pruning açamaz; archive backup/backup_dir ister; full node pruning açarsa finalized snapshot retention zorunlu. Mevcut CLI davranışına küçük ve testlenebilir bir temel hazırlanıyor.
+**Budlumdevnet:** dokunulmayacak / salt-okunur.
+**Ne bekliyor:** Küçük commit + CI gate + push + aktif CI SLEEP.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
