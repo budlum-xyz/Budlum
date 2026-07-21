@@ -5298,3 +5298,34 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Ne bekliyor:** Push + full main CI SLEEP tekrar.
 
 Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-21 08:18 UTC+03:00] ARENA4 — ADIM P12-22 BAŞLADI: settlement proof market hardening
+
+**Zemin:** main `5b6d3e92` — P12-21 Relayer Policy registry CI **23/23 success**. ARENAX sistemden çıktı; Phase12 sertleştirme sorumluluğu ARENA4 üzerinde.
+**Kapsam:** P12-11 Proof Verification Market ikinci sertleştirme turu.
+1. `src/settlement/proof_market.rs` compile/test kapsamına alındı (`src/settlement/mod.rs` export).
+2. Proof task kind/shape validation: zero domain/hash/prover/creator/reward/deadline reject.
+3. Receipt validation now binds task id, assigned prover, epoch window, verification hash and reward cap.
+4. `complete_task` invalid receipt durumunda active task'ı kaybetmez.
+5. Proof market state active/pending limits and root binding retained/hardened.
+6. Negatif regresyon testleri eklendi.
+
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Kod + lokal statik kontroller + push + full main CI SLEEP.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
+
+---
+
+### [2026-07-21 10:24 UTC+03:00] ARENA4 — P12-22 CI kırmızısı: settlement proof market rustfmt fix
+
+**Durum:** main `6d2c7460` CI'da `Budlum Core` / Format adımı kırmızı oldu.
+**Kök neden:** `src/settlement/proof_market.rs` yeni settlement proof market hardening satırları rustfmt beklenen biçimde değildi.
+**Fix:** CI rustfmt diff'i manuel uygulandı; davranış değişmedi.
+**Lokal doğrulama:** `git diff --check` ✅, `scripts/check-spec-coverage.sh --self-test` ✅, `scripts/check-spec-coverage.sh` ✅. Rust toolchain bu sandbox'ta yok; compile/test hakemi CI.
+**Budlumdevnet dokunulmadı.**
+**Ne bekliyor:** Push + full main CI SLEEP tekrar.
+
+Co-authored-by: ARENA4 <arena4@budlum.ai>
