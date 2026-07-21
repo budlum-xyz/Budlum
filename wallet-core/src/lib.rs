@@ -33,6 +33,8 @@ pub enum WalletError {
     InvalidSeed,
     /// Geçersiz multisig policy.
     InvalidMultisigPolicy(String),
+    /// Geçersiz social recovery policy.
+    InvalidRecoveryPolicy(String),
 }
 
 impl std::fmt::Display for WalletError {
@@ -42,6 +44,7 @@ impl std::fmt::Display for WalletError {
             WalletError::InvalidEntropy(n) => write!(f, "invalid entropy size: {n} bytes (expected 16 or 32)"),
             WalletError::InvalidSeed => write!(f, "invalid seed"),
             WalletError::InvalidMultisigPolicy(m) => write!(f, "invalid multisig policy: {m}"),
+            WalletError::InvalidRecoveryPolicy(m) => write!(f, "invalid recovery policy: {m}"),
         }
     }
 }
@@ -55,6 +58,72 @@ const WORDLIST_PLACEHOLDER: &[&str] = &[
     "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid",
     // ... 2048 kelime — production'da tam liste
 ];
+
+
+/// Guardian-based social recovery policy (Phase 11.14).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SocialRecoveryPolicy {
+    pub guardians: Vec<[u8; 32]>,
+    pub threshold: usize,
+    pub timelock_blocks: u64,
+}
+
+/// One guardian approval over a recovery proposal digest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GuardianApproval {
+    pub public_key: [u8; 32],
+    pub signature: [u8; 64],
+}
+
+impl SocialRecoveryPolicy {
+    pub fn new(
+        mut guardians: Vec<[u8; 32]>,
+        threshold: usize,
+        timelock_blocks: u64,
+    ) -> Result<Self, WalletError> {
+        guardians.sort();
+        guardians.dedup();
+        if guardians.is_empty() {
+            return Err(WalletError::InvalidRecoveryPolicy("guardians empty".into()));
+        }
+        if threshold == 0 || threshold > guardians.len() {
+            return Err(WalletError::InvalidRecoveryPolicy(format!(
+                "threshold {threshold} outside 1..={}",
+                guardians.len()
+            )));
+        }
+        if timelock_blocks == 0 {
+            return Err(WalletError::InvalidRecoveryPolicy(
+                "timelock_blocks must be non-zero".into(),
+            ));
+        }
+        Ok(Self {
+            guardians,
+            threshold,
+            timelock_blocks,
+        })
+    }
+
+    pub fn verify_recovery_threshold(
+        &self,
+        recovery_digest: &[u8],
+        approvals: &[GuardianApproval],
+    ) -> bool {
+        let mut seen = Vec::<[u8; 32]>::new();
+        for approval in approvals {
+            if !self.guardians.contains(&approval.public_key) {
+                continue;
+            }
+            if seen.contains(&approval.public_key) {
+                continue;
+            }
+            if Wallet::verify(&approval.public_key, recovery_digest, &approval.signature) {
+                seen.push(approval.public_key);
+            }
+        }
+        seen.len() >= self.threshold
+    }
+}
 
 /// Budlum wallet: BIP39 mnemonic → SLIP-0010 Ed25519 → Address + Signing.
 pub struct Wallet {
@@ -435,5 +504,74 @@ mod tests {
             },
         ];
         assert!(!policy.verify_threshold(msg, &approvals));
+    }
+
+    #[test]
+    fn phase11_14_social_recovery_policy_validates_threshold_and_timelock() {
+        let g1 = Wallet::from_entropy(&[1u8; 16]).unwrap();
+        let g2 = Wallet::from_entropy(&[2u8; 16]).unwrap();
+        let policy = SocialRecoveryPolicy::new(vec![g1.public_key(), g2.public_key()], 2, 100)
+            .unwrap();
+        assert_eq!(policy.threshold, 2);
+        assert_eq!(policy.timelock_blocks, 100);
+        assert!(SocialRecoveryPolicy::new(vec![g1.public_key()], 0, 100).is_err());
+        assert!(SocialRecoveryPolicy::new(vec![g1.public_key()], 1, 0).is_err());
+    }
+
+    #[test]
+    fn phase11_14_social_recovery_requires_distinct_guardian_signatures() {
+        let g1 = Wallet::from_entropy(&[1u8; 16]).unwrap();
+        let g2 = Wallet::from_entropy(&[2u8; 16]).unwrap();
+        let g3 = Wallet::from_entropy(&[3u8; 16]).unwrap();
+        let digest = b"recover wallet to new key";
+        let policy = SocialRecoveryPolicy::new(
+            vec![g1.public_key(), g2.public_key(), g3.public_key()],
+            2,
+            100,
+        )
+        .unwrap();
+        let duplicate = [
+            GuardianApproval {
+                public_key: g1.public_key(),
+                signature: g1.sign(digest),
+            },
+            GuardianApproval {
+                public_key: g1.public_key(),
+                signature: g1.sign(digest),
+            },
+        ];
+        assert!(!policy.verify_recovery_threshold(digest, &duplicate));
+        let quorum = [
+            GuardianApproval {
+                public_key: g1.public_key(),
+                signature: g1.sign(digest),
+            },
+            GuardianApproval {
+                public_key: g2.public_key(),
+                signature: g2.sign(digest),
+            },
+        ];
+        assert!(policy.verify_recovery_threshold(digest, &quorum));
+    }
+
+    #[test]
+    fn phase11_14_social_recovery_rejects_non_guardian_or_wrong_digest() {
+        let g1 = Wallet::from_entropy(&[1u8; 16]).unwrap();
+        let g2 = Wallet::from_entropy(&[2u8; 16]).unwrap();
+        let outsider = Wallet::from_entropy(&[9u8; 16]).unwrap();
+        let digest = b"recover";
+        let policy = SocialRecoveryPolicy::new(vec![g1.public_key(), g2.public_key()], 2, 100)
+            .unwrap();
+        let approvals = [
+            GuardianApproval {
+                public_key: g1.public_key(),
+                signature: g1.sign(b"wrong"),
+            },
+            GuardianApproval {
+                public_key: outsider.public_key(),
+                signature: outsider.sign(digest),
+            },
+        ];
+        assert!(!policy.verify_recovery_threshold(digest, &approvals));
     }
 }
