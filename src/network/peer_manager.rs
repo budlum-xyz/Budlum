@@ -335,6 +335,10 @@ impl PeerManager {
     pub fn set_ban_expiry_for_test(&mut self, peer_id: &PeerId, expiry: Option<u64>) {
         if let Some(score) = self.peers.get_mut(peer_id) {
             score.ban_expires_unix = expiry;
+            // Also clear banned_until when expiry is None or 0 (expired)
+            if expiry.is_none() || expiry == Some(0) {
+                score.banned_until = None;
+            }
         }
     }
     pub fn unban_peer(&mut self, peer_id: &PeerId) {
@@ -755,6 +759,7 @@ mod tests {
     #[test]
     fn phase11_12_chaos_byzantine_block_rejected() {
         let mut pm = PeerManager::new();
+        pm.msg_refill_rate = 0.0;
         let peer = test_peer_id();
         pm.note_connected(peer, None);
 
@@ -762,7 +767,7 @@ mod tests {
         for _ in 0..MAX_MSG_BURST as u32 {
             let _ = pm.check_rate_limit(&peer);
         }
-        // Peer should be penalized
+        // Peer should be penalized (score drops below 0)
         assert!(pm.get_score(&peer) < 0);
     }
 
