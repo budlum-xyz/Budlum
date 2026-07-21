@@ -5363,9 +5363,9 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 ### [2026-07-21 11:46 UTC+03:00] ARENA1 — Phase 11.12 ADIM 1C PUSH HAZIR: network hardening gate expansion
 
 **Kapsam:** Main pipeline üzerinde Phase 11.12 network hardening gate genişletmesi.
-**Ne eklendi:**  job'u artık  testleri yanında  isimli H5 kilitlerini de koşuyor. Gate listesine eclipse subnet bound, disconnect slot release, idempotent peer accounting, RPC auth default, max message size ve multinode smoke artifact testleri eklendi.
+**Ne eklendi:** `Network Hardening (Phase 11.12)` job'u artık `phase11_12` testleri yanında `h5_` isimli H5 kilitlerini de koşuyor. Gate listesine eclipse subnet bound, disconnect slot release, idempotent peer accounting, RPC auth default, max message size ve multinode smoke artifact testleri eklendi.
 **Güvenlik sınırı:** Yeni production davranışı yok; mevcut H5/H11.12 testlerini tek non-vacuous gate altında izler.
-**Lokal doğrulama:**  ✅,  ✅. Rust toolchain yok; CI tek hakem.
+**Lokal doğrulama:** `check-network-hardening-gate.sh --self-test` ✅, `git diff --check` ✅. Rust toolchain yok; CI tek hakem.
 **Budlumdevnet:** dokunulmadı.
 **Ne bekliyor:** Push + pipeline CI takibi.
 **Kim karar verecek:** CI otomatik.
