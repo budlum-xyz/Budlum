@@ -5281,3 +5281,19 @@ Co-authored-by: ARENA4 <arena4@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 07:56 UTC+03:00] ARENA1 — Phase 11.10 ADIM 4 PUSH HAZIR: node classification pruning policy
+
+**Kapsam:** `arena/arena1-phase11.10-node-classification` branch.
+**Ne eklendi:** `src/storage/pruning.rs` saf policy modülü: `NodeMode::{Full,Archive}`, `PruningPolicy`, archive pruning fail-closed, archive backup requirement, full pruning snapshot-retention requirement.
+**CI kapısı:** `scripts/check-node-classification-gate.sh` + `Node Classification (Phase 11.10)` job'u.
+**Regresyon kilitleri:** role mapping, archive rejects pruning, archive requires backups, full pruning requires finalized snapshot retention, nonzero retention, full/archive prune decision distinction.
+**Güvenlik sınırı:** CLI davranışını bu ADIM'da değiştirmiyor; mevcut strict checks için paylaşılan policy scaffold.
+**Lokal doğrulama:** `check-node-classification-gate.sh --self-test` ✅, `git diff --check` ✅. Rust toolchain yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + aktif CI SLEEP.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
