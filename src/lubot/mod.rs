@@ -17,6 +17,7 @@ use crate::pollen::data_rights::{AccessGrant, AccessGrantStatus};
 
 pub mod inference;
 pub mod social;
+pub mod verify;
 
 // ============================================================
 // Operator (validator hardening: ayrı compute-bond rolü)
