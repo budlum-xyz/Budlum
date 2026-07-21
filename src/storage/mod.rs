@@ -27,7 +27,9 @@ pub mod pruning;
 pub mod traits;
 
 pub use content_id::{ContentId, DEFAULT_CHUNK_SIZE_BYTES};
-pub use lifecycle::{transition as transition_storage_lifecycle, StorageLifecycleError, StorageLifecycleState};
+pub use lifecycle::{
+    transition as transition_storage_lifecycle, StorageLifecycleError, StorageLifecycleState,
+};
 pub use manifest::{manifest_id_from_shards, ContentManifest, ShardRef};
 pub use mobile_self::{
     MobileAvailabilityClass, MobileSelfContentPolicy, MobileSelfProfile, ReplicaRecommendation,

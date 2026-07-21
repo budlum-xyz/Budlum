@@ -41,8 +41,14 @@ impl StorageLifecycleState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StorageLifecycleError {
-    TerminalState { from: StorageLifecycleState, to: StorageLifecycleState },
-    InvalidTransition { from: StorageLifecycleState, to: StorageLifecycleState },
+    TerminalState {
+        from: StorageLifecycleState,
+        to: StorageLifecycleState,
+    },
+    InvalidTransition {
+        from: StorageLifecycleState,
+        to: StorageLifecycleState,
+    },
 }
 
 pub fn transition(
@@ -64,7 +70,8 @@ mod tests {
 
     #[test]
     fn phase11_10_lifecycle_happy_path_settled() {
-        let state = transition(StorageLifecycleState::Open, StorageLifecycleState::Proving).unwrap();
+        let state =
+            transition(StorageLifecycleState::Open, StorageLifecycleState::Proving).unwrap();
         let state = transition(state, StorageLifecycleState::Challenged).unwrap();
         let state = transition(state, StorageLifecycleState::Settled).unwrap();
         assert_eq!(state, StorageLifecycleState::Settled);
@@ -74,18 +81,27 @@ mod tests {
     #[test]
     fn phase11_10_lifecycle_challenge_can_miss_or_slash() {
         assert_eq!(
-            transition(StorageLifecycleState::Challenged, StorageLifecycleState::Missed).unwrap(),
+            transition(
+                StorageLifecycleState::Challenged,
+                StorageLifecycleState::Missed
+            )
+            .unwrap(),
             StorageLifecycleState::Missed
         );
         assert_eq!(
-            transition(StorageLifecycleState::Challenged, StorageLifecycleState::Slashed).unwrap(),
+            transition(
+                StorageLifecycleState::Challenged,
+                StorageLifecycleState::Slashed
+            )
+            .unwrap(),
             StorageLifecycleState::Slashed
         );
     }
 
     #[test]
     fn phase11_10_lifecycle_rejects_skip_open_to_settled() {
-        let err = transition(StorageLifecycleState::Open, StorageLifecycleState::Settled).unwrap_err();
+        let err =
+            transition(StorageLifecycleState::Open, StorageLifecycleState::Settled).unwrap_err();
         assert_eq!(
             err,
             StorageLifecycleError::InvalidTransition {

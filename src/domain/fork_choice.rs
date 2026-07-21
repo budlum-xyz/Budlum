@@ -146,7 +146,11 @@ fn resolve_pow(candidates: &[ForkCandidate]) -> Result<ResolvedHead, ForkChoiceE
         .collect::<Option<Vec<_>>>()
         .ok_or(ForkChoiceError::MissingCumulativeWork)?
         .into_iter()
-        .max_by(|(a, aw), (b, bw)| aw.cmp(bw).then(a.height.cmp(&b.height)).then(b.head_hash.cmp(&a.head_hash)))
+        .max_by(|(a, aw), (b, bw)| {
+            aw.cmp(bw)
+                .then(a.height.cmp(&b.height))
+                .then(b.head_hash.cmp(&a.head_hash))
+        })
         .map(|(c, _)| c)
         .ok_or(ForkChoiceError::NoCandidates)?;
     Ok(ResolvedHead {
@@ -165,7 +169,11 @@ fn resolve_pos(candidates: &[ForkCandidate]) -> Result<ResolvedHead, ForkChoiceE
         .collect::<Option<Vec<_>>>()
         .ok_or(ForkChoiceError::MissingVoteWeight)?
         .into_iter()
-        .max_by(|(a, aw), (b, bw)| aw.cmp(bw).then(a.height.cmp(&b.height)).then(b.head_hash.cmp(&a.head_hash)))
+        .max_by(|(a, aw), (b, bw)| {
+            aw.cmp(bw)
+                .then(a.height.cmp(&b.height))
+                .then(b.head_hash.cmp(&a.head_hash))
+        })
         .map(|(c, _)| c)
         .ok_or(ForkChoiceError::NoCandidates)?;
     Ok(ResolvedHead {
@@ -305,7 +313,9 @@ mod tests {
         );
         let mut b = candidate(4, 11, 0x42);
         b.authority_quorum = true;
-        let head = resolver.fork_choice(&[candidate(4, 10, 0x41), b.clone()]).unwrap();
+        let head = resolver
+            .fork_choice(&[candidate(4, 10, 0x41), b.clone()])
+            .unwrap();
         assert_eq!(head.head_hash, b.head_hash);
         assert_eq!(head.reason, ForkChoiceReason::PoaRoundRobinAuthority);
     }

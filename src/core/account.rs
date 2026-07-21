@@ -578,13 +578,19 @@ impl AccountState {
             ));
         }
         if tx.max_fee != 0 && tx.max_fee != tx.fee {
-            return Err("EIP-1559 max_fee must equal legacy fee until fee distribution wiring".into());
+            return Err(
+                "EIP-1559 max_fee must equal legacy fee until fee distribution wiring".into(),
+            );
         }
         if tx.priority_fee != 0 {
             return Err("EIP-1559 priority_fee distribution is not enabled yet".into());
         }
         if crate::chain::fee_market::effective_fee(tx.fee_bid(), self.base_fee).is_err() {
-            return Err(format!("Fee too low: {} < {}", tx.fee_limit(), self.base_fee));
+            return Err(format!(
+                "Fee too low: {} < {}",
+                tx.fee_limit(),
+                self.base_fee
+            ));
         }
         // Overflow guard (security): reject amount+fee > u64::MAX explicitly.
         // total_cost() uses saturating_add, which would silently clamp to
@@ -1556,7 +1562,11 @@ mod tests {
         });
 
         assert_eq!(state.circulating_supply(), 1_000);
-        assert_eq!(state.get_total_stake(), 0, "inactive stake is not consensus-active");
+        assert_eq!(
+            state.get_total_stake(),
+            0,
+            "inactive stake is not consensus-active"
+        );
         assert_eq!(state.total_staked_supply(), 2_000);
         assert_eq!(state.total_unbonding_supply(), 3_000);
         assert_eq!(state.total_bud_committed(), 6_000);

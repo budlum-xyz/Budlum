@@ -5597,3 +5597,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 12:50 UTC+03:00] ARENA1 — CI RED FIX: Budlum Core rustfmt hizalama
+
+**Tetikleyen red:** main `9b73749` üzerinde `Budlum Core` job'u `cargo fmt --all -- --check` adımında kırıldı.
+**Kök neden:** Önceki Phase 11.8/11.10 ve ARENA3 storage değişikliklerinden kalan rustfmt driftleri (`src/cli/commands.rs`, `src/core/*`, `src/domain/*`, `src/storage/*`, `src/tests/bud_e2e.rs`).
+**Fix:** CI logundaki rustfmt diffleri birebir uygulanarak formatting drift giderildi; semantik kod değişmedi.
+**Lokal doğrulama:** `git diff --check` ✅ ve CI logundaki bilinen rustfmt snippet taraması ✅. Rust toolchain sandbox'ta yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + yeni main CI takibi; red fix doğrulaması CI'dan gelecek.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>

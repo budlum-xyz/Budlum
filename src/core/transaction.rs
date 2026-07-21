@@ -496,7 +496,11 @@ impl Transaction {
     }
     pub fn fee_bid(&self) -> crate::chain::fee_market::FeeBid {
         crate::chain::fee_market::FeeBid {
-            max_fee: if self.max_fee == 0 { self.fee } else { self.max_fee },
+            max_fee: if self.max_fee == 0 {
+                self.fee
+            } else {
+                self.max_fee
+            },
             priority_fee: self.priority_fee,
         }
     }
@@ -1014,6 +1018,9 @@ mod v29_signing_tests {
 
         let mut tx = signed_variant(TransactionType::Transfer);
         tx.priority_fee = 1;
-        assert!(!tx.verify(), "priority_fee is execution-relevant and signed");
+        assert!(
+            !tx.verify(),
+            "priority_fee is execution-relevant and signed"
+        );
     }
 }

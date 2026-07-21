@@ -1073,7 +1073,10 @@ mod tests {
             role: "unknown".into(),
             ..Default::default()
         };
-        assert!(cfg.pruning_policy().unwrap_err().contains("unknown node role"));
+        assert!(cfg
+            .pruning_policy()
+            .unwrap_err()
+            .contains("unknown node role"));
     }
 
     #[test]
@@ -1087,7 +1090,10 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(cfg.role, "archive");
-        assert_eq!(cfg.pruning_policy().unwrap().mode, crate::storage::NodeMode::Archive);
+        assert_eq!(
+            cfg.pruning_policy().unwrap().mode,
+            crate::storage::NodeMode::Archive
+        );
     }
 
     #[test]
@@ -1102,7 +1108,10 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(cfg.role, "validator");
-        assert_eq!(cfg.pruning_policy().unwrap().mode, crate::storage::NodeMode::Full);
+        assert_eq!(
+            cfg.pruning_policy().unwrap().mode,
+            crate::storage::NodeMode::Full
+        );
     }
 }
 

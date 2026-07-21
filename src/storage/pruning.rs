@@ -75,7 +75,8 @@ impl PruningPolicy {
         if self.mode == NodeMode::Archive && self.pruning_enabled {
             return Err("archive nodes must not enable pruning".into());
         }
-        if self.mode == NodeMode::Archive && (!self.backups_enabled || !self.backup_dir_configured) {
+        if self.mode == NodeMode::Archive && (!self.backups_enabled || !self.backup_dir_configured)
+        {
             return Err("archive nodes require backups_enabled=true and backup_dir".into());
         }
         if self.pruning_enabled && !self.finalized_snapshot_retention {

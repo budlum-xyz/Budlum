@@ -34,8 +34,8 @@ use crate::domain::storage_params::StorageDomainParams;
 use crate::domain::Hash32;
 use crate::storage::content_id::ContentId;
 use crate::storage::manifest::ContentManifest;
-use serde::{Deserialize, Serialize};
 use bud_proof::ProverAdapter;
+use serde::{Deserialize, Serialize};
 
 /// RPC-facing DTO for `bud_storageOpenChallenge`.
 ///
@@ -621,8 +621,12 @@ impl StorageRegistry {
         }
 
         // 1. Deserialize envelope
-        let envelope = bincode::deserialize::<bud_proof::ProofEnvelope>(proof_bytes)
-            .map_err(|e| StorageError::InvalidMerkleProof(format!("failed to deserialize ProofEnvelope: {e}")))?;
+        let envelope =
+            bincode::deserialize::<bud_proof::ProofEnvelope>(proof_bytes).map_err(|e| {
+                StorageError::InvalidMerkleProof(format!(
+                    "failed to deserialize ProofEnvelope: {e}"
+                ))
+            })?;
 
         // 2. Setup the expected program (VerifyMerkle + Halt)
         use bud_isa::{Instruction, Opcode};
@@ -672,8 +676,9 @@ impl StorageRegistry {
         };
 
         // 5. Verify via Plonky3 STARK verifier
-        bud_proof::DefaultAdapter::verify(&envelope, &expected_inputs, &program)
-            .map_err(|e| StorageError::InvalidMerkleProof(format!("STARK proof verification failed: {e:?}")))?;
+        bud_proof::DefaultAdapter::verify(&envelope, &expected_inputs, &program).map_err(|e| {
+            StorageError::InvalidMerkleProof(format!("STARK proof verification failed: {e:?}"))
+        })?;
 
         Ok(())
     }
@@ -801,10 +806,7 @@ impl StorageRegistry {
     /// tests, and later pruning/archive logic reason about the richer lifecycle
     /// vocabulary without changing the currently stable `DealStatus` storage
     /// format in one step.
-    pub fn lifecycle_state(
-        &self,
-        deal_id: u64,
-    ) -> Option<crate::storage::StorageLifecycleState> {
+    pub fn lifecycle_state(&self, deal_id: u64) -> Option<crate::storage::StorageLifecycleState> {
         let deal = self.deals.get(&deal_id)?;
         match deal.status {
             DealStatus::Slashed => Some(crate::storage::StorageLifecycleState::Slashed),
@@ -1478,7 +1480,13 @@ mod tests {
 
         // Providing the correct test-mock-proof should verify successfully
         let res = reg
-            .answer_challenge(cid, ContentId([1u8; 32]), operator(), 115, Some(b"test-mock-proof"))
+            .answer_challenge(
+                cid,
+                ContentId([1u8; 32]),
+                operator(),
+                115,
+                Some(b"test-mock-proof"),
+            )
             .unwrap();
         assert_eq!(res.outcome, ChallengeOutcome::Answered);
     }

@@ -47,7 +47,11 @@ pub enum StorageProviderError {
 }
 
 pub trait StorageProvider {
-    fn put(&mut self, manifest: &ContentManifest, bytes: &[u8]) -> Result<PutReceipt, StorageProviderError>;
+    fn put(
+        &mut self,
+        manifest: &ContentManifest,
+        bytes: &[u8],
+    ) -> Result<PutReceipt, StorageProviderError>;
 
     fn get(
         &self,
@@ -91,7 +95,11 @@ impl InMemoryStorageProvider {
 }
 
 impl StorageProvider for InMemoryStorageProvider {
-    fn put(&mut self, manifest: &ContentManifest, bytes: &[u8]) -> Result<PutReceipt, StorageProviderError> {
+    fn put(
+        &mut self,
+        manifest: &ContentManifest,
+        bytes: &[u8],
+    ) -> Result<PutReceipt, StorageProviderError> {
         if bytes.is_empty() {
             return Err(StorageProviderError::EmptyPayload);
         }

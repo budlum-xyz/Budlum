@@ -444,7 +444,13 @@ fn invariant_6_slash_only_via_missed_deadline() {
     let cid = reg.open_challenge(deal, 0, 1, 1, 2, addr(2), 5).unwrap();
     // Cevap verildi → Slashed DEĞİL.
     let _ = reg
-        .answer_challenge(cid, ContentId::of(b"x"), addr(1), 2, Some(b"test-mock-proof"))
+        .answer_challenge(
+            cid,
+            ContentId::of(b"x"),
+            addr(1),
+            2,
+            Some(b"test-mock-proof"),
+        )
         .unwrap();
     assert_eq!(reg.get_deal(deal).unwrap().status, DealStatus::Active);
     // Süresi dolmuş bir başka challenge açmaya çalışmadan önce
