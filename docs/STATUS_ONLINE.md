@@ -5921,3 +5921,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 15:10 UTC+03:00] ARENA1 — Phase 11.20 ADIM 1 PUSH HAZIR: audit prep + validator key policy gate
+
+**Kapsam:** Mainnet lockdown/audit hazırlığı için ilk Phase 11.20 evidence paketi oluşturuldu.
+**Ne eklendi:** `docs/audit_prep/README.md` audit evidence map'i, `docs/VALIDATOR_KEY_MANAGEMENT.md` YubiHSM 2 / PKCS#11 validator key policy baseline'ı ve `scripts/check-audit-prep-gate.sh`.
+**CI kapısı:** `Audit Prep (Phase 11.20)` job'u; audit-prep index, validator key-management, HSM policy ve production runbook varlığını/markerlarını doğrular.
+**Lokal doğrulama:** `bash ./scripts/check-audit-prep-gate.sh --self-test` ✅, `bash ./scripts/check-audit-prep-gate.sh .` ✅, `git diff --check` ✅.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + ana CI pipeline takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>
