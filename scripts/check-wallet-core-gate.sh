@@ -3,6 +3,8 @@ set -euo pipefail
 
 required_tests=(
   phase11_14_entropy_size_preserves_mnemonic_word_count
+  phase11_14_wallet_generate_rejects_placeholder_entropy_in_production
+  phase11_14_mnemonic_checksum_validation_rejects_invalid
   phase11_14_binding_capabilities_include_mobile_and_browser_stubs
   phase11_14_binding_export_redacts_seed_and_counts_words
   phase11_14_binding_uniffi_feature_stub_exports_capabilities

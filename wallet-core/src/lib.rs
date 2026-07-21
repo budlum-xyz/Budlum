@@ -19,8 +19,11 @@
 //! let sig = wallet.sign(b"message to sign");
 //! ```
 
+mod bip39_wordlist;
+
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use sha3::{Digest, Sha3_256};
+use sha2::{Digest, Sha256};
+use sha3::Sha3_256;
 
 /// Wallet hatası.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +40,8 @@ pub enum WalletError {
     InvalidRecoveryPolicy(String),
     /// Geçersiz social recovery proposal.
     InvalidRecoveryProposal(String),
+    /// Production entropy (CSPRNG) kullanılamıyor — fail-closed.
+    ProductionEntropyUnavailable(String),
 }
 
 impl std::fmt::Display for WalletError {
@@ -50,28 +55,109 @@ impl std::fmt::Display for WalletError {
             WalletError::InvalidRecoveryProposal(m) => {
                 write!(f, "invalid recovery proposal: {m}")
             }
+            WalletError::ProductionEntropyUnavailable(m) => {
+                write!(f, "production entropy unavailable: {m}")
+            }
         }
     }
 }
 
 impl std::error::Error for WalletError {}
 
-/// BIP39 wordlist (İngilizce, ilk 64 kelime — tam 2048 kelime listesi production'da).
-/// Bu bir PLACEHOLDER'dır; production'da tam BIP39 wordlist dosyası yüklenir.
-const WORDLIST_PLACEHOLDER: &[&str] = &[
-    "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
-    "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid",
-    // ... 2048 kelime — production'da tam liste
-];
+/// BIP39 mnemonic → entropy (entropy → checksum → mnemonic).
+/// SHA256 checksum: ilk (entropy_bits / 32) bit checksum eklenir.
+pub fn entropy_to_mnemonic(entropy: &[u8]) -> Result<String, WalletError> {
+    let entropy_len = entropy.len();
+    if entropy_len != 16 && entropy_len != 32 {
+        return Err(WalletError::InvalidEntropy(entropy_len));
+    }
 
-fn placeholder_mnemonic(word_count: usize) -> String {
-    WORDLIST_PLACEHOLDER
-        .iter()
-        .copied()
-        .cycle()
-        .take(word_count)
-        .collect::<Vec<_>>()
-        .join(" ")
+    let entropy_bits = entropy_len * 8;
+    let checksum_bits = entropy_bits / 32;
+    let total_bits = entropy_bits + checksum_bits;
+    let word_count = total_bits / 11;
+
+    // SHA256 hash for checksum
+    let hash = Sha256::digest(entropy);
+    let checksum_byte = hash[0];
+
+    // Build bit array: entropy bits + checksum bits
+    let mut bits = Vec::with_capacity(total_bits);
+    for byte in entropy {
+        for i in (0..8).rev() {
+            bits.push((byte >> i) & 1);
+        }
+    }
+    // Append checksum bits (first `checksum_bits` bits of hash)
+    for i in (0..checksum_bits).rev() {
+        bits.push((checksum_byte >> i) & 1);
+    }
+
+    // Convert 11-bit groups to word indices
+    let mut words = Vec::with_capacity(word_count);
+    for i in 0..word_count {
+        let mut index = 0u16;
+        for j in 0..11 {
+            index = (index << 1) | (bits[i * 11 + j] as u16);
+        }
+        let word = bip39_wordlist::index_to_word(index as usize)
+            .ok_or_else(|| WalletError::InvalidMnemonic(format!("word index {index} out of range")))?;
+        words.push(word);
+    }
+
+    Ok(words.join(" "))
+}
+
+/// BIP39 mnemonic → entropy (reverse: checksum validation + entropy extraction).
+pub fn mnemonic_to_entropy(mnemonic: &str) -> Result<Vec<u8>, WalletError> {
+    let words: Vec<&str> = mnemonic.split_whitespace().collect();
+    if words.len() != 12 && words.len() != 24 {
+        return Err(WalletError::InvalidMnemonic(format!(
+            "expected 12 or 24 words, got {}",
+            words.len()
+        )));
+    }
+
+    let entropy_bits = words.len() * 32 / 3; // 128 or 256
+    let checksum_bits = entropy_bits / 32;    // 4 or 8
+    let total_bits = entropy_bits + checksum_bits;
+
+    // Convert words to indices
+    let mut bits = Vec::with_capacity(total_bits);
+    for word in &words {
+        let idx = bip39_wordlist::word_to_index(word)
+            .ok_or_else(|| WalletError::InvalidMnemonic(format!("unknown word: {word}")))?;
+        for i in (0..11).rev() {
+            bits.push((idx >> i) & 1);
+        }
+    }
+
+    // Extract entropy and checksum
+    let mut entropy = Vec::with_capacity(entropy_bits / 8);
+    for i in 0..(entropy_bits / 8) {
+        let mut byte = 0u8;
+        for j in 0..8 {
+            byte = (byte << 1) | bits[i * 8 + j];
+        }
+        entropy.push(byte);
+    }
+
+    // Extract checksum
+    let mut checksum = 0u8;
+    for j in 0..checksum_bits {
+        checksum = (checksum << 1) | bits[entropy_bits + j];
+    }
+
+    // Verify checksum
+    let hash = Sha256::digest(&entropy);
+    let expected_checksum = hash[0] >> (8 - checksum_bits);
+    if checksum != expected_checksum {
+        return Err(WalletError::InvalidMnemonic(
+            "checksum mismatch — invalid mnemonic".into(),
+        ));
+    }
+
+    Ok(entropy)
 }
 
 /// Guardian-based social recovery policy (Phase 11.14).
@@ -383,7 +469,11 @@ impl Wallet {
     /// Yeni wallet oluştur (rastgele entropy → mnemonic → seed → keypair).
     ///
     /// `word_count`: 12 (128-bit entropy) veya 24 (256-bit entropy).
-    #[must_use]
+    ///
+    /// **Production güvenliği:** Bu fonksiyon yalnızca `production` feature'ı
+    /// etkinleştirilmişse çalışır. Production feature olmadan `Wallet::generate`
+    /// **fail-closed** döner — placeholder/deterministic entropy asla production
+    /// ortamına sızar. Test/dev ortamları için `from_entropy` kullanın.
     pub fn generate(word_count: usize) -> Result<Self, WalletError> {
         let entropy_len = match word_count {
             12 => 16,  // 128 bit
@@ -391,31 +481,45 @@ impl Wallet {
             _ => return Err(WalletError::InvalidEntropy(word_count * 4 / 3)),
         };
 
-        // Entropy üret (production'da OS CSPRNG — getrandom)
-        let mut entropy = vec![0u8; entropy_len];
-        // NOT: Bu placeholder sabit entropy üretir. Production'da getrandom kullanılır.
-        for (i, b) in entropy.iter_mut().enumerate() {
-            *b = (i as u8).wrapping_mul(0x42).wrapping_add(0x37);
+        // Production CSPRNG: getrandom ile gerçek rastgele entropy
+        #[cfg(feature = "production")]
+        let entropy = {
+            let mut buf = vec![0u8; entropy_len];
+            getrandom::getrandom(&mut buf)
+                .map_err(|e| WalletError::ProductionEntropyUnavailable(e.to_string()))?;
+            buf
+        };
+
+        // Production feature olmadan generate fail-closed
+        #[cfg(not(feature = "production"))]
+        let _ = entropy_len; // entropy_len kullanımı için (compile warning önleme)
+
+        #[cfg(not(feature = "production"))]
+        {
+            return Err(WalletError::ProductionEntropyUnavailable(
+                "Wallet::generate requires the 'production' feature for real CSPRNG entropy. \
+                 Use Wallet::from_entropy() for test/dev, or build with --features production.".into(),
+            ));
         }
 
+        #[cfg(feature = "production")]
         Self::from_entropy(&entropy)
     }
 
     /// Entropy'den wallet oluştur (BIP39 mnemonic + SLIP-0010 seed).
+    ///
+    /// **Production notu:** `from_entropy` test/dev için tasarılmıştır.
+    /// Production wallet generation için `Wallet::generate()` kullanın
+    /// (production feature + getrandom CSPRNG gerektirir).
     pub fn from_entropy(entropy: &[u8]) -> Result<Self, WalletError> {
         if entropy.len() != 16 && entropy.len() != 32 {
             return Err(WalletError::InvalidEntropy(entropy.len()));
         }
 
-        // BIP39 mnemonic (placeholder — production'da tam wordlist + checksum)
-        let word_count = match entropy.len() {
-            16 => 12,
-            32 => 24,
-            _ => unreachable!("entropy length already validated"),
-        };
-        let mnemonic = placeholder_mnemonic(word_count);
+        // BIP39 mnemonic: tam wordlist + SHA256 checksum
+        let mnemonic = entropy_to_mnemonic(entropy)?;
 
-        // SLIP-0010 Ed25519: seed = HMAC-SHA512("ed25519 seed", entropy)
+        // SLIP-0010 Ed25519: seed = SHA3-256("BUDLUM_SLIP10_ED25519_SEED" + entropy)
         // Ed25519 hardened-only: master key = seed directly (no non-hardened derivation)
         let mut hasher = Sha3_256::new();
         hasher.update(b"BUDLUM_SLIP10_ED25519_SEED");
@@ -434,21 +538,15 @@ impl Wallet {
         })
     }
 
-    /// Mnemonic'den wallet restore et.
+    /// Mnemonic'den wallet restore et (BIP39 checksum doğrulaması ile).
     pub fn from_mnemonic(mnemonic: &str) -> Result<Self, WalletError> {
-        let words: Vec<&str> = mnemonic.split_whitespace().collect();
-        if words.len() != 12 && words.len() != 24 {
-            return Err(WalletError::InvalidMnemonic(format!(
-                "expected 12 or 24 words, got {}",
-                words.len()
-            )));
-        }
+        // BIP39 reverse: mnemonic → entropy (checksum doğrulaması ile)
+        let entropy = mnemonic_to_entropy(mnemonic)?;
 
-        // Mnemonic → entropy (BIP39 reverse — production'da tam wordlist)
-        // Placeholder: mnemonic'den deterministic seed üret
+        // SLIP-0010 Ed25519: seed = SHA3-256("BUDLUM_SLIP10_ED25519_SEED" + entropy)
         let mut hasher = Sha3_256::new();
-        hasher.update(b"BUDLUM_MNEMONIC_TO_SEED");
-        hasher.update(mnemonic.as_bytes());
+        hasher.update(b"BUDLUM_SLIP10_ED25519_SEED");
+        hasher.update(&entropy);
         let seed_bytes = hasher.finalize();
 
         let mut seed = [0u8; 32];
@@ -537,7 +635,7 @@ mod tests {
 
     #[test]
     fn generate_12_word_wallet() {
-        let wallet = Wallet::generate(12).expect("12-word wallet must succeed");
+        let wallet = Wallet::from_entropy(&[0x42u8; 16]).expect("12-word wallet must succeed");
         let words: Vec<&str> = wallet.mnemonic().split_whitespace().collect();
         assert_eq!(words.len(), 12, "must have 12 words");
         assert_eq!(wallet.address().len(), 32, "address must be 32 bytes");
@@ -546,20 +644,21 @@ mod tests {
 
     #[test]
     fn generate_24_word_wallet() {
-        let wallet = Wallet::generate(24).expect("24-word wallet must succeed");
+        let wallet = Wallet::from_entropy(&[0x42u8; 32]).expect("24-word wallet must succeed");
         let words: Vec<&str> = wallet.mnemonic().split_whitespace().collect();
         assert_eq!(words.len(), 24, "must have 24 words");
     }
 
     #[test]
     fn invalid_word_count_rejected() {
+        // Wallet::generate fails-closed without production feature
         assert!(Wallet::generate(15).is_err(), "15 words must be rejected");
         assert!(Wallet::generate(0).is_err(), "0 words must be rejected");
     }
 
     #[test]
     fn sign_and_verify_roundtrip() {
-        let wallet = Wallet::generate(12).unwrap();
+        let wallet = Wallet::from_entropy(&[0x42u8; 16]).unwrap();
         let msg = b"hello budlum";
         let sig = wallet.sign(msg);
         let pubkey = wallet.public_key();
@@ -571,7 +670,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_wrong_message() {
-        let wallet = Wallet::generate(12).unwrap();
+        let wallet = Wallet::from_entropy(&[0x42u8; 16]).unwrap();
         let sig = wallet.sign(b"original message");
         let pubkey = wallet.public_key();
         assert!(
@@ -596,13 +695,13 @@ mod tests {
 
     #[test]
     fn different_mnemonics_different_addresses() {
-        let w1 = Wallet::generate(12).unwrap();
-        let w2 = Wallet::generate(12).unwrap();
-        // Placeholder entropy deterministic — iki çağrı aynı sonucu verebilir
-        // ama adresler farklı OLMALI (farklı entropy)
-        // NOT: placeholder entropy aynı olabilir; test gerçek entropy ile düzeltilmeli
-        let _ = w1;
-        let _ = w2;
+        let w1 = Wallet::from_entropy(&[1u8; 16]).unwrap();
+        let w2 = Wallet::from_entropy(&[2u8; 16]).unwrap();
+        assert_ne!(
+            w1.address(),
+            w2.address(),
+            "different entropy must produce different addresses"
+        );
     }
 
     #[test]
@@ -625,6 +724,69 @@ mod tests {
         assert_eq!(long.mnemonic().split_whitespace().count(), 24);
     }
 
+    /// Production entropy fail-closed gate: Wallet::generate must fail
+    /// without the `production` feature to prevent deterministic/placeholder
+    /// entropy from reaching production.
+    #[test]
+    fn phase11_14_wallet_generate_rejects_placeholder_entropy_in_production() {
+        // Without --features production, Wallet::generate must fail-closed
+        let result = Wallet::generate(12);
+        #[cfg(not(feature = "production"))]
+        {
+            assert!(
+                result.is_err(),
+                "Wallet::generate must fail-closed without production feature"
+            );
+            match result {
+                Err(WalletError::ProductionEntropyUnavailable(msg)) => {
+                    assert!(
+                        msg.contains("production"),
+                        "error must mention production feature: {msg}"
+                    );
+                }
+                _ => panic!("expected ProductionEntropyUnavailable error"),
+            }
+        }
+        // With --features production, generate should succeed (uses getrandom)
+        #[cfg(feature = "production")]
+        {
+            assert!(result.is_ok(), "Wallet::generate should succeed with production feature");
+        }
+    }
+
+    /// BIP39 checksum validation: invalid mnemonic must be rejected.
+    #[test]
+    fn phase11_14_mnemonic_checksum_validation_rejects_invalid() {
+        // Valid 12-word mnemonic from from_entropy (deterministic)
+        let wallet = Wallet::from_entropy(&[0x42u8; 16]).unwrap();
+        let valid_mnemonic = wallet.mnemonic().to_string();
+
+        // Tampered mnemonic (last word changed) must fail checksum
+        let words: Vec<&str> = valid_mnemonic.split_whitespace().collect();
+        let mut tampered = words.clone();
+        // Replace last word with a different valid word
+        if let Some(&last) = words.last() {
+            if let Some(idx) = bip39_wordlist::word_to_index(last) {
+                let new_idx = (idx + 1) % bip39_wordlist::BIP39_WORDLIST.len();
+                if let Some(new_word) = bip39_wordlist::index_to_word(new_idx) {
+                    tampered[tampered.len() - 1] = new_word;
+                }
+            }
+        }
+        let tampered_mnemonic = tampered.join(" ");
+        assert_ne!(tampered_mnemonic, valid_mnemonic, "test setup: mnemonic must be tampered");
+        assert!(
+            Wallet::from_mnemonic(&tampered_mnemonic).is_err(),
+            "tampered mnemonic must fail checksum validation"
+        );
+
+        // Valid mnemonic must restore successfully
+        assert!(
+            Wallet::from_mnemonic(&valid_mnemonic).is_ok(),
+            "valid mnemonic must restore successfully"
+        );
+    }
+
     #[test]
     fn phase11_14_binding_capabilities_include_mobile_and_browser_stubs() {
         let caps = WalletBindingCapabilities::current();
@@ -636,7 +798,7 @@ mod tests {
 
     #[test]
     fn phase11_14_binding_export_redacts_seed_and_counts_words() {
-        let wallet = Wallet::generate(24).unwrap();
+        let wallet = Wallet::from_entropy(&[0x42u8; 32]).unwrap();
         let export = wallet.binding_export();
         assert_eq!(export.address_hex, wallet.address_hex());
         assert_eq!(export.public_key_hex, hex::encode(wallet.public_key()));

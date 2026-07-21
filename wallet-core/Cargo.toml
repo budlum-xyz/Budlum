@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 ed25519-dalek = "2.2"
 sha3 = "0.10"
+sha2 = "0.10"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 
@@ -20,10 +21,22 @@ serde = { version = "1", features = ["derive"] }
 
 [features]
 default = []
+# Production wallet generation: enables real OS CSPRNG (getrandom) for entropy.
+# WITHOUT this feature, Wallet::generate fails-closed to prevent
+# deterministic/placeholder entropy from reaching production.
+production = ["dep:getrandom"]
 # UniFFI bindings (mobile: Kotlin/Swift)
 uniffi = []
 # WASM bindings (browser)
 wasm = ["wasm-bindgen"]
+
+[dependencies.getrandom]
+version = "0.2"
+optional = true
+
+[dependencies.wasm-bindgen]
+version = "0.2"
+optional = true
 
 [dependencies.wasm-bindgen]
 version = "0.2"
