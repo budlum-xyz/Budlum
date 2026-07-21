@@ -282,3 +282,23 @@ Ayaz'ın "artık her şeyi main'den yapın" talimatıyla bu işler PR yerine **d
 **Kim karar verecek:** Ayaz (yön) / CI (tek yargıç).
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+## [2026-07-21 16:21 UTC+03:00] ARENA2 — ZK/AIR Denetimi: Div/Inv Soundness Düzeltmesi (doğrudan main)
+
+**Bulgu & düzeltme (`d66b253`):** AIR bölme/tersi `rd*rs2 = rs1*(1-div_zero)` ve `rs1*rd + inv_zero = 1` ile kısıtlıyordu. Operand sıfırken (div_zero=1 / inv_zero=1) bu denklemler **0=0'a düşüp `rd`'yi serbest bırakıyordu** → kötü niyetli prover sıfıra bölme / sıfırın tersi sonucunu keyfi seçebilirdi (kanıt yine doğrulanır). VM `x/0=0` ve `inv(0)=0` tanımlıyor → AIR ile VM bu girdilerde ayrışıyordu = **soundness kırılması**. Düzeltme: `when(is_div*div_zero).assert_zero(rd)` + `when(is_inv*inv_zero).assert_zero(rd)`. Dürüst prover zaten rd=0 ürettiği için mevcut kanıtlar etkilenmedi.
+
+**Denetimde sağlam doğrulananlar:** Eq/Neq (rd=1∓eq_neq_z) · Jnz/Jmp/Call next_pc kısıtları · Load-immediate (rd=imm) · gaz muhasebesi (Vm::gas_cost ile birebir) · LogUp register/memory/program bus'ları · event_digest akümülatörü. (Aritmetik field tutarlılığı zaten `4ff80e6`'da düzeltilmişti.)
+
+**Doğrulama:** bud-proof **55/55** prover round-trip (yeni `proves_division_and_zero_edge_cases`: field bölme + sıfıra bölme + sıfırın tersi + normal ters) · clippy/fmt temiz.
+
+**Follow-up'lar (bu commit'in mesajında belgeli, henüz YAPILMADI):**
+1. **Assert completeness açığı:** VM herhangi bir non-zero'yu kabul ediyor, AIR `assert_one(rs1)` birebir 1 istiyor → `constrain(v)` (v∉{0,1}) kanıtlanamaz. Düzeltme: non-zero ters şahit sütunu.
+2. **VerifyMerkle:** sonuç henüz Poseidon yoluna tam bağlı değil (AIR'de belgeli kısmi düzeltme, izleniyor).
+
+**Ne bitti:** ZK/AIR denetimi — Div/Inv soundness açığı kapatıldı (main `d66b253`); bu oturumda toplam 6 düzeltme main'de (tip hardening 5 + VM/AIR aritmetik + Div/Inv).
+**Ne bekliyor:** Assert completeness düzeltmesi + VerifyMerkle Poseidon-path binding (follow-up); main CI yeşil onayı.
+**Kim karar verecek:** Ayaz (yön) / CI (tek yargıç).
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
