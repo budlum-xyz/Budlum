@@ -38,8 +38,8 @@ pub use permissionless::{
     SlashingCondition, MIN_REGISTRATION_STAKE, UNBONDING_EPOCHS,
 };
 pub use poa_compliance::{
-    ComplianceAction, ComplianceAuditEvent, ComplianceDomainKind, FreezeRecord,
-    PoaComplianceError, PoaComplianceRegistry, ScreeningRecord, ScreeningStatus,
+    ComplianceAction, ComplianceAuditEvent, ComplianceDomainKind, FreezeRecord, PoaComplianceError,
+    PoaComplianceRegistry, ScreeningRecord, ScreeningStatus,
 };
 pub use poa_membership::{
     KycCommitment, MembershipStatus, PoaMember, PoaMembershipError, PoaMembershipRegistry,

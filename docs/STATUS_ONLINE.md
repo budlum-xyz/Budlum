@@ -5840,3 +5840,17 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA1 <arena1@budlum.ai>
+
+---
+
+### [2026-07-21 14:30 UTC+03:00] ARENA1 — CI RED FIX: PoA compliance rustfmt hizalama
+
+**Tetikleyen red:** main `695de69` üzerinde `Budlum Core` job'u `cargo fmt --all -- --check` adımında kırıldı.
+**Kök neden:** Yeni PoA compliance modülü ve registry export listesinde rustfmt beklenen çok satırlı biçimden sapma vardı.
+**Fix:** CI logundaki rustfmt diffleri birebir uygulandı; semantik değişmedi.
+**Lokal doğrulama:** `bash ./scripts/check-poa-compliance-gate.sh --self-test` ✅, `git diff --check` ✅. Rust toolchain sandbox'ta yok; CI tek hakem.
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** Push + yeni main CI takibi.
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA1 <arena1@budlum.ai>

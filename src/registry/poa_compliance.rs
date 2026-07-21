@@ -61,7 +61,10 @@ impl std::fmt::Display for PoaComplianceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PoaComplianceError::PermissionlessDomainForbidden => {
-                write!(f, "PoA compliance hooks are forbidden in permissionless domains")
+                write!(
+                    f,
+                    "PoA compliance hooks are forbidden in permissionless domains"
+                )
             }
             PoaComplianceError::AdminRequired => {
                 write!(f, "PoA compliance admin approval required")
@@ -265,8 +268,14 @@ mod tests {
             .freeze_suspicious(ComplianceDomainKind::PoA, true, addr(5), hash(6), 21)
             .unwrap();
         assert_eq!(registry.audit_events().len(), 2);
-        assert_eq!(registry.audit_events()[0].action, ComplianceAction::ScreeningUpdated);
-        assert_eq!(registry.audit_events()[1].action, ComplianceAction::AccountFrozen);
+        assert_eq!(
+            registry.audit_events()[0].action,
+            ComplianceAction::ScreeningUpdated
+        );
+        assert_eq!(
+            registry.audit_events()[1].action,
+            ComplianceAction::AccountFrozen
+        );
     }
 
     #[test]
