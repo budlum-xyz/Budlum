@@ -17,6 +17,7 @@ use crate::pollen::data_rights::{AccessGrant, AccessGrantStatus};
 
 pub mod executor;
 pub mod inference;
+pub mod metrics;
 pub mod social;
 pub mod storage;
 pub mod verify;
