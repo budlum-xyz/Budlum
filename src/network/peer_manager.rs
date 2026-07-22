@@ -118,6 +118,12 @@ pub struct PeerManager {
     /// Live peer set. Libp2p can emit multiple connection events for one peer;
     /// this set makes peer_count and /24 accounting idempotent.
     connected_peers: HashSet<PeerId>,
+    /// H5.2 outbound diversity: max outbound connections per IPv4 /24.
+    pub(crate) max_outbound_per_subnet: usize,
+    /// Outbound connection count per IPv4 /24.
+    outbound_subnet_counts: HashMap<[u8; 3], usize>,
+    /// Outbound peer → subnet mapping.
+    outbound_peer_subnets: HashMap<PeerId, [u8; 3]>,
 }
 impl Default for PeerManager {
     fn default() -> Self {
@@ -136,6 +142,9 @@ impl PeerManager {
             subnet_counts: HashMap::new(),
             peer_subnets: HashMap::new(),
             connected_peers: HashSet::new(),
+            max_outbound_per_subnet: 0,
+            outbound_subnet_counts: HashMap::new(),
+            outbound_peer_subnets: HashMap::new(),
         }
     }
 
@@ -145,6 +154,7 @@ impl PeerManager {
         let per_min = security.peer_rate_limit_per_minute.max(1);
         self.msg_refill_rate = (per_min as f64) / 60.0;
         self.max_peers_per_subnet = security.max_peers_per_subnet.max(1);
+        self.max_outbound_per_subnet = security.max_outbound_per_subnet;
         // Keep a hard memory ceiling independent of max_peers (connected).
         self.max_tracked_peers = 10_000;
     }
@@ -168,6 +178,54 @@ impl PeerManager {
 
     pub fn set_max_peers_per_subnet(&mut self, n: usize) {
         self.max_peers_per_subnet = n.max(1);
+    }
+
+    /// H5.2: outbound subnet diversity bound (0 = no limit).
+    pub fn max_outbound_per_subnet(&self) -> usize {
+        self.max_outbound_per_subnet
+    }
+
+    /// H5.2: Returns false if an outbound connection to `subnet` would
+    /// exceed the diversity bound. 0 = unlimited.
+    pub fn can_admit_outbound_subnet(&self, subnet: Option<[u8; 3]>) -> bool {
+        if self.max_outbound_per_subnet == 0 {
+            return true;
+        }
+        let Some(key) = subnet else {
+            return true;
+        };
+        self.outbound_subnet_counts.get(&key).copied().unwrap_or(0) < self.max_outbound_per_subnet
+    }
+
+    /// H5.2: Record an outbound connection. Returns false if the peer is
+    /// already tracked as outbound or the subnet bound is exceeded.
+    pub fn note_outbound_connected(&mut self, peer_id: PeerId, subnet: Option<[u8; 3]>) -> bool {
+        if !self.can_admit_outbound_subnet(subnet) {
+            return false;
+        }
+        if self.outbound_peer_subnets.contains_key(&peer_id) {
+            return false;
+        }
+        if let Some(key) = subnet {
+            *self.outbound_subnet_counts.entry(key).or_insert(0) += 1;
+            self.outbound_peer_subnets.insert(peer_id, key);
+        }
+        true
+    }
+
+    /// H5.2: Drop outbound accounting when a peer disconnects.
+    pub fn note_outbound_disconnected(&mut self, peer_id: &PeerId) -> bool {
+        if let Some(key) = self.outbound_peer_subnets.remove(peer_id) {
+            if let Some(c) = self.outbound_subnet_counts.get_mut(&key) {
+                *c = c.saturating_sub(1);
+                if *c == 0 {
+                    self.outbound_subnet_counts.remove(&key);
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 
     /// Returns false if admitting `subnet` would exceed the eclipse bound.
