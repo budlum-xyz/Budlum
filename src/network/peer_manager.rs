@@ -959,4 +959,34 @@ mod tests {
             pm.get_score(&po)
         );
     }
+    /// H5.2: outbound subnet diversity rejects excess connections.
+    #[test]
+    fn h52_outbound_subnet_diversity_rejects_excess() {
+        let mut pm = PeerManager::new();
+        pm.max_outbound_per_subnet = 2;
+        let subnet = [10u8, 0, 1];
+        // First 2 outbound from same subnet: OK.
+        let p1 = libp2p::identity::Keypair::generate_ed25519()
+            .public()
+            .to_peer_id();
+        let p2 = libp2p::identity::Keypair::generate_ed25519()
+            .public()
+            .to_peer_id();
+        let p3 = libp2p::identity::Keypair::generate_ed25519()
+            .public()
+            .to_peer_id();
+        assert!(pm.note_outbound_connected(p1, Some(subnet)));
+        assert!(pm.note_outbound_connected(p2, Some(subnet)));
+        // 3rd outbound from same subnet: REJECT.
+        assert!(!pm.note_outbound_connected(p3, Some(subnet)));
+        // Disconnect p1 → slot freed → p3 OK.
+        assert!(pm.note_outbound_disconnected(&p1));
+        assert!(pm.note_outbound_connected(p3, Some(subnet)));
+        // max_outbound_per_subnet = 0 → unlimited.
+        pm.max_outbound_per_subnet = 0;
+        let p4 = libp2p::identity::Keypair::generate_ed25519()
+            .public()
+            .to_peer_id();
+        assert!(pm.can_admit_outbound_subnet(Some(subnet)));
+    }
 }
