@@ -212,7 +212,11 @@ fn decode_header_or_err(raw: &[u8]) -> Result<EthHeader, VerifyError> {
 /// (ya da off-chain tool'da aynı formülle). Budlum tarafında doğrulama
 /// deterministik + domain-separated.
 pub(crate) fn derive_receipt_leaf(tx_hash: &str, bridge_address: &[u8]) -> Hash32 {
-    hash_fields_bytes(&[b"BDLM_EVM_RECEIPT_LEAF_V1", tx_hash.as_bytes(), bridge_address])
+    hash_fields_bytes(&[
+        b"BDLM_EVM_RECEIPT_LEAF_V1",
+        tx_hash.as_bytes(),
+        bridge_address,
+    ])
 }
 
 #[cfg(test)]
@@ -274,9 +278,7 @@ mod tests {
         };
         assert!(adapter.verify_receipt_proof(&proof, &leaf, tx_hash).is_ok());
         // Forged root must fail.
-        assert!(adapter
-            .verify_receipt_proof(&proof, &[0u8; 32], tx_hash)
-            .is_err());
+        assert!(adapter.verify_receipt_proof(&proof, &[0u8; 32], tx_hash).is_err());
     }
 
     #[test]
@@ -316,7 +318,10 @@ mod tests {
             .verify_receipt_proof(&proof, &leaf, "")
             .expect_err("empty tx_hash must be rejected");
         let msg = format!("{err}");
-        assert!(msg.contains("tx_hash") || msg.contains("empty"), "msg: {msg}");
+        assert!(
+            msg.contains("tx_hash") || msg.contains("empty"),
+            "msg: {msg}"
+        );
     }
 
     #[test]
@@ -337,7 +342,9 @@ mod tests {
             siblings: vec![],
         };
         // Bridge A → leaf_a bağlamı doğru; adapter_a ile geçer.
-        assert!(adapter_a.verify_receipt_proof(&proof, &leaf_a, tx_hash).is_ok());
+        assert!(adapter_a
+            .verify_receipt_proof(&proof, &leaf_a, tx_hash)
+            .is_ok());
         // Bridge A'nın proof'unu Bridge B'nin adapter'ı ile kullanırsak RED.
         let adapter_b = EvmChainAdapter::new(bridge_b, DEFAULT_DEPOSIT_TOPIC0);
         let err = adapter_b
