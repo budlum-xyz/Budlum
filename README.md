@@ -1,15 +1,16 @@
 # Budlum
 
-> **Budlum**, veri egemenliğine ve toplumsal yeşermeye odaklanmış, internetin bir
-> sonraki katmanı olan **evrensel mutabakat katmanıdır** (Universal Settlement Layer).
+> **Budlum** is the **Universal Settlement Layer** — the next layer of the internet —
+> focused on **data sovereignty** and **social flourishing**.
 
-> Budlum diğer zincirlerin yerine geçmez — onları **mutabakata bağlar**. PoW, PoS,
-> PoA, BFT, ZK ve özel domain'ler kendi konsensüslerini çalıştırır; Budlum
-> finality kanıtlarını doğrular ve domain'ler arası değer transferini kriptografik
-> bir olgu olarak tek bir `GlobalBlockHeader` mutabakat kaydına işler. Veri, anahtar
-> ve hesaplama egemenliği katılımcılarda kalır — asla merkezî bir operatörde değil.
+> Budlum does not replace other chains — it **settles** them. PoW, PoS, PoA, BFT, ZK
+> and custom domains each run their own consensus; Budlum verifies their finality
+> proofs and records cross-domain value transfer as a cryptographic fact on a single
+> `GlobalBlockHeader` settlement record. Sovereignty over data, keys and computation
+> stays with the participants — never with a central operator.
 
 [![CI](https://github.com/budlum-xyz/budlum/actions/workflows/ci.yml/badge.svg)](https://github.com/budlum-xyz/budlum/actions)
+[![Tests](https://img.shields.io/badge/tests-1337%20lib-blue)](https://github.com/budlum-xyz/budlum)
 [![Rust](https://img.shields.io/badge/rust-1.94%2B-orange)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/security-report%20privately-blue)](SECURITY.md)
