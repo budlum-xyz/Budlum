@@ -58,6 +58,7 @@ pub mod poa_isolation;
 pub mod pollen_ai_data_rights;
 #[cfg(test)]
 pub mod pow_light_client;
+pub mod privacy_ai_execution;
 #[cfg(test)]
 pub mod prover;
 #[cfg(test)]

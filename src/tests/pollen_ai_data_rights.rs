@@ -25,6 +25,9 @@ fn model_spec(owner: Address) -> AiModelSpec {
         result_deadline_blocks: 10,
         version: 1,
         active: true,
+        require_execution_proof: false,
+        execution_program_hash: None,
+        execution_class: 0,
     }
 }
 

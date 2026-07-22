@@ -30,6 +30,9 @@ pub fn register_lubot_model(
         result_deadline_blocks: 1000,
         version: 1,
         active: true,
+        require_execution_proof: false,
+        execution_program_hash: None,
+        execution_class: 0,
     };
     registry.register_model(spec)
 }

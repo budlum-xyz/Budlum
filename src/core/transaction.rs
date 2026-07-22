@@ -182,6 +182,17 @@ pub enum TransactionType {
     AiAgentPaymentRelease([u8; 32]),
     /// V86: Reclaim an expired escrowed agent payment back to the sender.
     AiAgentPaymentReclaim([u8; 32]),
+    /// D2: Submit private transfer (note commitments + nullifiers).
+    /// Mainnet opcode activation is separate; L1 registry updates here.
+    PrivateTransferSubmit(crate::privacy::PrivateTransferSubmit),
+    /// D2: Faucet/test helper — insert a live note commitment (governance/tests).
+    PrivacyNoteInsert([u8; 32]),
+    /// AI execution layer: attach BudZKVM execution proof to a result
+    /// (verifier-submitted; structural verify on L1).
+    AiAttachExecutionProof {
+        request_id: crate::ai::types::AiRequestId,
+        proof: crate::ai::types::AiExecutionProof,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -552,6 +563,9 @@ impl Transaction {
             TransactionType::AiAgentPayment(_) => schedule.contract_call_gas * 2,
             TransactionType::AiAgentPaymentRelease(_) => schedule.contract_call_gas,
             TransactionType::AiAgentPaymentReclaim(_) => schedule.contract_call_gas,
+            TransactionType::PrivateTransferSubmit(_) => schedule.contract_call_gas * 2,
+            TransactionType::PrivacyNoteInsert(_) => schedule.transfer_gas,
+            TransactionType::AiAttachExecutionProof { .. } => schedule.contract_call_gas * 2,
         };
         let signature_gas = if self.signature.is_some() {
             schedule.gas_per_signature
@@ -703,6 +717,9 @@ fn transaction_type_tag(tx_type: &TransactionType) -> u8 {
         TransactionType::PollenGrantAccess(_) => 33,
         TransactionType::PollenRevokeGrant(_) => 34,
         TransactionType::PollenRevokeDataAsset(_) => 35,
+        TransactionType::PrivateTransferSubmit(_) => 36,
+        TransactionType::PrivacyNoteInsert(_) => 37,
+        TransactionType::AiAttachExecutionProof { .. } => 38,
     }
 }
 fn encode_chain(chain: ExternalChain, out: &mut Vec<u8>) {
@@ -826,6 +843,15 @@ fn encode_model_spec(spec: &crate::ai::types::AiModelSpec, out: &mut Vec<u8>) {
     put_u64(out, spec.result_deadline_blocks);
     put_u32(out, spec.version);
     put_u8(out, u8::from(spec.active));
+    put_u8(out, u8::from(spec.require_execution_proof));
+    put_u8(out, spec.execution_class);
+    match spec.execution_program_hash {
+        Some(ph) => {
+            put_u8(out, 1);
+            put_fixed(out, &ph);
+        }
+        None => put_u8(out, 0),
+    }
 }
 fn encode_transaction_type_payload(tx_type: &TransactionType, out: &mut Vec<u8>) {
     match tx_type {
@@ -955,6 +981,33 @@ fn encode_transaction_type_payload(tx_type: &TransactionType, out: &mut Vec<u8>)
         }
         TransactionType::AiAgentPaymentReclaim(payment_id) => {
             put_fixed(out, payment_id);
+        }
+        TransactionType::PrivateTransferSubmit(sub) => {
+            put_u64(out, sub.spent_commitments.len() as u64);
+            for c in &sub.spent_commitments {
+                put_fixed(out, c);
+            }
+            put_u64(out, sub.nullifiers.len() as u64);
+            for n in &sub.nullifiers {
+                put_fixed(out, n);
+            }
+            put_u64(out, sub.output_commitments.len() as u64);
+            for c in &sub.output_commitments {
+                put_fixed(out, c);
+            }
+            put_bytes(out, &sub.authorization_sig);
+            put_fixed(out, &sub.public_digest);
+        }
+        TransactionType::PrivacyNoteInsert(commitment) => put_fixed(out, commitment),
+        TransactionType::AiAttachExecutionProof { request_id, proof } => {
+            put_fixed(out, &request_id.0);
+            put_fixed(out, &proof.model_id.0);
+            put_fixed(out, &proof.input_commitment);
+            put_fixed(out, &proof.output_commitment);
+            put_fixed(out, &proof.program_hash);
+            put_bytes(out, &proof.proof_bytes);
+            put_u64(out, proof.steps);
+            put_u64(out, proof.gas_used);
         }
     }
 }

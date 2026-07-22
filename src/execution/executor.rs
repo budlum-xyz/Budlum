@@ -1097,6 +1097,99 @@ impl Executor {
                 sender.balance = sender.balance.saturating_add(amount).saturating_sub(tx.fee);
                 sender.nonce = sender.nonce.saturating_add(1);
             }
+            TransactionType::PrivacyNoteInsert(commitment) => {
+                state
+                    .note_registry
+                    .insert_note(*commitment)
+                    .map_err(|e| BudlumError::validation("privacy_note_insert", e))?;
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
+            TransactionType::PrivateTransferSubmit(sub) => {
+                sub.validate_shape()
+                    .map_err(|e| BudlumError::validation("private_transfer_shape", e))?;
+                if !sub.verify_digest_matches() {
+                    return Err(BudlumError::validation(
+                        "private_transfer_digest",
+                        "public_digest does not match nullifiers/outputs",
+                    ));
+                }
+                // Authorization: signature must verify under tx.from over public_digest
+                if crate::crypto::primitives::verify_signature(
+                    &sub.public_digest,
+                    &sub.authorization_sig,
+                    tx.from.as_bytes(),
+                )
+                .is_err()
+                {
+                    return Err(BudlumError::validation(
+                        "private_transfer_auth",
+                        "authorization_sig invalid for tx.from",
+                    ));
+                }
+                state
+                    .note_registry
+                    .apply_transfer(
+                        &sub.spent_commitments,
+                        &sub.nullifiers,
+                        &sub.output_commitments,
+                    )
+                    .map_err(|e| BudlumError::validation("private_transfer_apply", e))?;
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
+            TransactionType::AiAttachExecutionProof { request_id, proof } => {
+                // Structural verify against existing request/result
+                let req = state
+                    .ai_registry
+                    .requests
+                    .get(request_id)
+                    .ok_or_else(|| {
+                        BudlumError::validation("ai_exec_no_request", "request not found")
+                    })?
+                    .clone();
+                let results = state.ai_registry.results.get(request_id).ok_or_else(|| {
+                    BudlumError::validation("ai_exec_no_result", "no results for request")
+                })?;
+                let res = results
+                    .iter()
+                    .find(|r| r.verifier == tx.from)
+                    .ok_or_else(|| {
+                        BudlumError::validation(
+                            "ai_exec_not_verifier_result",
+                            "tx.from has no result for request",
+                        )
+                    })?
+                    .clone();
+                let report =
+                    crate::ai::execution::verify_execution_proof_structural(proof, &req, &res);
+                if !report.is_structurally_valid() {
+                    return Err(BudlumError::validation(
+                        "ai_exec_structural",
+                        format!("execution proof structural check failed: {report:?}"),
+                    ));
+                }
+                // If model requires execution and program_hash registered, bind it
+                if let Some(spec) = state.ai_registry.models.get(&proof.model_id) {
+                    if let Some(expected) = spec.execution_program_hash {
+                        if expected != proof.program_hash {
+                            return Err(BudlumError::validation(
+                                "ai_exec_program_hash",
+                                "proof program_hash != model execution_program_hash",
+                            ));
+                        }
+                    }
+                }
+                state
+                    .ai_registry
+                    .attach_execution_proof(request_id, &tx.from, proof.clone())
+                    .map_err(|e| BudlumError::validation("ai_exec_attach", e))?;
+                let sender = state.get_or_create(&tx.from);
+                sender.balance = sender.balance.saturating_sub(tx.fee);
+                sender.nonce = sender.nonce.saturating_add(1);
+            }
         }
 
         Ok(())

@@ -130,6 +130,16 @@ pub struct AiModelSpec {
     pub result_deadline_blocks: u64,
     pub version: u32,
     pub active: bool,
+    /// When set, results for this model SHOULD attach execution proofs.
+    /// Default false = attestation-only (mainnet v1 compatible).
+    #[serde(default)]
+    pub require_execution_proof: bool,
+    /// BudZKVM guest program hash when execution class is registered.
+    #[serde(default)]
+    pub execution_program_hash: Option<[u8; 32]>,
+    /// Whitelisted execution class id (1 = FixedPointMlpV1). 0 = none.
+    #[serde(default)]
+    pub execution_class: u8,
 }
 
 impl AiModelSpec {
@@ -172,6 +182,15 @@ impl AiModelSpec {
         hasher.update(self.result_deadline_blocks.to_le_bytes());
         hasher.update(self.version.to_le_bytes());
         hasher.update([u8::from(self.active)]);
+        hasher.update([u8::from(self.require_execution_proof)]);
+        hasher.update([self.execution_class]);
+        match &self.execution_program_hash {
+            Some(ph) => {
+                hasher.update([1u8]);
+                hasher.update(ph);
+            }
+            None => hasher.update([0u8]),
+        }
         hasher.finalize().into()
     }
 }

@@ -6391,3 +6391,22 @@ budzero ayrı job — rozete dahil değil (tasarım).
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
 
+---
+
+### [2026-07-22 24:10 UTC+03:00] ARENA2 — main: intent→tx + AI execution skeleton (paradigm §5)
+
+**Branch:** main only.
+**Ne geldi:**
+1. `src/privacy/` — L1NoteRegistry + PrivateTransferSubmit payload
+2. Tx types: `PrivateTransferSubmit`, `PrivacyNoteInsert`, `AiAttachExecutionProof`
+3. Executor: auth sig verify + note apply + structural AI proof attach
+4. `src/ai/execution/` — model class whitelist, MLP guest builder, structural verify
+5. AiModelSpec: require_execution_proof / execution_program_hash / execution_class
+6. Proto wire + tests `privacy_ai_execution`
+7. Docs: AI research + KALAN_ISLER updated (paradigm Agentic Economy)
+
+**Doğrulama:** `cargo check --lib` ✅ (sandbox OOM on full --tests link; CI hakem).
+**Budlumdevnet:** dokunulmadı.
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
+

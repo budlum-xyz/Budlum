@@ -21,6 +21,7 @@ pub mod lubot;
 pub mod mempool;
 pub mod network;
 pub mod pollen;
+pub mod privacy;
 pub mod prover;
 pub mod registry;
 pub mod relayer;

@@ -291,6 +291,49 @@ impl From<&Transaction> for pb::ProtoTransaction {
                     },
                 )),
             ),
+            TransactionType::PrivateTransferSubmit(sub) => (
+                pb::ProtoTransactionType::PrivateTransferSubmit as i32,
+                Some(pb::proto_transaction::TypePayload::PrivateTransferSubmit(
+                    pb::ProtoPrivateTransferSubmit {
+                        spent_commitments: sub
+                            .spent_commitments
+                            .iter()
+                            .map(|c| c.to_vec())
+                            .collect(),
+                        nullifiers: sub.nullifiers.iter().map(|n| n.to_vec()).collect(),
+                        output_commitments: sub
+                            .output_commitments
+                            .iter()
+                            .map(|c| c.to_vec())
+                            .collect(),
+                        authorization_sig: sub.authorization_sig.clone(),
+                        public_digest: sub.public_digest.to_vec(),
+                    },
+                )),
+            ),
+            TransactionType::PrivacyNoteInsert(commitment) => (
+                pb::ProtoTransactionType::PrivacyNoteInsert as i32,
+                Some(pb::proto_transaction::TypePayload::PrivacyNoteInsert(
+                    pb::ProtoPrivacyNoteInsert {
+                        commitment: commitment.to_vec(),
+                    },
+                )),
+            ),
+            TransactionType::AiAttachExecutionProof { request_id, proof } => (
+                pb::ProtoTransactionType::AiAttachExecutionProof as i32,
+                Some(pb::proto_transaction::TypePayload::AiAttachExecutionProof(
+                    pb::ProtoAiAttachExecutionProof {
+                        request_id: request_id.0.to_vec(),
+                        model_id: proof.model_id.0.to_vec(),
+                        input_commitment: proof.input_commitment.to_vec(),
+                        output_commitment: proof.output_commitment.to_vec(),
+                        program_hash: proof.program_hash.to_vec(),
+                        proof_bytes: proof.proof_bytes.clone(),
+                        steps: proof.steps,
+                        gas_used: proof.gas_used,
+                    },
+                )),
+            ),
         };
 
         pb::ProtoTransaction {
@@ -795,6 +838,9 @@ impl TryFrom<pb::ProtoTransaction> for Transaction {
                     result_deadline_blocks: payload.result_deadline_blocks,
                     version: payload.version,
                     active: payload.active,
+                    require_execution_proof: false,
+                    execution_program_hash: None,
+                    execution_class: 0,
                 })
             }
             pb::ProtoTransactionType::AiInferenceRequest => {
@@ -1047,6 +1093,80 @@ impl TryFrom<pb::ProtoTransaction> for Transaction {
                 let mut id = [0u8; 32];
                 id.copy_from_slice(&payload.id);
                 TransactionType::PollenRevokeDataAsset(crate::pollen::AssetId(id))
+            }
+            pb::ProtoTransactionType::PrivateTransferSubmit => {
+                let payload = match proto.type_payload {
+                    Some(pb::proto_transaction::TypePayload::PrivateTransferSubmit(p)) => p,
+                    _ => return Err("Missing PrivateTransferSubmit payload".into()),
+                };
+                fn to32(v: &[u8], what: &str) -> Result<[u8; 32], String> {
+                    if v.len() != 32 {
+                        return Err(format!("{what} must be 32 bytes"));
+                    }
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(v);
+                    Ok(a)
+                }
+                let spent: Result<Vec<_>, _> = payload
+                    .spent_commitments
+                    .iter()
+                    .map(|c| to32(c, "spent"))
+                    .collect();
+                let nulls: Result<Vec<_>, _> = payload
+                    .nullifiers
+                    .iter()
+                    .map(|c| to32(c, "nullifier"))
+                    .collect();
+                let outs: Result<Vec<_>, _> = payload
+                    .output_commitments
+                    .iter()
+                    .map(|c| to32(c, "output"))
+                    .collect();
+                TransactionType::PrivateTransferSubmit(crate::privacy::PrivateTransferSubmit {
+                    spent_commitments: spent?,
+                    nullifiers: nulls?,
+                    output_commitments: outs?,
+                    authorization_sig: payload.authorization_sig,
+                    public_digest: to32(&payload.public_digest, "digest")?,
+                })
+            }
+            pb::ProtoTransactionType::PrivacyNoteInsert => {
+                let payload = match proto.type_payload {
+                    Some(pb::proto_transaction::TypePayload::PrivacyNoteInsert(p)) => p,
+                    _ => return Err("Missing PrivacyNoteInsert payload".into()),
+                };
+                if payload.commitment.len() != 32 {
+                    return Err("commitment must be 32 bytes".into());
+                }
+                let mut c = [0u8; 32];
+                c.copy_from_slice(&payload.commitment);
+                TransactionType::PrivacyNoteInsert(c)
+            }
+            pb::ProtoTransactionType::AiAttachExecutionProof => {
+                let payload = match proto.type_payload {
+                    Some(pb::proto_transaction::TypePayload::AiAttachExecutionProof(p)) => p,
+                    _ => return Err("Missing AiAttachExecutionProof payload".into()),
+                };
+                fn to32(v: &[u8], what: &str) -> Result<[u8; 32], String> {
+                    if v.len() != 32 {
+                        return Err(format!("{what} must be 32 bytes"));
+                    }
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(v);
+                    Ok(a)
+                }
+                TransactionType::AiAttachExecutionProof {
+                    request_id: crate::ai::types::AiRequestId(to32(&payload.request_id, "rid")?),
+                    proof: crate::ai::types::AiExecutionProof {
+                        model_id: crate::ai::types::AiModelId(to32(&payload.model_id, "mid")?),
+                        input_commitment: to32(&payload.input_commitment, "in")?,
+                        output_commitment: to32(&payload.output_commitment, "out")?,
+                        program_hash: to32(&payload.program_hash, "ph")?,
+                        proof_bytes: payload.proof_bytes,
+                        steps: payload.steps,
+                        gas_used: payload.gas_used,
+                    },
+                }
             }
             _ => return Err("Unsupported transaction type in proto".into()),
         };
@@ -1725,6 +1845,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             }),
             TransactionType::AiInferenceRequest(crate::ai::types::AiInferenceRequest {
                 request_id: crate::ai::types::AiRequestId([3u8; 32]),

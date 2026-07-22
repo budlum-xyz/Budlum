@@ -3,9 +3,15 @@
 //! Provides deterministic model registration, request/result attestation tracking,
 //! and threshold consensus finalization (`AiVerifier`).
 
+pub mod execution;
 pub mod registry;
 pub mod types;
 
+pub use execution::{
+    build_fixed_point_mlp_guest, program_hash_from_words, verify_execution_proof_structural,
+    AiExecutionModelClass, ExecutionVerifyReport, FixedPointMlpSpec, DEFAULT_EXECUTION_CLASS,
+    MLP_GUEST_VERSION,
+};
 pub use registry::AiRegistry;
 pub use types::{
     AiAgentPayment, AiAgentPaymentSettlement, AiAgentReputation, AiCallbackEvent,
@@ -41,6 +47,9 @@ mod tests {
             result_deadline_blocks: 50,
             version: 1,
             active: true,
+            require_execution_proof: false,
+            execution_program_hash: None,
+            execution_class: 0,
         };
 
         assert!(registry.register_model(spec.clone()).is_ok());
@@ -67,6 +76,9 @@ mod tests {
             result_deadline_blocks: 50,
             version: 1,
             active: true,
+            require_execution_proof: false,
+            execution_program_hash: None,
+            execution_class: 0,
         };
         registry.register_model(spec).unwrap();
 
@@ -146,6 +158,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -248,6 +263,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -295,6 +313,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -360,6 +381,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -426,6 +450,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -505,6 +532,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -584,6 +614,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -628,6 +661,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -699,6 +735,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -747,6 +786,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -832,6 +874,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -884,6 +929,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -947,6 +995,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -993,6 +1044,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1042,6 +1096,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1070,6 +1127,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1117,6 +1177,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1198,6 +1261,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1277,6 +1343,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1321,6 +1390,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1352,6 +1424,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1388,6 +1463,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1436,6 +1514,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1479,6 +1560,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1574,6 +1658,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1590,6 +1677,9 @@ mod tests {
             result_deadline_blocks: 50,
             version: 1,
             active: true,
+            require_execution_proof: false,
+            execution_program_hash: None,
+            execution_class: 0,
         });
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("already registered"));
@@ -1616,6 +1706,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1645,6 +1738,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
 
@@ -1678,6 +1774,9 @@ mod tests {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
         (registry, model_id, owner)

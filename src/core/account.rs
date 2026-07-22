@@ -110,6 +110,8 @@ pub struct AccountState {
     pub hub: crate::hub::HubRegistry,
     pub storage_registry: StorageRegistry,
     pub ai_registry: crate::ai::registry::AiRegistry,
+    /// D2 parallel note subtree (privacy transfers).
+    pub note_registry: crate::privacy::L1NoteRegistry,
     pub bridge_state: BridgeState,
     pub message_registry: CrossDomainMessageRegistry,
     pub external_roots: BTreeMap<crate::domain::types::DomainId, crate::domain::types::Hash32>,
@@ -178,6 +180,7 @@ impl AccountState {
             marketplace: crate::pollen::MarketplaceRegistry::new(),
             storage_registry: StorageRegistry::new(),
             ai_registry: crate::ai::registry::AiRegistry::new(),
+            note_registry: crate::privacy::L1NoteRegistry::new(),
             bridge_state: BridgeState::new(),
             message_registry: CrossDomainMessageRegistry::new(),
             hub: crate::hub::HubRegistry::new(),
@@ -215,6 +218,7 @@ impl AccountState {
             governance: GovernanceState::default(),
             storage_registry: StorageRegistry::new(),
             ai_registry: crate::ai::registry::AiRegistry::new(),
+            note_registry: crate::privacy::L1NoteRegistry::new(),
             bridge_state: BridgeState::new(),
             message_registry: CrossDomainMessageRegistry::new(),
             bns_registry: crate::bns::BnsRegistry::new(),
@@ -266,6 +270,7 @@ impl AccountState {
             storage: None,
             storage_registry: StorageRegistry::new(),
             ai_registry: crate::ai::registry::AiRegistry::new(),
+            note_registry: crate::privacy::L1NoteRegistry::new(),
             bridge_state: BridgeState::new(),
             message_registry: CrossDomainMessageRegistry::new(),
             epoch_index: snapshot.height / 100,
@@ -336,6 +341,7 @@ impl AccountState {
             burn_reserve_address,
             storage_registry: snapshot.storage_registry.clone().unwrap_or_default(),
             ai_registry: snapshot.ai_registry.clone().unwrap_or_default(),
+            note_registry: snapshot.note_registry.clone().unwrap_or_default(),
             bridge_state: snapshot.bridge_state.clone().unwrap_or_default(),
             message_registry: snapshot.message_registry.clone().unwrap_or_default(),
             team_vesting,
@@ -1395,6 +1401,10 @@ impl AccountState {
         if !self.ai_registry.is_empty() {
             final_hasher.update(b"ai_v1");
             final_hasher.update(self.ai_registry.state_root());
+        }
+        if !self.note_registry.is_empty() {
+            final_hasher.update(b"note_v1");
+            final_hasher.update(self.note_registry.state_root());
         }
         final_hasher.update(b"pollen_v1");
         final_hasher.update(self.marketplace.root());

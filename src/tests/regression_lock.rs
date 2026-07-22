@@ -289,6 +289,9 @@ mod relayer_escrow_silent_failure_regression {
                 result_deadline_blocks: 50,
                 version: 1,
                 active: true,
+                require_execution_proof: false,
+                execution_program_hash: None,
+                execution_class: 0,
             })
             .unwrap();
         (registry, model_id, owner)

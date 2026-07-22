@@ -1,79 +1,38 @@
-# On-Chain AI Execution Layer — Araştırma İskeleti
+# On-Chain AI Execution Layer — Araştırma + İskelet (v1)
 
-**Durum:** Araştırma / tasarım iskeleti (KALAN_ISLER). Production kod yok.
-**Tarih:** 2026-07-22 · **Hazırlayan:** ARENA2
-**Ayrım:** Mevcut `src/ai/` = **attestation + soft-incentive** (off-chain inference,
-on-chain k-of-n agreement). Bu doküman = modelin **zincirde çalıştırılıp
-STARK ile kanıtlanması** (zkML / BudZKVM guest).
+**Durum:** İskelet kod main'de (`src/ai/execution/`). Production STARK-full path değil.
+**Tarih:** 2026-07-22 · **ARENA2**
+**Paradigma:** `docs/03_paradigma_analizi.md` §5 — Agentic Economy / ZK-VM altyapısı.
 
----
+## Ayrım (kritik)
 
-## 1. Neden ayrı hat
-
-| Katman | Ne yapar | Durum |
+| Katman | Anlam | Kod |
 |---|---|---|
-| Lubot / AiRegistry | Model kayıt, request/result attestation, threshold agreement, escrow | ✅ kod var |
-| VerifyInference opcode (0x1F) | ZKVM proof envelope doğrulama iskeleti | 🔧 stub (her zaman 0) |
-| **On-chain AI execution** | Model weights + input → output, STARK-provable | ❌ araştırma |
+| **Attestation** | k-of-n verifier "çıktı bu" der | `AiRegistry` ✅ |
+| **Execution** | Model+input → output BudZKVM STARK bağları | `src/ai/execution` 🔧 iskelet |
 
-Attestation, "operatör X şu çıktıyı iddia etti, k verifier onayladı" der.
-Execution, "bu çıktı gerçekten bu model+input'tan geldi" kriptografik kanıtıdır.
-İkisi tamamlayıcıdır; attestation mainnet v1 için yeterli olabilir, execution
-değil.
+## v1 iskelet (ship)
 
-## 2. Kısıtlar (2026 pratik)
+1. **Model class whitelist:** `AiExecutionModelClass::FixedPointMlpV1` + limitler (width/layers/params).
+2. **Guest builder:** `build_fixed_point_mlp_guest` → BudZKVM ISA words + `program_hash_from_words`.
+3. **Structural verify:** `verify_execution_proof_structural` (commitment/model/proof_bytes).
+4. **L1 tx:** `TransactionType::AiAttachExecutionProof` → executor attach + program_hash bind.
+5. **AiModelSpec** genişlemesi: `require_execution_proof`, `execution_program_hash`, `execution_class`.
 
-1. **Model sınıfı:** Yalnızca küçük, tamamen belirleyici (bit-exact) modeller —
-   quantize MLP / küçük transformer subset. Büyük LLM zkML hâlâ pratik değil.
-2. **Field:** BudZKVM Goldilocks + Poseidon; float yok → fixed-point / integer
-   nets.
-3. **Gas / trace:** Tek inference trace_len ve gas_limit bütçesine sığmalı;
-   aksi halde recursive proof / continuation gerekir (v2).
-4. **İzolasyon:** NFT / B.U.D. / Pollen state'ine dokunmaz (gizlilik katmanı
-   Bölüm 7 ile aynı izolasyon disiplini).
+## Bilinçli non-goals (v1)
 
-## 3. Önerilen mimari (iskelet)
+- Tam dense MLP step-by-step AIR (gas); guest şu an weights-digest Poseidon bağları.
+- LLM / float nets.
+- MainnetActivation otomatik açma.
 
-```
-AiModelSpec (mevcut)
-  └─ program_hash: BudZKVM guest bytecode hash (weights+graph tied)
-AiExecutionRequest
-  ├─ model_id
-  ├─ input_commitment = Poseidon(input_blob)
-  └─ gas_limit
-AiExecutionProof (mevcut attach_execution_proof yolu)
-  ├─ ProofEnvelope (Plonky3)
-  ├─ public: program_hash, input_commitment, output_commitment, gas
-  └─ VerifyInference opcode (0x1F) mainnet-gated
-```
+## Sonraki
 
-**Guest program:** budl/ veya raw ISA ile yazılmış fixed-point net evaluator.
-**Host:** Lubot operatörü input'u (Pollen grant ile) okur, guest'i çalıştırır,
-proof üretir, `attach_execution_proof` ile zincire koyar.
-**Verifier:** `VerifyInference` + registry agreement.
+1. Guest'te gerçek matmul loop + prove/verify round-trip (`bud-proof`).
+2. `require_execution_proof=true` modellerde result kabulünü proof'a bağla.
+3. VerifyInference opcode (0x1F) AIR ↔ `AiExecutionProof.proof_bytes`.
 
-## 4. Açık sorular (kod yazmadan önce)
+## Paradigma uyumu
 
-1. Hangi model sınıfları v1 whitelist'te? (parametre üst sınırı, op seti)
-2. Weights on-chain mi (commitment only) yoksa B.U.D. content-addressed mı?
-3. VerifyInference AIR: mevcut stub → gerçek ProofEnvelope verify gadget
-   maliyeti kabul edilebilir mi?
-4. Attestation-only mainnet v1, execution v1.1 mi? (öneri: **execution v1.1+**)
-
-## 5. Bilinçli non-goals
-
-- Genel amaçlı LLM'i zincirde çalıştırmak.
-- FHE ile gizli inference (ayrı TEE/FHE hattı; cüzdan TEE opt-in ile kısmen örtüşür).
-- Mevcut attestation API'sini kırmak.
-
-## 6. Sonraki somut adımlar (öncelik sırası)
-
-1. Bounded model-class whitelist RFC (parametre + op subset).
-2. Mini fixed-point MLP budl guest + prove/verify round-trip (bud-proof).
-3. VerifyInference AIR: ProofEnvelope public-input binding (0x1F gate açmadan).
-4. AiRegistry ↔ execution proof zorunluluğu policy flag (opt-in per model).
-
----
-
-*KALAN_ISLER "AI execution layer" maddesi bu iskeletle kapatılmaz — kod yok.
-Araştırma hattı açıldı; production iddiası yok.*
+Settlement Layer AI ajan ödemelerini (`AiAgentPayment`) zaten taşıyor; execution iskeleti
+"ajan çıktısı matematiksel olarak modele bağlı" iddiasının ilk kod köprüsüdür —
+attestation'ı kırmadan, opt-in `require_execution_proof` ile.
