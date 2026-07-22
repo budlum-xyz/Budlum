@@ -217,4 +217,46 @@ mod tests {
         assert_eq!(s.nft_id, 42);
         assert_eq!(s.owner, addr(1));
     }
+    /// E2E: model kaydı + operator bond + lubot transaction build → tx_type doğru.
+    #[test]
+    fn lubot_e2e_model_bond_tx_integration() {
+        use crate::ai::types::AiModelId;
+        use crate::ai::AiRegistry;
+        use crate::core::transaction::TransactionType;
+
+        let mut registry = AiRegistry::new();
+        let owner = Address([1; 32]);
+        let operator = Address([2; 32]);
+        let model_hash = [9u8; 32];
+
+        // Model kaydet.
+        let model_id = super::inference::register_lubot_model(&mut registry, owner, model_hash)
+            .expect("model register");
+
+        // Operator bond.
+        let bond = super::register_operator(&mut registry, &operator, 500).expect("operator bond");
+        assert_eq!(bond, 500);
+        assert!(super::operator_eligible(&registry, &operator));
+
+        // Lubot transaction inşa et.
+        let tx = super::executor::build_lubot_transaction(
+            owner,
+            operator,
+            model_id,
+            b"lubot-e2e-input".to_vec(),
+            10,
+            100,
+            0,
+            1337,
+            1,
+            1000,
+        )
+        .expect("build tx");
+
+        // Transaction type doğru.
+        assert!(
+            matches!(tx.tx_type, TransactionType::AiInferenceRequest(_)),
+            "tx must be AiInferenceRequest"
+        );
+    }
 }
