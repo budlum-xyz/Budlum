@@ -297,3 +297,5 @@ mod tests {
         assert_eq!(word_to_index("lubo"), None);
         assert_eq!(word_to_index("eurymede"), None);
     }
+
+}
