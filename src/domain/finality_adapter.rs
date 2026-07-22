@@ -1035,12 +1035,18 @@ mod tests {
         for confirmations in [79u64, 80] {
             assert!(
                 matches!(
-                    adapter.verify_finality(&domain, &commitment, &FinalityProof::PoW {
-                        confirmations,
-                        total_work_hint: confirmations as u128 * min_work,
-                        declared_head_hash: pow_hash,
-                        declared_cumulative_work: confirmations as u128 * min_work,
-                    }).unwrap(),
+                    adapter
+                        .verify_finality(
+                            &domain,
+                            &commitment,
+                            &FinalityProof::PoW {
+                                confirmations,
+                                total_work_hint: confirmations as u128 * min_work,
+                                declared_head_hash: pow_hash,
+                                declared_cumulative_work: confirmations as u128 * min_work,
+                            }
+                        )
+                        .unwrap(),
                     FinalityStatus::Rejected(_)
                 ),
                 "D3: legacy adapter must reject even valid-looking self-declared proofs"
@@ -1049,15 +1055,20 @@ mod tests {
 
         // Non-PoW proof also returns Ok(Rejected) (no longer Err).
         assert!(matches!(
-            adapter.verify_finality(&domain, &commitment, &FinalityProof::PoA {
-                authorities: vec![],
-                signatures: vec![],
-            }).unwrap(),
+            adapter
+                .verify_finality(
+                    &domain,
+                    &commitment,
+                    &FinalityProof::PoA {
+                        authorities: vec![],
+                        signatures: vec![],
+                    }
+                )
+                .unwrap(),
             FinalityStatus::Rejected(_)
         ));
     }
 
-    
     #[test]
     fn tur12_leading_zero_bits_counts_prefix() {
         assert_eq!(leading_zero_bits(&[0u8; 32]), 256);
