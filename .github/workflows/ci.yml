@@ -293,7 +293,7 @@ jobs:
       - name:  node classification tests
         run: |
           set -euo pipefail
-          cargo test --lib_node 2>&1 | tee /tmp/node-classification-gate.txt
+          cargo test --lib node 2>&1 | tee /tmp/node-classification-gate.txt
           bash ./scripts/check-node-classification-gate.sh /tmp/node-classification-gate.txt
 
   network-hardening-gate:
@@ -318,7 +318,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --lib 2>&1 | tee /tmp/network-hardening-gate.txt
-          cargo test --lib_peer_rate_limit_security_profile 2>&1 | tee -a /tmp/network-hardening-gate.txt
+          cargo test --lib peer_rate_limit_security_profile 2>&1 | tee -a /tmp/network-hardening-gate.txt
           cargo test --lib h5_ 2>&1 | tee -a /tmp/network-hardening-gate.txt
           bash ./scripts/check-network-hardening-gate.sh /tmp/network-hardening-gate.txt
 
@@ -358,7 +358,7 @@ jobs:
       - name:  PoA compliance tests
         run: |
           set -euo pipefail
-          cargo test --lib_poa_compliance 2>&1 | tee /tmp/poa-compliance-gate.txt
+          cargo test --lib poa_compliance 2>&1 | tee /tmp/poa-compliance-gate.txt
           bash ./scripts/check-poa-compliance-gate.sh /tmp/poa-compliance-gate.txt
 
   governance-invariants:
@@ -381,7 +381,7 @@ jobs:
       - name:  governance invariant tests
         run: |
           set -euo pipefail
-          cargo test --lib_governance 2>&1 | tee /tmp/governance-invariants-gate.txt
+          cargo test --lib governance 2>&1 | tee /tmp/governance-invariants-gate.txt
           bash ./scripts/check-governance-invariants.sh /tmp/governance-invariants-gate.txt
 
   wallet-core-gate:
