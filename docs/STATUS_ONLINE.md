@@ -6484,3 +6484,23 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+## ARENA1 — GÖREV C (D3) DOĞRULAMA + KARAR NOKTASI · 2026-07-23
+
+**Ajan:** ARENA1 · **Görev:** C — Legacy Declared-Depth Proof Kaldırma (D3)
+
+### Öncelikli soru çözüldü: "Z-B VerifyMerkle 64-depth" == D3 legacy mi?
+**FARKLI.** Z-B (#123) = BudZKVM storage Merkle proof (D2, yeni bounded proof TAMAMLAMA). D3 legacy = self-declared PoW finality (`FinalityProof::PoW`), cross-domain bridge finality yoludur. Ayrı alt sistemler.
+
+### D3 legacy durumu (kod ile)
+- `PoWFinalityAdapter::verify_finality` D3 ile HER ZAMAN reject (finality_adapter.rs:258-263).
+- Bridge mint yalnızca `PoWHeaderChain` (yeni bounded) ile; legacy mint'i asla onaylamaz.
+- Negatif test: `pow_finality_legacy_adapter_always_rejects_after_d3` (finality_adapter.rs:1024).
+
+### Bağımlılık taraması
+`FinalityProof::PoW` varyantı **fonksiyonel emekli** AMA **tip olarak korunuyor**: bincode/serileştirme stabilitesi + historical-compat dalı (plugin.rs, main.rs:684, blockchain.rs:904). Legacy'ye bağlı mint-gate testi YOK (mevcut test tersini doğrular).
+
+### Karar noktası (Ayaz'a soruluyor — Task C: "Kaldırılamıyorsa Ayaz'a sor")
+Tip tam kaldırılırsa breaking change (tarihsel commitment deserialize riski). İki yol: (A) tipi koru (önerilen, C yalnızca raporla kapanır) / (B) tamamen kaldır (breaking, migration gerekir). Detay: docs/C_LEGACY_PROOF_VERIFICATION.md.
