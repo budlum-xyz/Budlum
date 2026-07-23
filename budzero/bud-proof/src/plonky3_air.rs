@@ -1004,6 +1004,20 @@ impl<AB: PermutationAirBuilder> Air<AB> for BudAir {
             .when(is_syscall.clone())
             .assert_zero(factor_3 * (rd_val_new.clone() - expected_nonce));
 
+        // S6 fix (pre-mortem audit): For syscall with imm not in {1,2,3,6},
+        // rd_val_new must be 0. This prevents a malicious prover from returning
+        // arbitrary values for unknown syscall numbers. imm=1,2,3 are bound to
+        // public inputs above; imm=6 is the AI event syscall (returns a computed
+        // value that is constrained by the trace). Unknown imm values must be 0.
+        let six_val = AB::Expr::from(AB::F::from_u64(6));
+        let unknown_syscall_guard = (imm.clone() - one.clone())
+            * (imm.clone() - two_val.clone())
+            * (imm.clone() - three_val.clone())
+            * (imm.clone() - six_val);
+        builder
+            .when(is_syscall.clone())
+            .assert_zero(unknown_syscall_guard * rd_val_new.clone());
+
         // CPU / Registers / Memory constraints
         let r_val: AB::Expr = cur[COL_REG_VAL].into();
         let r_active: AB::Expr = cur[COL_REG_ACTIVE].into();
