@@ -717,7 +717,7 @@ mod byzantine_settlement_tests {
     async fn test_async_gossip_random_delay_duplicate_drop_convergence() {
         use rand::rngs::StdRng;
         use rand::seq::SliceRandom;
-        use rand::{Rng, SeedableRng};
+        use rand::{Rng, RngExt, SeedableRng};
         let mut rng = StdRng::seed_from_u64(42);
         let node_count = 5;
         let mut nodes: Vec<Blockchain> = (0..node_count).map(|_| make_node()).collect();
@@ -730,10 +730,10 @@ mod byzantine_settlement_tests {
         let commitments = make_non_conflicting_commitments(&nodes[0], &accounts, 500);
         for com in commitments.iter() {
             for node in nodes.iter_mut().take(node_count) {
-                if rng.random_bool(0.20) {
+                if rng.random::<f64>() < 0.20 {
                     continue;
                 }
-                let duplicates = if rng.random_bool(0.30) { 2 } else { 1 };
+                let duplicates = if rng.random::<f64>() < 0.30 { 2 } else { 1 };
                 for _ in 0..duplicates {
                     let _ = node.submit_domain_commitment(com.clone());
                 }
