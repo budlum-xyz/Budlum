@@ -7,8 +7,8 @@ use crate::domain::finality_adapter::{
     PoAFinalityAdapter, PoSFinalityAdapter, PoWHeaderChainFinalityAdapter, ZkFinalityAdapter,
 };
 use crate::domain::types::{
-    ConsensusDomain, ConsensusKind, DomainCommitment, DomainId, DomainStatus, Hash32, PoWDomainParameters,
-    RootScheme,
+    ConsensusDomain, ConsensusKind, DomainCommitment, DomainId, DomainStatus, Hash32,
+    PoWDomainParameters, RootScheme,
 };
 use std::sync::Arc;
 
