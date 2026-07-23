@@ -6273,13 +6273,13 @@ Co-authored-by: ARENA1 <arena1@budlum.ai>
 
 ---
 
-### [2026-07-22 21:20 UTC+03:00] ARENA2 — ONLINE: KALAN_ISLER + gizlilik katmanı (D2 Görev D/F)
+### [2026-07-22 21:20 UTC+03:00] ARENA2 — ONLINE: KALAN_ISLER + gizlilik katmanı (D2  D/F)
 
 **Kim:** ARENA2 (ARENA1 ile STATUS_ONLINE koordinasyonu; ARENA3 devre dışı).
 **Zemin:** main `8f032fd`. Kullanıcı talimatı: `docs/KALAN_ISLER.md` tüm işler + `gizlilik-katmani-zkvm-talimati.md` + cüzdan TEE opt-in planı.
 **Kapsam (sırayla):**
-1. **Gizlilik AIR (D2 Görev D)** — PrivacyCommit/NullifierCheck/SumConservation constraint + selector (reserved_gap 370+) + VM gerçek semantik + prover fill. En kritik yarım iş.
-2. **E2E gizli transfer (D2 Görev F)** — commit → nullifier → sum-conservation (check_constraints + VM round-trip; prove bellek elverirse).
+1. **Gizlilik AIR (D2  D)** — PrivacyCommit/NullifierCheck/SumConservation constraint + selector (reserved_gap 370+) + VM gerçek semantik + prover fill. En kritik yarım iş.
+2. **E2E gizli transfer (D2  F)** — commit → nullifier → sum-conservation (check_constraints + VM round-trip; prove bellek elverirse).
 3. **View-key + TEE cüzdan** — kullanıcı view-key üretimi/ibrazı + mevcut TEE toggle ile birleşik privacy surface.
 4. **Z-B VerifyMerkle 64-depth** — ignored test kök neden analizi + mümkün fix.
 5. **BLS/PQ HSM vendor-native** — mevcut PKCS#11 vendor path sertleştirme + test kanıtı.
@@ -6300,9 +6300,9 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Zemin:** branch `arena2/kalan-isler-gizlilik-air` ← main `8f032fd`
 
 **Kapanan teknik işler:**
-1. **D2 Görev D (AIR)** ✅ — selector 370–372, paylaşılan Poseidon gadget (PrivacyCommit 3-absorb, NullifierCheck DOMAIN_NULLIFIER, SumConservation equality). VM gerçek semantik + gas=10.
-2. **D2 Görev F (E2E)** ✅ — `d2_proves_private_transfer_e2e` + 4 tekil prove testi yeşil (~2–10s, OOM yok).
-3. **D2 Görev E genişletme** ✅ — `note_privacy_enabled` + `ViewKeyDisclosure` (kullanıcı üretir/ibraz) + wallet gate script.
+1. **D2  D (AIR)** ✅ — selector 370–372, paylaşılan Poseidon gadget (PrivacyCommit 3-absorb, NullifierCheck DOMAIN_NULLIFIER, SumConservation equality). VM gerçek semantik + gas=10.
+2. **D2  F (E2E)** ✅ — `d2_proves_private_transfer_e2e` + 4 tekil prove testi yeşil (~2–10s, OOM yok).
+3. **D2  E genişletme** ✅ — `note_privacy_enabled` + `ViewKeyDisclosure` (kullanıcı üretir/ibraz) + wallet gate script.
 4. **Z-B 64-depth** ✅ teyit — `proves_verify_merkle_valid_64_depth` zaten yeşil (ignore yok); docs/KALAN_ISLER + budzero README güncellendi. Mainnet kapısı `MainnetActivation` default off kalır.
 5. **HSM vendor-native** 🔧 kısmi — `Pkcs11VendorCapabilities` + `validate_vendor_mechanism_id` (CKM_VENDOR_DEFINED altı fail-closed). Gerçek non-extractable keygen donanım/audit ister.
 6. **AI execution** 📋 araştırma iskeleti — `docs/AI_ONCHAIN_EXECUTION_RESEARCH.md` (kod iddiası yok).

@@ -200,7 +200,7 @@ pub fn mnemonic_to_entropy(mnemonic: &str) -> Result<Vec<u8>, WalletError> {
     Ok(entropy)
 }
 
-/// Guardian-based social recovery policy (Task 11.14).
+).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SocialRecoveryPolicy {
     pub guardians: Vec<[u8; 32]>,
@@ -406,7 +406,7 @@ pub struct Wallet {
 /// `core::address::Address` deseni ile uyumlu.
 pub type BudlumAddress = [u8; 32];
 
-/// D2 (2026-07-22) Görev E — cüzdan içi gizlilik yüzeyi.
+/// D2 (2026-07-22)  E — cüzdan içi gizlilik yüzeyi.
 ///
 /// İki bağımsız opt-in katmanı (kullanıcı planı + MAINNET_KARARLAR D2):
 /// 1. **Note privacy (ağ seçeneği):** gizli transfer opcode ailesi
@@ -589,7 +589,7 @@ fn derive_view_key_rotated(seed: &[u8; 32], rotation_counter: u64) -> [u8; 32] {
     vk
 }
 
-/// Task 11.14 mobile/browser binding ABI marker.
+ mobile/browser binding ABI marker.
 pub const WALLET_BINDING_STUB_VERSION: &str = "task11.14-binding-stub-v1";
 
 /// Binding capability descriptor shared by mobile (UniFFI) and browser (WASM) stubs.
@@ -641,7 +641,7 @@ pub mod wasm_bindings {
     }
 }
 
-/// M-of-N multisig policy (Task 11.14).
+).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MultisigPolicy {
     pub owners: Vec<[u8; 32]>,
@@ -1655,7 +1655,7 @@ mod tests {
         .is_err());
     }
 
-    // ===== D2 Görev E — WalletPrivacyConfig (Bölüm 10 #5 + view-key) =====
+    // ===== D2  E — WalletPrivacyConfig (Bölüm 10 #5 + view-key) =====
 
     #[test]
     fn d2_privacy_config_defaults_off() {
