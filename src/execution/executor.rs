@@ -101,6 +101,21 @@ impl Executor {
                     v.active = true;
                 } else {
                     state.add_validator(tx.from, stake_amount);
+                    // C3 fix (pre-mortem audit): warn when new validator
+                    // is created without consensus keys. Mainnet requires
+                    // VRF + BLS keys for finality; without them the validator
+                    // cannot sign finality certificates → liveness failure.
+                    if let Some(v) = state.get_validator(&tx.from) {
+                        let missing = v.missing_consensus_keys();
+                        if !missing.is_empty() {
+                            tracing::warn!(
+                                validator = %tx.from,
+                                missing_keys = ?missing,
+                                "C3: new validator registered without consensus keys — \
+                                 finality will be unavailable until keys are set"
+                            );
+                        }
+                    }
                 }
                 state.sync_validator_registration(&tx.from);
             }

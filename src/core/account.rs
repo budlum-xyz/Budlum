@@ -84,6 +84,32 @@ impl Validator {
             pq_public_key: Vec::new(),
         }
     }
+
+    /// C3 fix (pre-mortem audit): Check if this validator has the minimum
+    /// consensus keys required for mainnet block production and finality.
+    /// Without VRF + BLS keys, a validator can produce blocks but cannot
+    /// sign finality certificates → liveness failure.
+    pub fn has_consensus_keys(&self) -> bool {
+        !self.vrf_public_key.is_empty() && !self.bls_public_key.is_empty()
+    }
+
+    /// C3 fix: Full readiness check — VRF + BLS + PoP signature.
+    /// Mainnet validators MUST pass this check before participating in
+    /// consensus. Returns list of missing key types.
+    pub fn missing_consensus_keys(&self) -> Vec<&'static str> {
+        let mut missing = Vec::new();
+        if self.vrf_public_key.is_empty() {
+            missing.push("vrf_public_key");
+        }
+        if self.bls_public_key.is_empty() {
+            missing.push("bls_public_key");
+        }
+        if self.pop_signature.is_empty() {
+            missing.push("pop_signature");
+        }
+        missing
+    }
+
     pub fn effective_stake(&self) -> u64 {
         if self.slashed || self.jailed {
             0
