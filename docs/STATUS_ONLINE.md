@@ -6434,3 +6434,53 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Sertleştirme:** deterministic manifest ID alan-bağlama testleri, stabil snake_case serde, round-trip serialization ve zero-value fail-closed validation.
 **Kapsam dışı:** consensus, RPC, bridge, reward ve admin/whitelist kapısı yok.
 **Budlumdevnet:** dokunulmadı.
+
+---
+
+### [2026-07-23 08:30 UTC+03:00] ARENA2 — ONLINE: CI fix + AI Execution Layer hardening
+
+**Kim:** ARENA2 (ARENA1 ile STATUS_ONLINE koordinasyonu).
+**Zemin:** main `05132b6`. Kullanıcı talimatı: CI yeşil + AI Execution Layer.
+
+**Commit 1: `cd9af6c` — CI fix (Determinism kırmızısı)**
+- `src/tests/privacy_ai_execution.rs:141` — `build_fixed_point_mlp_guest(&spec)` 
+  1 argümanla çağrılıyordu ama fonksiyon 2 argüman istiyor (spec + input_commit).
+  Fix: `input_commitment(&[1, 2])` eklendi.
+- Determinism workflow tüm platformlarda (ubuntu/macos/windows) kırmızıydı.
+- Main CI (cargo test --lib) yeşildi; Determinism (cargo test --tests) kırıyordu.
+
+**Commit 2: `05132b6` — VerifyInference AIR binding + VM expansion fix**
+
+**AI Execution Layer 3 madde analizi:**
+
+| Madde | Durum | Açıklama |
+|---|---|---|
+| Dense matmul host'ta bit-exact | ✅ Zaten uygulanmış | `eval_fixed_point_mlp` host'ta i32 MAC; guest sadece commitment bind |
+| VerifyInference AIR'a bağlı değil | ✅ **Bu commit'le kapatıldı** | 5 yeni AIR column + constraint + prover mapping + soundness test |
+| LLM / float yok | 📋 Bilinçli mainnet v1 sınırı | `AI_ONCHAIN_EXECUTION_RESEARCH.md` araştırma dokümanı mevcut |
+
+**VerifyInference AIR binding detay:**
+- 5 yeni column: `COL_IS_VERIFY_INFERENCE` (373), `COL_INFERENCE_IS_EXPAND` (374),
+  `COL_INFERENCE_MODEL_COMMIT` (375), `COL_INFERENCE_INPUT_COMMIT` (376),
+  `COL_INFERENCE_OUTPUT_COMMIT` (377)
+- AIR constraints: selector booleanity, opcode binding (0x1F),
+  rd_val_new = 0 (V110 fail-closed), expansion row commitment consistency
+- VM fix: VerifyInference expansion rows now follow VerifyMerkle next_pc pattern
+  (original→cur_pc, rows 0-6→cur_pc, row 7→cur_pc+1)
+- Prover: opcode 0x1F mapping, expansion column population, gas accounting
+- Soundness test: `rejects_verify_inference_row_with_zero_selector` (61/61 ✅)
+- Trace layout: reserved gap 373..378 consumed; layout test updated
+
+**Lokal doğrulama:**
+- `cargo check --lib` ✅
+- `cargo fmt --all --check` ✅
+- `cargo clippy -p bud-vm -p bud-proof -- -D warnings` ✅
+- bud-vm 16/16 tests ✅
+- bud-proof 61/61 tests ✅ (including new soundness test)
+- Sandbox OOM on `--tests` link (CI hakem)
+
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** CI SLEEP (BudZero + Budlum Core + Determinism).
+**Kim karar verecek:** CI otomatik.
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
