@@ -60,7 +60,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 ENV RUST_LOG=info
 
 ENTRYPOINT ["budlum-core"]
-# Güvenlik Planı §2: varsayılan MAINNET yerine DEVNET — yanlışlıkla üretim
-# moduna girme riskini azaltır. Mainnet için açık `--network mainnet` bayrağı
-# gerekir (smoke script'leri zaten explicit geçiyor: scripts/docker-smoke-mainnet.sh).
+# Default: devnet (safety — mainnet requires explicit --network mainnet flag).
+# See docs/budlum-ci-guvenlik-plani.md §2 (Dockerfile default mode).
 CMD ["--network", "devnet", "--port", "4001"]
