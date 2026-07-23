@@ -1057,6 +1057,21 @@ impl AccountState {
         self.dirty_accounts.insert(*public_key);
     }
 
+    /// E1 fix (pre-mortem audit): checked balance addition that returns
+    /// an error on overflow instead of silently capping at u64::MAX.
+    /// Use this in critical paths (bridge mint, transfer credit).
+    pub fn try_add_balance(&mut self, public_key: &Address, amount: u64) -> Result<(), String> {
+        let account = self.get_or_create(public_key);
+        account.balance = account.balance.checked_add(amount).ok_or_else(|| {
+            format!(
+                "balance overflow: {} + {} > u64::MAX",
+                account.balance, amount
+            )
+        })?;
+        self.dirty_accounts.insert(*public_key);
+        Ok(())
+    }
+
     /// Amount of `address`'s balance that is currently spendable, taking team
     /// vesting into account. For a non-vesting account this is the full balance.
     /// For the configured team account, the balance may not be spent below the

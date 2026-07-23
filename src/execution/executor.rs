@@ -74,11 +74,19 @@ impl Executor {
                     ));
                 }
                 let sender = state.get_or_create(&tx.from);
+                // E1 fix (pre-mortem audit): checked arithmetic for critical
+                // balance paths. Sender sub is safe (balance check above),
+                // but receiver add must not silently cap at u64::MAX.
                 sender.balance = sender.balance.saturating_sub(total_cost);
                 sender.nonce = sender.nonce.saturating_add(1);
 
                 let receiver = state.get_or_create(&tx.to);
-                receiver.balance = receiver.balance.saturating_add(tx.amount);
+                receiver.balance = receiver.balance.checked_add(tx.amount).ok_or_else(|| {
+                    BudlumError::validation(
+                        "balance_overflow",
+                        "Receiver balance overflow: transfer would exceed u64::MAX",
+                    )
+                })?;
             }
             TransactionType::Stake => {
                 let sender = state.get_or_create(&tx.from);
@@ -575,13 +583,20 @@ impl Executor {
                                         "Bridge fee exceeds maximum representable balance",
                                     ));
                                 }
-                                state.add_balance(&transfer.recipient, final_amount as u64);
+                                // E1 fix: use checked addition for bridge credits
+                                state
+                                    .try_add_balance(&transfer.recipient, final_amount as u64)
+                                    .map_err(|e| {
+                                        BudlumError::validation("bridge_mint_overflow", &e)
+                                    })?;
                                 // V134 fix (ARENAS): Credit relayer fee to tx.from (the
                                 // relayer who submitted the proof). Previously the fee was
                                 // silently dropped — BUD lost to the void. The submit_relay_proof
                                 // path correctly credits the relayer; this path should too.
                                 if fee > 0 {
-                                    state.add_balance(&tx.from, fee as u64);
+                                    state.try_add_balance(&tx.from, fee as u64).map_err(|e| {
+                                        BudlumError::validation("bridge_fee_overflow", &e)
+                                    })?;
                                 }
                             }
                             crate::cross_domain::message::MessageKind::BridgeBurn => {
