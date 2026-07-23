@@ -138,13 +138,23 @@ pub fn pop_signing_message(chain_id: u64, address: &Address, bls_pk: &[u8]) -> V
 }
 
 pub fn hash_to_g1(msg: &[u8]) -> G1Affine {
-    let mut hasher = Sha3_256::new();
-    hasher.update(b"BUDLUM_BLS_SIG_DST");
-    hasher.update(msg);
-    let h = hasher.finalize();
+    // C1 fix (pre-mortem audit): Use two independent SHA3-256 hashes
+    // to fill the full 64-byte wide scalar input uniformly. Previously
+    // only 32 bytes were filled (upper 32 always zero), causing
+    // non-uniform G1 point distribution and weakened BLS signatures.
+    let mut hasher_lo = Sha3_256::new();
+    hasher_lo.update(b"BUDLUM_BLS_SIG_DST_LO");
+    hasher_lo.update(msg);
+    let h_lo = hasher_lo.finalize();
+
+    let mut hasher_hi = Sha3_256::new();
+    hasher_hi.update(b"BUDLUM_BLS_SIG_DST_HI");
+    hasher_hi.update(msg);
+    let h_hi = hasher_hi.finalize();
 
     let mut scalar_bytes = [0u8; 64];
-    scalar_bytes[0..32].copy_from_slice(&h);
+    scalar_bytes[0..32].copy_from_slice(&h_lo);
+    scalar_bytes[32..64].copy_from_slice(&h_hi);
     let s = Scalar::from_bytes_wide(&scalar_bytes);
     G1Affine::from(G1Projective::generator() * s)
 }

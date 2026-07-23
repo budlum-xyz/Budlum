@@ -100,20 +100,28 @@ impl Executor {
                     v.stake = v.stake.saturating_add(stake_amount);
                     v.active = true;
                 } else {
+                    // C3 enforcement (pre-mortem audit): New validators MUST
+                    // have consensus keys (VRF + BLS) before staking.
+                    // Without keys, the validator cannot sign finality
+                    // certificates → network liveness failure.
+                    //
+                    // Keys must be pre-configured in genesis or set via
+                    // governance before the first Stake transaction.
                     state.add_validator(tx.from, stake_amount);
-                    // C3 fix (pre-mortem audit): warn when new validator
-                    // is created without consensus keys. Mainnet requires
-                    // VRF + BLS keys for finality; without them the validator
-                    // cannot sign finality certificates → liveness failure.
                     if let Some(v) = state.get_validator(&tx.from) {
-                        let missing = v.missing_consensus_keys();
-                        if !missing.is_empty() {
-                            tracing::warn!(
-                                validator = %tx.from,
-                                missing_keys = ?missing,
-                                "C3: new validator registered without consensus keys — \
-                                 finality will be unavailable until keys are set"
-                            );
+                        if !v.has_consensus_keys() {
+                            // Remove the keyless validator to prevent them
+                            // from entering the active set.
+                            state.validators.remove(&tx.from);
+                            state.sync_validator_registration(&tx.from);
+                            // Refund the stake
+                            let sender = state.get_or_create(&tx.from);
+                            sender.balance = sender.balance.saturating_add(stake_amount);
+                            return Err(BudlumError::validation(
+                                "validator_missing_consensus_keys",
+                                "New validators must have VRF + BLS keys set before staking. \
+                                 Set keys via genesis config or governance before staking.",
+                            ));
                         }
                     }
                 }

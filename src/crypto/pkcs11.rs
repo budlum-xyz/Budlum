@@ -289,10 +289,19 @@ impl Pkcs11Signer {
         label: &str,
         value: &[u8],
     ) -> Result<(), CryptoError> {
+        // H1 fix (pre-mortem audit): Mark BLS/PQ data objects as
+        // non-extractable and sensitive. This prevents the HSM from
+        // revealing key material via C_GetAttributeValue.
+        // Note: extract_data_object() at startup reads these values for
+        // software fallback — this is a known trade-off. For full
+        // non-extractable mode, the startup extraction must be removed
+        // and all signing must go through HSM-native operations.
         let template = &[
             cryptoki::object::Attribute::Class(cryptoki::object::ObjectClass::DATA),
             cryptoki::object::Attribute::Token(true),
             cryptoki::object::Attribute::Private(true),
+            cryptoki::object::Attribute::Sensitive(true),
+            cryptoki::object::Attribute::Extractable(false),
             cryptoki::object::Attribute::Label(label.into()),
             cryptoki::object::Attribute::Value(value.to_vec()),
         ];
