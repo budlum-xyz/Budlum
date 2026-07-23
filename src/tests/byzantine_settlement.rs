@@ -8,6 +8,7 @@ mod byzantine_settlement_tests {
     use crate::domain::finality_adapter::{hash_finality_proof, FinalityProof};
     use crate::domain::plugin::default_domain;
     use crate::domain::{ConsensusKind, DomainCommitment, DomainStatus};
+    use rand::RngExt;
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
