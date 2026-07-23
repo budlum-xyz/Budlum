@@ -177,3 +177,26 @@ jobs:
 ---
 
 Bu denetimlerin tamamı, hatayı üretim öncesi yakalama olasılığını artırır ama kendi belgelerinizde de belirttiğiniz gibi bağımsız, profesyonel bir harici denetimin yerini tutmaz — onu tamamlayan bir katman olarak düşünülmeli.
+
+---
+
+## 6. Uygulama Durumu (ARENA1, 2026-07-23)
+
+Mevcut CI zaten şunları karşılıyor (gerçek `.github/workflows/` okunarak doğrulandı): `cargo fmt` / `cargo clippy -D warnings` (ci.yml), `dependency-review-action` (dependency-review.yml), Trivy image taraması (docker-smoke.yml), Miri (miri.yml), udeps + cargo-geiger (supply-chain-extra.yml), genesis determinizm (determinism.yml), semver (semver.yml), nightly fuzz (fuzz-nightly.yml). Action'lar zaten tam SHA'ya pinli (`actions/checkout@9c091bb…`, `dtolnay/rust-toolchain@2c7215f…`). Bu yüzden planın "zaten var" tespiti doğruydu — eksik olan "Hemen" maddeleri tamamlandı.
+
+**Yeni eklenenler (`security-audit.yml` + Dockerfile + CODEOWNERS):**
+- **actionlint** (workflow YAML lint) — PR gate adayı
+- **zizmor** (GitHub Actions statik analiz) — bilgilendirici + SARIF
+- **CodeQL for Rust** (SAST) — PR gate adayı
+- **gitleaks** (secret scanning) — mevcut `.gitleaks.toml` ile
+- **MSRV job** (1.94.0, `cargo check --locked`)
+- **cargo-hack** özellik matrisi (bilgilendirici, `continue-on-error`)
+- **Hadolint** (Dockerfile lint)
+- **Çapraz mimari determinizm** (x86_64 + arm64, `genesis_hash_deterministic`)
+- **OpenSSF Scorecard** (haftalık, bilgilendirici)
+- **Dockerfile:** `HEALTHCHECK` eklendi; varsayılan `CMD` **mainnet → devnet** (Güvenlik Planı §2 — yanlışlıkla üretim moduna girme riski)
+- **CODEOWNERS:** `src/execution/` + `src/chain/` kritik yollara eklendi (SECURITY.md duyarlı-yol listesiyle uyum)
+
+**Henüz dosya ile yapılamayanlar (repo-admin / harici hizmet — planın Orta vade / İleri seviye aşaması):** branch protection (imzalı commit, ≥2 onay, force-push yasağı, eski onay düşmesi), tag koruması, private vulnerability reporting açma, cosign + SLSA build provenance, ClusterFuzzLite / OSS-Fuzz, Kani, cargo-mutants, CodeQL advanced setup, SBOM imzalama, org-wide 2FA zorunluluğu. Bunlar GitHub repo ayarlarından / harici servislerden yapılandırılır; bu PR kapsamı dışında bırakıldı.
+
+**Not:** Yeni action'lar sürüm etiketiyle (tag) bağlandı; üretimde Güvenlik Planı §3.1 gereği tam commit SHA'sına pinlenmelidir.
