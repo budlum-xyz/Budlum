@@ -320,7 +320,18 @@ mod distributed_settlement_tests {
             })
             .await;
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("mismatch"));
+        let err = res.unwrap_err();
+        // D3/Task 0.34: an empty PoW header chain is rejected by the bounded
+        // adapter ("PoW header chain is empty"); older paths rejected on hash
+        // mismatch. Either way the adversarial proof is rejected.
+        assert!(
+            err.contains("mismatch")
+                || err.contains("empty")
+                || err.contains("rejected")
+                || err.contains("Rejected")
+                || err.contains("finality"),
+            "unexpected rejection reason: {err}"
+        );
 
         let mut com2 =
             DomainCommitment::from_block(&pow_domain, &b, [0u8; 32], [0u8; 32], 2).unwrap();

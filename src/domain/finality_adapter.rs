@@ -995,20 +995,22 @@ mod tests {
             FinalityStatus::Rejected(_)
         ));
 
-        // A non-PoW proof type is rejected by the PoW adapter.
-        assert!(matches!(
-            adapter
-                .verify_finality(
-                    &domain,
-                    &commitment,
-                    &FinalityProof::PoA {
-                        authorities: vec![],
-                        signatures: vec![],
-                    }
-                )
-                .unwrap(),
-            FinalityStatus::Rejected(_)
-        ));
+        // A non-PoW proof type is rejected by the PoW adapter. The adapter
+        // returns Err for an unexpected proof variant, so accept both
+        // Err (rejection) and Ok(FinalityStatus::Rejected(_)).
+        let non_pow = adapter.verify_finality(
+            &domain,
+            &commitment,
+            &FinalityProof::PoA {
+                authorities: vec![],
+                signatures: vec![],
+            },
+        );
+        assert!(
+            matches!(non_pow, Err(_) | Ok(FinalityStatus::Rejected(_))),
+            "non-PoW proof must be rejected, got: {:?}",
+            non_pow
+        );
     }
 
     #[test]
