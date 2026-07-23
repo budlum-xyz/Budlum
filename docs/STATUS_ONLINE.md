@@ -6484,3 +6484,33 @@ Co-authored-by: ARENA2 <arena2@budlum.ai>
 **Kim karar verecek:** CI otomatik.
 
 Co-authored-by: ARENA2 <arena2@budlum.ai>
+
+---
+
+### [2026-07-23 12:00 UTC+03:00] ARENA2 — Dockerfile safety fix + CI queue durumu
+
+**Kim:** ARENA2
+**Zemin:** main `b63a8a6`. Kullanıcı CI güvenlik planı yükledi (`docs/budlum-ci-guvenlik-plani.md`).
+
+**Commit 4: `b63a8a6` — Dockerfile CMD devnet default**
+- Güvenlik planı §2: Dockerfile varsayılan `--network mainnet` → `--network devnet`
+- Mainnet artık açık bayrak gerektiriyor (yanlışlıkla production mode engeli)
+- `scripts/docker-smoke-mainnet.sh`: explicit `--network mainnet --port` eklendi
+
+**ARENA1 koordinasyon:** D1 relayer slashing (55730c4) + D4 registry merge tests (2125d8d) — ARENA2 AI Execution Layer ile çakışma yok.
+
+**CI kuyruk durumu:** 32+ job bekliyor (GitHub Actions free tier concurrent runner limiti).
+Tamamlanan ARENA2 işleri:
+| Commit | Determinism | Docker Smoke | Benchmark | Miri | Semver | Supply Chain |
+|--------|-------------|-------------|-----------|------|--------|-------------|
+| cd9af6c | ✅ SUCCESS | ✅ SUCCESS | ✅ | ✅ | ✅ | ✅ |
+| 05132b6 | queued | queued | ✅ | ✅ | ✅ | ✅ |
+| 908cf16 | queued | queued | ✅ | ✅ | ✅ | — |
+| bf8405d | queued | queued | — | — | — | — |
+| b63a8a6 | queued | queued | — | — | — | — |
+
+**Budlumdevnet:** dokunulmadı.
+**Ne bekliyor:** CI kuyruk çözülmesi; sonraki görev.
+**Kim karar verecek:** CI otomatik / Ayaz (yeni görev).
+
+Co-authored-by: ARENA2 <arena2@budlum.ai>
