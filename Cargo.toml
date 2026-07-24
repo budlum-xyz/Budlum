@@ -119,3 +119,7 @@ name = "domain_throughput"
 path = "benches/domain_throughput.rs"
 required-features = ["__bench_domain_throughput_disabled"]
 harness = false
+
+[profile.release]
+overflow-checks = true
+panic = "abort"
